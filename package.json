@@ -1,0 +1,15 @@
+{
+  "name": "ventas-ia-mayorista",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:api": "pnpm --filter @ventas/api dev",
+    "typecheck": "pnpm -r typecheck",
+    "doctor": "bash scripts/doctor.sh"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "tsx": "^4.21.0"
+  }
+}
