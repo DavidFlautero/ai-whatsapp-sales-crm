@@ -16,11 +16,13 @@ const schema = z.object({
 
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  GROQ_API_KEY: z.string().optional(),
 
   WHATSAPP_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
   WHATSAPP_VERIFY_TOKEN: z.string().default("ventas_ia_verify_token_2026"),
+  WHATSAPP_GRAPH_VERSION: z.string().default("v25.0"),
 
   NINOX_API_KEY: z.string().optional(),
   NINOX_BASE_URL: z.string().optional(),
