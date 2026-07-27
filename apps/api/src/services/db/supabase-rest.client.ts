@@ -1,0 +1,40 @@
+import { env } from "../../config/env.js";
+
+export function isSupabaseConfigured() {
+  return Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
+export async function supabaseRequest<T>(input: {
+  table: string;
+  method?: "GET" | "POST" | "PATCH";
+  query?: string;
+  body?: unknown;
+  prefer?: string;
+}): Promise<T> {
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("Supabase is not configured");
+  }
+
+  const url = `${env.SUPABASE_URL}/rest/v1/${input.table}${input.query ?? ""}`;
+
+  const res = await fetch(url, {
+    method: input.method ?? "GET",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: input.prefer ?? "return=representation"
+    },
+    body: input.body ? JSON.stringify(input.body) : undefined
+  });
+
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!res.ok) {
+    console.error("[SUPABASE ERROR]", data);
+    throw new Error("Supabase request failed");
+  }
+
+  return data as T;
+}
