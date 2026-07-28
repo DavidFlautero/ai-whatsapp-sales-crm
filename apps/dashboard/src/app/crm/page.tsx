@@ -18,7 +18,7 @@ export default async function CRMPage() {
         kicker="CUSTOMER RELATIONSHIP MANAGEMENT"
         title="CRM Comercial"
         description="Contactos, temperatura comercial, estado de lead y último mensaje recibido."
-        action={<a className="btn" href="http://localhost:4000/admin/reports/contacts.csv">Exportar CSV</a>}
+        action={<a className="btn" href="/api/admin/reports/contacts.csv">Exportar CSV</a>}
       />
 
       <section className="section card panel">
