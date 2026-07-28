@@ -60,7 +60,7 @@ export function ConnectionsPanel({ initialStatus }: { initialStatus: SystemStatu
     setError(null);
 
     try {
-      const response = await fetch("/api/integrations/status", {
+      const response = await fetch("/api/admin/status", {
         cache: "no-store"
       });
 
