@@ -1,0 +1,359 @@
+.page {
+  --surface: #11161d;
+  --surface-soft: #171d25;
+  --surface-deep: #0c1117;
+  --border: #2a323d;
+  --border-soft: #222a34;
+  --text: #f2efe8;
+  --muted: #9ba4ae;
+  --accent: #c5a66a;
+  --accent-soft: rgba(197, 166, 106, 0.12);
+  --success: #6fa58d;
+  color: var(--text);
+}
+
+.page :global(.kicker) {
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 0.19em;
+}
+
+.page :global(h1) {
+  max-width: 900px;
+  font-size: clamp(34px, 3.8vw, 52px);
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+  font-weight: 760;
+}
+
+.page :global(.subtitle) {
+  max-width: 840px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 30px;
+}
+
+.summaryCard,
+.sectionCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+}
+
+.summaryCard {
+  min-height: 138px;
+  padding: 20px;
+  border-radius: 16px;
+}
+
+.summaryLabel,
+.eyebrow,
+.tableHead {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.summaryValue {
+  margin-top: 18px;
+  color: var(--text);
+  font-size: 19px;
+  font-weight: 720;
+  letter-spacing: -0.02em;
+}
+
+.summaryMeta {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.sectionCard {
+  margin-top: 18px;
+  padding: 26px;
+  border-radius: 18px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.sectionTitle {
+  margin: 6px 0 0;
+  font-size: 22px;
+  font-weight: 730;
+  letter-spacing: -0.025em;
+}
+
+.sectionDescription {
+  max-width: 720px;
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.statusBadge,
+.categoryBadge,
+.codeBadge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.statusBadge {
+  gap: 8px;
+  padding: 7px 10px;
+  color: #b7d3c4;
+  background: rgba(71, 112, 91, 0.18);
+  border: 1px solid rgba(111, 165, 141, 0.28);
+}
+
+.statusBadge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.profileText {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
+  gap: 28px;
+}
+
+.profileCopy {
+  color: #c8ced5;
+  font-size: 15px;
+  line-height: 1.78;
+}
+
+.profileCopy strong {
+  color: var(--text);
+}
+
+.principles {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 14px;
+  background: var(--surface-deep);
+  border: 1px solid var(--border-soft);
+}
+
+.principle {
+  display: flex;
+  gap: 11px;
+  color: #c7ced6;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.principle::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+}
+
+.agentTable {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+}
+
+.agentTable th {
+  padding: 13px 16px;
+  text-align: left;
+  background: var(--surface-deep);
+  border-bottom: 1px solid var(--border);
+}
+
+.agentTable td {
+  padding: 16px;
+  color: #c8ced5;
+  font-size: 13px;
+  line-height: 1.55;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.agentTable tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.agentName {
+  display: grid;
+  gap: 7px;
+  color: var(--text);
+  font-weight: 720;
+}
+
+.categoryBadge {
+  padding: 5px 8px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid rgba(197, 166, 106, 0.22);
+}
+
+.codeBadge {
+  padding: 5px 8px;
+  color: #aeb6bf;
+  background: #0a0f15;
+  border: 1px solid var(--border-soft);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+}
+
+.bottomGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.configList,
+.outcomeList {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.configRow {
+  display: grid;
+  grid-template-columns: 170px 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.configRow:last-child {
+  border-bottom: 0;
+}
+
+.configKey {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.configValue {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 680;
+}
+
+.configState {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.linkButton {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 42px;
+  margin-top: 20px;
+  padding: 0 16px;
+  border-radius: 10px;
+  color: #17130c;
+  background: var(--accent);
+  font-size: 13px;
+  font-weight: 800;
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.linkButton:hover {
+  transform: translateY(-1px);
+  background: #d2b579;
+}
+
+.outcomeItem {
+  display: flex;
+  gap: 12px;
+  padding: 13px 0;
+  color: #cbd1d8;
+  font-size: 14px;
+  line-height: 1.5;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.outcomeItem:last-child {
+  border-bottom: 0;
+}
+
+.outcomeNumber {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.note {
+  margin-top: 18px;
+  padding: 14px 16px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  background: var(--surface-deep);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+}
+
+@media (max-width: 1180px) {
+  .summaryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profileText,
+  .bottomGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .sectionCard {
+    padding: 20px;
+  }
+
+  .sectionHeader {
+    flex-direction: column;
+  }
+
+  .configRow {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}
