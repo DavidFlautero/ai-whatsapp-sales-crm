@@ -1,138 +1,233 @@
+import Link from "next/link";
 import { AppShell } from "../../components/app-shell/AppShell";
 import { Header } from "../../components/ui/Header";
+import styles from "./Settings.module.css";
 
 const agents = [
   {
     name: "Sales Agent",
+    category: "Ventas",
     location: "services/agent",
-    role: "Atiende clientes por WhatsApp, entiende intención comercial y genera respuestas humanas.",
-    result: "Convierte conversaciones en oportunidades comerciales."
+    role: "Atiende conversaciones, interpreta intención comercial y prepara respuestas con contexto.",
+    result: "Convierte consultas en oportunidades y próximos pasos concretos."
   },
   {
     name: "Memory Agent",
+    category: "Contexto",
     location: "services/memory",
-    role: "Guarda preferencias, productos, objeciones y señales del cliente.",
-    result: "Permite respuestas personalizadas y continuidad comercial."
+    role: "Conserva preferencias, productos consultados, objeciones y señales relevantes del cliente.",
+    result: "Da continuidad comercial sin obligar al cliente a repetir información."
   },
   {
     name: "Recovery Agent",
+    category: "Seguimiento",
     location: "services/recovery",
-    role: "Detecta clientes antiguos o fríos y genera mensajes de recontactación.",
-    result: "Recupera clientes dormidos y oportunidades perdidas."
+    role: "Detecta clientes inactivos y prepara recontactaciones según historial e interés.",
+    result: "Recupera conversaciones dormidas y oportunidades que quedaron abiertas."
   },
   {
     name: "Predictive Agent",
+    category: "Prioridad",
     location: "services/predictive",
-    role: "Calcula probabilidad de compra, valor estimado y riesgo de abandono.",
-    result: "Prioriza los leads con más posibilidad de venta."
+    role: "Estima probabilidad de compra, valor potencial y riesgo de abandono.",
+    result: "Ordena el trabajo comercial según oportunidad y urgencia."
   },
   {
     name: "Semantic Agent",
+    category: "Análisis",
     location: "services/semantic",
-    role: "Detecta urgencia, intención, sensibilidad a precio y tipo de cliente.",
-    result: "Clasifica señales comerciales automáticamente."
+    role: "Identifica urgencia, intención, sensibilidad al precio y tipo de cliente.",
+    result: "Clasifica señales comerciales para orientar la respuesta."
   },
   {
     name: "Catalog Agent",
+    category: "Producto",
     location: "services/catalog",
-    role: "Busca productos, talles, colores, stock y contexto de catálogo.",
-    result: "Respuestas más precisas sobre productos."
+    role: "Consulta productos, variantes, disponibilidad, precio y contexto de catálogo.",
+    result: "Entrega respuestas precisas sobre lo que realmente puede venderse."
   },
   {
     name: "Governance Agent",
+    category: "Control",
     location: "services/governance",
-    role: "Audita respuestas, detecta mensajes débiles o riesgosos.",
-    result: "Control operacional y trazabilidad del comportamiento IA."
+    role: "Audita decisiones, detecta riesgos y registra el comportamiento operativo del sistema.",
+    result: "Aporta trazabilidad y límites claros para la automatización."
   },
   {
     name: "Quality Agent",
+    category: "Calidad",
     location: "services/quality",
-    role: "Evalúa claridad, empatía, persuasión y avance comercial.",
-    result: "Mejora continua de la calidad conversacional."
+    role: "Evalúa claridad, empatía, persuasión y avance comercial de cada conversación.",
+    result: "Permite corregir respuestas débiles y mejorar el desempeño del agente."
   }
+];
+
+const summary = [
+  ["Empresa", "Fulanitas", "Operación comercial principal"],
+  ["Canal", "WhatsApp Cloud API", "Recepción y respuesta de mensajes"],
+  ["Motor", "Claude", "Razonamiento y generación de respuestas"],
+  ["Datos", "Supabase PostgreSQL", "Persistencia pendiente de credenciales"]
+];
+
+const outcomes = [
+  "Reducir el tiempo dedicado a respuestas repetitivas.",
+  "Mantener seguimiento comercial con contexto.",
+  "Recuperar clientes y conversaciones inactivas.",
+  "Ordenar automáticamente contactos, mensajes y oportunidades.",
+  "Priorizar leads con mayor probabilidad de compra.",
+  "Auditar la operación y el comportamiento del agente."
 ];
 
 export default function SettingsPage() {
   return (
     <AppShell>
-      <Header
-        kicker="PROGRAM INTELLIGENCE PROFILE"
-        title="Settings & System Profile"
-        description="Descripción técnica y operativa del sistema, agentes IA, ubicación lógica y resultados esperados."
-      />
+      <main className={styles.page}>
+        <Header
+          kicker="OPERACIÓN Y CONTROL"
+          title="Configuración del sistema"
+          description="Perfil operativo de Neuromind Commerce OS: alcance, responsabilidades de cada agente y estado de la arquitectura comercial."
+        />
 
-      <section className="section card panel">
-        <div className="panel-title">Perfil del programa</div>
-        <div className="muted" style={{ marginTop: 16, lineHeight: 1.8 }}>
-          <strong>Neuromind Commerce OS</strong> es una plataforma comercial con IA para WhatsApp.
-          Su objetivo es centralizar conversaciones, CRM, memoria comercial, catálogo,
-          seguimiento, recuperación de clientes, campañas y analítica predictiva.
-          <br /><br />
-          El sistema actúa como un conjunto coordinado de agentes IA. Cada agente cumple una función
-          específica y todos alimentan el resultado final: atención comercial más humana,
-          seguimiento más preciso y más oportunidades de venta.
-        </div>
-      </section>
+        <section className={styles.summaryGrid} aria-label="Resumen del sistema">
+          {summary.map(([label, value, meta]) => (
+            <article className={styles.summaryCard} key={label}>
+              <div className={styles.summaryLabel}>{label}</div>
+              <div className={styles.summaryValue}>{value}</div>
+              <div className={styles.summaryMeta}>{meta}</div>
+            </article>
+          ))}
+        </section>
 
-      <section className="section card panel">
-        <div className="panel-head">
-          <div>
-            <div className="panel-title">Mapa de agentes IA</div>
-            <div className="muted small" style={{ marginTop: 6 }}>
-              Qué hace cada agente, dónde vive y qué resultado entrega.
+        <section className={styles.sectionCard}>
+          <div className={styles.sectionHeader}>
+            <div>
+              <div className={styles.eyebrow}>Perfil operativo</div>
+              <h2 className={styles.sectionTitle}>Qué es y cómo trabaja el sistema</h2>
+              <p className={styles.sectionDescription}>
+                Una definición útil para operación, soporte y futuras ampliaciones del producto.
+              </p>
+            </div>
+            <span className={styles.statusBadge}>Arquitectura activa</span>
+          </div>
+
+          <div className={styles.profileText}>
+            <div className={styles.profileCopy}>
+              <strong>Neuromind Commerce OS</strong> centraliza atención por WhatsApp, memoria comercial,
+              catálogo, seguimiento, recuperación de clientes y analítica. El sistema no funciona como
+              un único bot: coordina responsabilidades especializadas y reúne sus resultados antes de
+              ejecutar una acción comercial.
+              <br /><br />
+              La prioridad es mantener una operación comprensible, auditable y útil para el equipo:
+              menos automatización decorativa y más decisiones que puedan revisarse, medirse y corregirse.
+            </div>
+
+            <div className={styles.principles}>
+              <div className={styles.principle}>Cada agente tiene una responsabilidad definida.</div>
+              <div className={styles.principle}>Las decisiones relevantes dejan trazabilidad.</div>
+              <div className={styles.principle}>El contexto del cliente se conserva entre conversaciones.</div>
+              <div className={styles.principle}>La automatización puede derivar casos a una persona.</div>
             </div>
           </div>
-          <span className="pill">agent map</span>
-        </div>
+        </section>
 
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Agente</th>
-              <th>Ubicación</th>
-              <th>Actúa en</th>
-              <th>Resultado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {agents.map((agent) => (
-              <tr key={agent.name}>
-                <td><strong>{agent.name}</strong></td>
-                <td>{agent.location}</td>
-                <td>{agent.role}</td>
-                <td>{agent.result}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      <section className="section grid-main">
-        <div className="card panel">
-          <div className="panel-title">Configuración comercial</div>
-          <div className="form-grid" style={{ marginTop: 18 }}>
-            <input className="input" defaultValue="Empresa: Fulanitas" />
-            <input className="input" defaultValue="Modo IA: automático" />
-            <input className="input" defaultValue="Canal principal: WhatsApp Cloud API" />
-            <input className="input" defaultValue="Base de datos: Supabase PostgreSQL" />
-            <button className="btn">Guardar settings</button>
+        <section className={styles.sectionCard}>
+          <div className={styles.sectionHeader}>
+            <div>
+              <div className={styles.eyebrow}>Arquitectura funcional</div>
+              <h2 className={styles.sectionTitle}>Responsabilidades de los agentes</h2>
+              <p className={styles.sectionDescription}>
+                La tabla muestra qué hace cada módulo, dónde vive y qué entrega a la operación comercial.
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="card panel">
-          <div className="panel-title">Resultado esperado</div>
-          <div className="muted" style={{ marginTop: 16, lineHeight: 1.8 }}>
-            • Menos tiempo respondiendo WhatsApp.<br />
-            • Más seguimiento comercial.<br />
-            • Mejor recuperación de clientes antiguos.<br />
-            • CRM ordenado automáticamente.<br />
-            • Respuestas más humanas con contexto.<br />
-            • Priorización de leads calientes.<br />
-            • Control y auditoría del comportamiento IA.<br />
-            • Base para operar múltiples empresas desde Neuromind.
+          <div className={styles.tableWrap}>
+            <table className={styles.agentTable}>
+              <thead>
+                <tr>
+                  <th className={styles.tableHead}>Agente</th>
+                  <th className={styles.tableHead}>Implementación</th>
+                  <th className={styles.tableHead}>Responsabilidad</th>
+                  <th className={styles.tableHead}>Resultado operativo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {agents.map((agent) => (
+                  <tr key={agent.name}>
+                    <td>
+                      <div className={styles.agentName}>
+                        {agent.name}
+                        <span className={styles.categoryBadge}>{agent.category}</span>
+                      </div>
+                    </td>
+                    <td><span className={styles.codeBadge}>{agent.location}</span></td>
+                    <td>{agent.role}</td>
+                    <td>{agent.result}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </section>
+        </section>
+
+        <section className={styles.bottomGrid}>
+          <article className={styles.sectionCard} style={{ marginTop: 0 }}>
+            <div className={styles.eyebrow}>Configuración comercial</div>
+            <h2 className={styles.sectionTitle}>Parámetros principales</h2>
+
+            <div className={styles.configList}>
+              <div className={styles.configRow}>
+                <span className={styles.configKey}>Empresa</span>
+                <span className={styles.configValue}>Fulanitas</span>
+                <span className={styles.configState}>Definida</span>
+              </div>
+              <div className={styles.configRow}>
+                <span className={styles.configKey}>Modo operativo</span>
+                <span className={styles.configValue}>Automático con control humano</span>
+                <span className={styles.configState}>Activo</span>
+              </div>
+              <div className={styles.configRow}>
+                <span className={styles.configKey}>Canal principal</span>
+                <span className={styles.configValue}>WhatsApp Cloud API</span>
+                <span className={styles.configState}>Token pendiente</span>
+              </div>
+              <div className={styles.configRow}>
+                <span className={styles.configKey}>Base de datos</span>
+                <span className={styles.configValue}>Supabase PostgreSQL</span>
+                <span className={styles.configState}>Credenciales pendientes</span>
+              </div>
+              <div className={styles.configRow}>
+                <span className={styles.configKey}>Inventario</span>
+                <span className={styles.configValue}>Ninox</span>
+                <span className={styles.configState}>API key pendiente</span>
+              </div>
+            </div>
+
+            <Link className={styles.linkButton} href="/integrations">
+              Revisar conexiones
+            </Link>
+
+            <div className={styles.note}>
+              Esta pantalla describe la configuración. Las credenciales se administran únicamente en el
+              servidor y su validez se comprueba desde la sección Integraciones.
+            </div>
+          </article>
+
+          <article className={styles.sectionCard} style={{ marginTop: 0 }}>
+            <div className={styles.eyebrow}>Objetivos de operación</div>
+            <h2 className={styles.sectionTitle}>Resultados esperados</h2>
+
+            <div className={styles.outcomeList}>
+              {outcomes.map((outcome, index) => (
+                <div className={styles.outcomeItem} key={outcome}>
+                  <span className={styles.outcomeNumber}>{String(index + 1).padStart(2, "0")}</span>
+                  <span>{outcome}</span>
+                </div>
+              ))}
+            </div>
+          </article>
+        </section>
+      </main>
     </AppShell>
   );
 }
