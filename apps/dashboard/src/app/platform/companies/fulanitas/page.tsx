@@ -7,7 +7,7 @@ export default function FulanitasPage() {
         kicker="EMPRESA / FULANITAS"
         title="Fulanitas Fábrica"
         description="Centro de control del cliente: operación, robot, usuarios, suscripción, branding y acceso al panel comercial."
-        actions={<><ButtonLink href="/platform/companies">Volver</ButtonLink><ButtonLink href="/" kind="primary">Entrar al panel empresarial</ButtonLink></>}
+        actions={<><ButtonLink href="/platform/companies">Volver</ButtonLink><ButtonLink href="/platform/companies/fulanitas/panel-preview" kind="primary">Entrar al panel empresarial</ButtonLink></>}
       />
       <CompanyTabs active="Resumen" />
 
@@ -54,7 +54,7 @@ export default function FulanitasPage() {
             ["Usuarios", "Equipo, roles, estado y alcance dentro de Fulanitas.", "/platform/companies/fulanitas/users"],
             ["Suscripción", "Plan, precio mensual, estado de pago y servicios incluidos.", "/platform/companies/fulanitas/subscription"],
             ["Actividad", "Eventos recientes, accesos y cambios importantes.", "/platform/companies/fulanitas/activity"],
-            ["Panel empresarial", "CRM, conversaciones, catálogo, campañas y operación diaria.", "/"],
+            ["Panel empresarial", "CRM, conversaciones, catálogo, campañas y operación diaria.", "/platform/companies/fulanitas/panel-preview"],
           ].map(([title, description, href]) => (
             <article className="saas-card" key={title}><h3>{title}</h3><p>{description}</p><div className="saas-card-actions"><ButtonLink href={href}>Abrir</ButtonLink></div></article>
           ))}
