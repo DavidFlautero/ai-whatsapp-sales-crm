@@ -47,3 +47,7 @@ temp/
 **/.env.local
 **/.env.*
 !**/.env.example
+
+# Runtime SaaS configuration
+data/platform-config.json
+data/platform-config.json.tmp

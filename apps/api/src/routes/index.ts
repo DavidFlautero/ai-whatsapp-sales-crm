@@ -17,6 +17,10 @@ import {
   requireAuth,
   requireRoles,
 } from "../middlewares/auth.middleware.js";
+import {
+  platformAdminRoutes,
+  platformPublicRoutes,
+} from "../platform/platform.routes.js";
 
 export const router = Router();
 
@@ -26,6 +30,7 @@ export const router = Router();
  */
 router.use("/health", healthRoutes);
 router.use("/auth", authRoutes);
+router.use("/platform", platformPublicRoutes);
 router.use("/webhook/whatsapp", whatsappRoutes);
 
 /*
@@ -36,6 +41,8 @@ router.use("/customers", requireAuth, customersRoutes);
 router.use("/orders", requireAuth, ordersRoutes);
 router.use("/stock", requireAuth, stockRoutes);
 
+router.use("/platform", platformAdminRoutes);
+
 /*
  * Administración.
  * Solo administradores y supervisores.
@@ -43,7 +50,7 @@ router.use("/stock", requireAuth, stockRoutes);
 router.use(
   "/admin",
   requireAuth,
-  requireRoles("admin", "supervisor"),
+  requireRoles("owner", "admin", "supervisor"),
 );
 
 router.use("/admin", adminStatusRoutes);
