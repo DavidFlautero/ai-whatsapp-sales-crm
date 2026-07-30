@@ -601,3 +601,403 @@ h1 {
     display: none;
   }
 }
+
+/* ===========================
+   FULANITAS LOGIN
+   =========================== */
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns:
+    minmax(360px, 1.08fr)
+    minmax(430px, 0.92fr);
+  background: #08090c;
+  color: #f8f7f3;
+}
+
+.login-presentation {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(38px, 6vw, 88px);
+  background:
+    radial-gradient(
+      circle at 18% 12%,
+      rgba(219, 161, 71, 0.22),
+      transparent 34%
+    ),
+    radial-gradient(
+      circle at 90% 75%,
+      rgba(104, 69, 27, 0.13),
+      transparent 32%
+    ),
+    linear-gradient(145deg, #15161b, #08090c);
+}
+
+.login-logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.login-logo > span {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(220, 168, 85, 0.48);
+  border-radius: 14px;
+  background: rgba(214, 158, 68, 0.08);
+  color: #dda94f;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.login-logo div {
+  display: grid;
+  gap: 2px;
+}
+
+.login-logo strong {
+  letter-spacing: 0.16em;
+  font-size: 0.84rem;
+}
+
+.login-logo small {
+  color: #8f9198;
+  font-size: 0.73rem;
+}
+
+.login-copy {
+  max-width: 710px;
+}
+
+.login-eyebrow {
+  color: #d8a452;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.19em;
+}
+
+.login-copy h1 {
+  margin: 22px 0 24px;
+  font-size: clamp(3.3rem, 6.5vw, 7rem);
+  line-height: 0.94;
+  letter-spacing: -0.065em;
+}
+
+.login-copy p {
+  max-width: 590px;
+  margin: 0;
+  color: #a5a7ad;
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
+.login-platform-status {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: #bbbcc1;
+  font-size: 0.86rem;
+}
+
+.login-platform-status span {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #5ed184;
+  box-shadow:
+    0 0 0 5px rgba(94, 209, 132, 0.08),
+    0 0 20px rgba(94, 209, 132, 0.56);
+}
+
+.login-access {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 30px;
+  background:
+    linear-gradient(
+      145deg,
+      #f7f6f2,
+      #eceae4
+    );
+}
+
+.login-card {
+  width: min(100%, 460px);
+  display: grid;
+  gap: 24px;
+  padding: clamp(28px, 4vw, 46px);
+  border: 1px solid #dcd9d1;
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #171717;
+  box-shadow:
+    0 30px 80px rgba(20, 20, 20, 0.12),
+    0 2px 6px rgba(20, 20, 20, 0.04);
+}
+
+.login-card header h2 {
+  margin: 10px 0 8px;
+  font-size: 2.4rem;
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.login-card header p {
+  margin: 0;
+  color: #747474;
+  line-height: 1.55;
+}
+
+.login-field {
+  display: grid;
+  gap: 9px;
+}
+
+.login-field > span {
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+.login-field input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 54px;
+  padding: 0 15px;
+  border: 1px solid #d5d2ca;
+  border-radius: 13px;
+  background: #fbfaf8;
+  color: #151515;
+  font: inherit;
+  outline: none;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease;
+}
+
+.login-field input:focus {
+  border-color: #a67329;
+  background: #fff;
+  box-shadow:
+    0 0 0 4px rgba(180, 124, 41, 0.12);
+}
+
+.login-password {
+  position: relative;
+}
+
+.login-password input {
+  padding-right: 86px;
+}
+
+.login-password button {
+  position: absolute;
+  top: 50%;
+  right: 13px;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: #76501c;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.login-error {
+  padding: 13px 15px;
+  border: 1px solid #f0caca;
+  border-radius: 12px;
+  background: #fff2f2;
+  color: #a72c2c;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.login-submit {
+  min-height: 55px;
+  border: 0;
+  border-radius: 13px;
+  background: #151515;
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 150ms ease,
+    opacity 150ms ease,
+    background 150ms ease;
+}
+
+.login-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #262626;
+}
+
+.login-submit:disabled {
+  opacity: 0.62;
+  cursor: wait;
+}
+
+.login-card footer {
+  color: #8c8c8c;
+  font-size: 0.76rem;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+
+  .login-presentation {
+    min-height: 42vh;
+    padding: 38px 26px;
+  }
+
+  .login-copy {
+    margin: 70px 0;
+  }
+
+  .login-copy h1 {
+    font-size: clamp(3rem, 13vw, 5rem);
+  }
+
+  .login-access {
+    min-height: 58vh;
+    padding: 24px 17px 38px;
+  }
+}
+
+
+/* FULANITAS AUTHENTICATED SHELL */
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.app-brand-mark {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(215, 164, 82, 0.35);
+  border-radius: 12px;
+  background: rgba(215, 164, 82, 0.08);
+  color: #d7a452;
+  font-size: 1.15rem;
+  font-weight: 850;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-bottom {
+  display: grid;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.nav-loading {
+  padding: 12px;
+  color: #85868b;
+  font-size: 0.78rem;
+}
+
+.nav a.nav-active {
+  background: rgba(215, 164, 82, 0.12);
+  color: #f4d8a6;
+}
+
+.nav a.nav-active .nav-icon {
+  background: #d7a452;
+  box-shadow: 0 0 12px rgba(215, 164, 82, 0.45);
+}
+
+.system-operational {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.system-description {
+  margin-top: 14px;
+  line-height: 1.5;
+}
+
+.session-card {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.session-avatar {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: rgba(215, 164, 82, 0.14);
+  color: #e2b66d;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.session-details {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.session-details strong {
+  overflow: hidden;
+  color: #f5f5f5;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-details span {
+  color: #85868c;
+  font-size: 0.68rem;
+}
+
+.logout-button {
+  min-height: 31px;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #babac0;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.logout-button:hover:not(:disabled) {
+  border-color: rgba(215, 164, 82, 0.28);
+  color: #e2b66d;
+}
+
+.logout-button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}

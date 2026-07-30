@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+
 export type ConnectionStatus =
   | "online"
   | "missing_config"
@@ -30,29 +32,66 @@ export type SystemStatus = {
 };
 
 function getApiBaseUrl() {
-  return (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/+$/, "");
+  return (
+    process.env.NEXT_PUBLIC_API_URL ??
+    "http://127.0.0.1:4000"
+  ).replace(/\/+$/, "");
+}
+
+async function getForwardedCookieHeader(): Promise<string> {
+  const cookieStore = await cookies();
+
+  return cookieStore
+    .getAll()
+    .map(({ name, value }) => `${name}=${value}`)
+    .join("; ");
+}
+
+async function authenticatedFetch(
+  pathname: string,
+  init: RequestInit = {},
+) {
+  const cookieHeader = await getForwardedCookieHeader();
+
+  const headers = new Headers(init.headers);
+
+  if (cookieHeader) {
+    headers.set("Cookie", cookieHeader);
+  }
+
+  headers.set("Accept", "application/json");
+
+  return fetch(`${getApiBaseUrl()}${pathname}`, {
+    ...init,
+    headers,
+    cache: "no-store",
+  });
 }
 
 export async function getAdminOverview() {
-  const res = await fetch(`${getApiBaseUrl()}/admin/overview`, {
-    cache: "no-store"
-  });
+  const response = await authenticatedFetch(
+    "/admin/overview",
+  );
 
-  if (!res.ok) {
-    throw new Error("Failed to load admin overview");
+  if (!response.ok) {
+    throw new Error(
+      `Failed to load admin overview (${response.status})`,
+    );
   }
 
-  return res.json();
+  return response.json();
 }
 
 export async function getSystemStatus(): Promise<SystemStatus> {
-  const res = await fetch(`${getApiBaseUrl()}/admin/status`, {
-    cache: "no-store"
-  });
+  const response = await authenticatedFetch(
+    "/admin/status",
+  );
 
-  if (!res.ok) {
-    throw new Error(`Failed to load system status (${res.status})`);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to load system status (${response.status})`,
+    );
   }
 
-  return res.json() as Promise<SystemStatus>;
+  return response.json() as Promise<SystemStatus>;
 }
