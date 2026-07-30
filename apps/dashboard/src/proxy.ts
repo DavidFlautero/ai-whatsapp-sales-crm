@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 type UserRole =
+  | "superadmin"
+  | "owner"
   | "admin"
   | "supervisor"
   | "vendedor";
@@ -45,9 +47,13 @@ function matchesRoute(
   );
 }
 
-function destinationForRole(
+function defaultRoute(
   role: UserRole,
 ) {
+  if (role === "superadmin") {
+    return "/platform";
+  }
+
   if (role === "vendedor") {
     return "/conversations";
   }
@@ -55,29 +61,46 @@ function destinationForRole(
   return "/";
 }
 
-function canAccessRoute(
+function canAccess(
   pathname: string,
   role: UserRole,
 ) {
-  if (role === "admin") {
+  const isPlatform =
+    matchesRoute(pathname, "/platform");
+
+  if (role === "superadmin") {
+    return isPlatform;
+  }
+
+  if (isPlatform) {
+    return false;
+  }
+
+  if (
+    role === "owner" ||
+    role === "admin"
+  ) {
     return true;
   }
 
   if (role === "supervisor") {
     return !supervisorBlockedRoutes.some(
-      (route) => matchesRoute(pathname, route),
+      (route) =>
+        matchesRoute(pathname, route),
     );
   }
 
   return vendorRoutes.some(
-    (route) => matchesRoute(pathname, route),
+    (route) =>
+      matchesRoute(pathname, route),
   );
 }
 
 export async function proxy(
   request: NextRequest,
 ) {
-  const { pathname } = request.nextUrl;
+  const { pathname } =
+    request.nextUrl;
 
   const isPublic =
     publicRoutes.has(pathname) ||
@@ -90,7 +113,9 @@ export async function proxy(
   }
 
   const token =
-    request.cookies.get(cookieName)?.value;
+    request.cookies
+      .get(cookieName)
+      ?.value;
 
   if (!token || !authSecret) {
     return NextResponse.redirect(
@@ -99,29 +124,52 @@ export async function proxy(
   }
 
   try {
-    const { payload } = await jwtVerify(
-      token,
-      secret,
-      {
-        issuer: "fulanitas-api",
-        audience: "fulanitas-dashboard",
-      },
-    );
+    const { payload } =
+      await jwtVerify(
+        token,
+        secret,
+        {
+          issuer: "fulanitas-api",
+          audience:
+            "fulanitas-dashboard",
+        },
+      );
 
-    const role = payload.role as UserRole;
+    const role =
+      payload.role as UserRole;
 
-    if (
-      !["admin", "supervisor", "vendedor"].includes(
-        role,
-      )
-    ) {
-      throw new Error("Invalid role");
+    const validRoles: UserRole[] = [
+      "superadmin",
+      "owner",
+      "admin",
+      "supervisor",
+      "vendedor",
+    ];
+
+    if (!validRoles.includes(role)) {
+      throw new Error(
+        "Invalid role",
+      );
     }
 
-    if (!canAccessRoute(pathname, role)) {
+    if (
+      pathname === "/" &&
+      role === "superadmin"
+    ) {
       return NextResponse.redirect(
         new URL(
-          destinationForRole(role),
+          "/platform",
+          request.url,
+        ),
+      );
+    }
+
+    if (
+      !canAccess(pathname, role)
+    ) {
+      return NextResponse.redirect(
+        new URL(
+          defaultRoute(role),
           request.url,
         ),
       );
@@ -129,11 +177,17 @@ export async function proxy(
 
     return NextResponse.next();
   } catch {
-    const response = NextResponse.redirect(
-      new URL("/login", request.url),
-    );
+    const response =
+      NextResponse.redirect(
+        new URL(
+          "/login",
+          request.url,
+        ),
+      );
 
-    response.cookies.delete(cookieName);
+    response.cookies.delete(
+      cookieName,
+    );
 
     return response;
   }

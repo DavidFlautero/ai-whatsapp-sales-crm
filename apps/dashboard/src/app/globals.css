@@ -1001,3 +1001,558 @@ h1 {
   opacity: 0.55;
   cursor: wait;
 }
+
+/* ==========================
+   NEUROMIND SAAS PLATFORM
+   ========================== */
+
+.platform-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  background: #f3f4f6;
+  color: #18191d;
+}
+
+.platform-sidebar {
+  min-height: 100vh;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 26px 18px;
+  background:
+    radial-gradient(circle at top left, rgba(214, 164, 82, 0.12), transparent 32%),
+    #101116;
+  color: #f6f6f4;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.platform-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px 30px;
+}
+
+.platform-brand-mark {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(221, 174, 95, 0.36);
+  border-radius: 14px;
+  background: rgba(221, 174, 95, 0.09);
+  color: #dfb66f;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.platform-brand > div:last-child {
+  display: grid;
+  gap: 3px;
+}
+
+.platform-brand strong {
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+}
+
+.platform-brand span {
+  color: #7d7f87;
+  font-size: 0.68rem;
+}
+
+.platform-nav {
+  display: grid;
+  gap: 5px;
+}
+
+.platform-nav a {
+  padding: 12px 14px;
+  border-radius: 11px;
+  color: #93959d;
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.platform-nav a:hover,
+.platform-nav .platform-nav-active {
+  background: rgba(219, 169, 84, 0.1);
+  color: #e7bd78;
+}
+
+.platform-user {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.platform-avatar {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(219, 169, 84, 0.14);
+  color: #e4b96f;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.platform-user > div:nth-child(2) {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.platform-user strong {
+  overflow: hidden;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-user span {
+  color: #777982;
+  font-size: 0.62rem;
+}
+
+.platform-user button {
+  border: 0;
+  background: transparent;
+  color: #9b9da5;
+  cursor: pointer;
+}
+
+.platform-content {
+  min-width: 0;
+  padding: clamp(28px, 4vw, 58px);
+}
+
+.platform-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 30px;
+}
+
+.platform-kicker {
+  color: #9a6a20;
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.17em;
+}
+
+.platform-header h1 {
+  max-width: 850px;
+  margin: 12px 0 10px;
+  font-size: clamp(2.3rem, 4vw, 4.1rem);
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+.platform-header p {
+  max-width: 700px;
+  margin: 0;
+  color: #72747b;
+  line-height: 1.65;
+}
+
+.platform-primary-button {
+  min-height: 46px;
+  padding: 0 19px;
+  border: 0;
+  border-radius: 12px;
+  background: #17181d;
+  color: #fff;
+  font: inherit;
+  font-size: 0.79rem;
+  font-weight: 760;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(23, 24, 29, 0.15);
+}
+
+.platform-metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  gap: 14px;
+  margin-top: 38px;
+}
+
+.platform-metrics article {
+  display: grid;
+  gap: 8px;
+  min-height: 132px;
+  padding: 20px;
+  border: 1px solid #e0e1e4;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 30px rgba(20, 21, 26, 0.035);
+}
+
+.platform-metrics span {
+  color: #777981;
+  font-size: 0.7rem;
+}
+
+.platform-metrics strong {
+  font-size: 1.52rem;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+}
+
+.platform-metrics small {
+  margin-top: auto;
+  color: #999ba2;
+  font-size: 0.67rem;
+}
+
+.platform-success {
+  color: #278653;
+}
+
+.platform-section {
+  margin-top: 46px;
+}
+
+.platform-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.platform-section-heading h2 {
+  margin: 8px 0 0;
+  font-size: 1.55rem;
+  letter-spacing: -0.035em;
+}
+
+.platform-count {
+  color: #777981;
+  font-size: 0.75rem;
+}
+
+.company-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(290px, 0.8fr);
+  gap: 18px;
+}
+
+.company-card {
+  border: 1px solid #dedfe3;
+  border-radius: 19px;
+  background: #fff;
+  box-shadow: 0 10px 35px rgba(20, 21, 26, 0.035);
+}
+
+.company-card-active {
+  padding: 25px;
+}
+
+.company-card-top {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.company-logo {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: #17181d;
+  color: #e1b565;
+  font-size: 1.45rem;
+  font-weight: 900;
+}
+
+.company-state {
+  color: #278754;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.company-state i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #41b974;
+  box-shadow: 0 0 0 4px rgba(65, 185, 116, 0.1);
+}
+
+.company-card h3 {
+  margin: 7px 0 4px;
+  font-size: 1.16rem;
+}
+
+.company-card p {
+  margin: 0;
+  color: #777981;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.company-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 13px;
+  margin-top: 24px;
+}
+
+.company-stats div {
+  display: grid;
+  gap: 7px;
+  min-height: 73px;
+  padding: 14px;
+  border: 1px solid #ededee;
+  border-radius: 13px;
+  background: #f7f7f8;
+}
+
+.company-stats span {
+  color: #8a8c93;
+  font-size: 0.65rem;
+}
+
+.company-stats strong {
+  overflow-wrap: anywhere;
+  font-size: 0.77rem;
+}
+
+.company-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.company-actions button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 11px;
+  background: #17181d;
+  color: #fff;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.company-actions .company-secondary {
+  border: 1px solid #d9dade;
+  background: #fff;
+  color: #303137;
+}
+
+.company-card-new {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  min-height: 100%;
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease;
+}
+
+.company-card-new:hover {
+  transform: translateY(-2px);
+  border-color: #cba563;
+}
+
+.company-add-icon {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed #c5a064;
+  border-radius: 16px;
+  background: rgba(197, 160, 100, 0.06);
+  color: #9f732d;
+  font-size: 1.7rem;
+}
+
+.company-card-new span {
+  margin-top: 18px;
+  color: #996920;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.platform-modules {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.platform-modules article {
+  padding: 21px;
+  border: 1px solid #e0e1e4;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 30px rgba(20, 21, 26, 0.03);
+}
+
+.platform-module-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background:
+    linear-gradient(145deg, #191a1f, #35363d);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.platform-modules h3 {
+  margin: 17px 0 8px;
+  font-size: 0.95rem;
+}
+
+.platform-modules p {
+  min-height: 66px;
+  margin: 0;
+  color: #777981;
+  font-size: 0.78rem;
+  line-height: 1.58;
+}
+
+.platform-modules span {
+  display: inline-block;
+  margin-top: 16px;
+  color: #996920;
+  font-size: 0.66rem;
+  font-weight: 820;
+}
+
+.platform-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 9, 12, 0.72);
+  backdrop-filter: blur(9px);
+}
+
+.platform-modal {
+  width: min(100%, 530px);
+  padding: 35px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 21px;
+  background: #fff;
+  box-shadow: 0 35px 110px rgba(0, 0, 0, 0.3);
+}
+
+.platform-modal h2 {
+  margin: 12px 0;
+  font-size: 2rem;
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.platform-modal p {
+  color: #71737b;
+  line-height: 1.65;
+}
+
+.platform-modal-list {
+  display: grid;
+  gap: 11px;
+  margin: 24px 0;
+  color: #3a3b40;
+  font-size: 0.8rem;
+}
+
+.platform-modal button {
+  width: 100%;
+  min-height: 46px;
+  border: 0;
+  border-radius: 12px;
+  background: #17181d;
+  color: #fff;
+  font: inherit;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+@media (max-width: 1180px) {
+  .platform-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .company-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .platform-modules {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 780px) {
+  .platform-page {
+    grid-template-columns: 1fr;
+  }
+
+  .platform-sidebar {
+    min-height: auto;
+    position: static;
+  }
+
+  .platform-nav {
+    display: none;
+  }
+
+  .platform-user {
+    margin-top: 18px;
+  }
+
+  .platform-content {
+    padding: 24px 18px 40px;
+  }
+
+  .platform-header {
+    flex-direction: column;
+  }
+
+  .platform-primary-button {
+    width: 100%;
+  }
+
+  .platform-metrics,
+  .company-stats,
+  .platform-modules {
+    grid-template-columns: 1fr;
+  }
+
+  .company-actions {
+    flex-direction: column;
+  }
+
+  .company-actions button {
+    width: 100%;
+  }
+
+  .platform-modal {
+    padding: 27px 22px;
+  }
+}

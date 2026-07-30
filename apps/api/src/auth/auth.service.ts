@@ -1,15 +1,30 @@
 import bcrypt from "bcryptjs";
 import { jwtVerify, SignJWT } from "jose";
 import { authConfig } from "./auth.config.js";
-import type { SessionUser, UserRole } from "./auth.types.js";
+import type {
+  SessionUser,
+  UserRole,
+} from "./auth.types.js";
 
-const jwtSecret = new TextEncoder().encode(authConfig.secret);
+const jwtSecret = new TextEncoder().encode(
+  authConfig.secret,
+);
+
+const validRoles: UserRole[] = [
+  "superadmin",
+  "owner",
+  "admin",
+  "supervisor",
+  "vendedor",
+];
 
 export async function authenticateUser(
   email: string,
   password: string,
 ): Promise<SessionUser | null> {
-  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedEmail = email
+    .trim()
+    .toLowerCase();
 
   const record = authConfig.users.find(
     (user) =>
@@ -26,13 +41,20 @@ export async function authenticateUser(
     return null;
   }
 
-  const valid = await bcrypt.compare(password, record.passwordHash);
+  const valid = await bcrypt.compare(
+    password,
+    record.passwordHash,
+  );
 
   if (!valid) {
     return null;
   }
 
-  const { passwordHash: _passwordHash, ...user } = record;
+  const {
+    passwordHash: _passwordHash,
+    ...user
+  } = record;
+
   return user;
 }
 
@@ -43,14 +65,20 @@ export async function createSessionToken(
     name: user.name,
     email: user.email,
     role: user.role,
+    companyId: user.companyId,
     active: user.active,
   })
-    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+    .setProtectedHeader({
+      alg: "HS256",
+      typ: "JWT",
+    })
     .setSubject(user.id)
     .setIssuer("fulanitas-api")
     .setAudience("fulanitas-dashboard")
     .setIssuedAt()
-    .setExpirationTime(`${authConfig.sessionHours}h`)
+    .setExpirationTime(
+      `${authConfig.sessionHours}h`,
+    )
     .sign(jwtSecret);
 }
 
@@ -58,10 +86,14 @@ export async function verifySessionToken(
   token: string,
 ): Promise<SessionUser | null> {
   try {
-    const { payload } = await jwtVerify(token, jwtSecret, {
-      issuer: "fulanitas-api",
-      audience: "fulanitas-dashboard",
-    });
+    const { payload } = await jwtVerify(
+      token,
+      jwtSecret,
+      {
+        issuer: "fulanitas-api",
+        audience: "fulanitas-dashboard",
+      },
+    );
 
     if (
       !payload.sub ||
@@ -74,7 +106,21 @@ export async function verifySessionToken(
 
     const role = payload.role as UserRole;
 
-    if (!["admin", "supervisor", "vendedor"].includes(role)) {
+    if (!validRoles.includes(role)) {
+      return null;
+    }
+
+    const companyId =
+      role === "superadmin"
+        ? null
+        : typeof payload.companyId === "string"
+          ? payload.companyId
+          : null;
+
+    if (
+      role !== "superadmin" &&
+      !companyId
+    ) {
       return null;
     }
 
@@ -83,6 +129,7 @@ export async function verifySessionToken(
       name: payload.name,
       email: payload.email,
       role,
+      companyId,
       active: payload.active === true,
     };
   } catch {

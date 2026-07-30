@@ -1,6 +1,8 @@
 import type { AuthUserRecord, UserRole } from "./auth.types.js";
 
 const validRoles = new Set<UserRole>([
+  "superadmin",
+  "owner",
   "admin",
   "supervisor",
   "vendedor",
@@ -42,27 +44,38 @@ function parseUsers(): AuthUserRecord[] {
       throw new Error(`Invalid auth user at index ${index}`);
     }
 
+    const companyId =
+      user.role === "superadmin"
+        ? null
+        : user.companyId || process.env.DEFAULT_COMPANY_ID || "fulanitas";
+
     return {
       id: user.id,
       name: user.name,
       email: user.email.toLowerCase(),
       passwordHash: user.passwordHash,
       role: user.role,
+      companyId,
       active: user.active !== false,
     };
   });
 }
 
-const sessionHours = Number(process.env.AUTH_SESSION_HOURS || "12");
+const sessionHours = Number(
+  process.env.AUTH_SESSION_HOURS || "12",
+);
 
 if (!Number.isFinite(sessionHours) || sessionHours <= 0) {
-  throw new Error("AUTH_SESSION_HOURS must be a positive number");
+  throw new Error(
+    "AUTH_SESSION_HOURS must be a positive number",
+  );
 }
 
 export const authConfig = {
   secret: requiredEnv("AUTH_SECRET"),
   cookieName:
-    process.env.AUTH_COOKIE_NAME?.trim() || "fulanitas_session",
+    process.env.AUTH_COOKIE_NAME?.trim() ||
+    "fulanitas_session",
   sessionHours,
   users: parseUsers(),
 };

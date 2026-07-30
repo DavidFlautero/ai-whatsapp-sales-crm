@@ -1,4 +1,9 @@
-export type UserRole = "admin" | "supervisor" | "vendedor";
+export type UserRole =
+  | "superadmin"
+  | "owner"
+  | "admin"
+  | "supervisor"
+  | "vendedor";
 
 export type AuthUserRecord = {
   id: string;
@@ -6,6 +11,7 @@ export type AuthUserRecord = {
   email: string;
   passwordHash: string;
   role: UserRole;
+  companyId: string | null;
   active: boolean;
 };
 
