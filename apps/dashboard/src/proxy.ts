@@ -47,9 +47,7 @@ function matchesRoute(
   );
 }
 
-function defaultRoute(
-  role: UserRole,
-) {
+function defaultRoute(role: UserRole) {
   if (role === "superadmin") {
     return "/platform";
   }
@@ -69,7 +67,7 @@ function canAccess(
     matchesRoute(pathname, "/platform");
 
   if (role === "superadmin") {
-    return isPlatform;
+    return true;
   }
 
   if (isPlatform) {
@@ -147,26 +145,10 @@ export async function proxy(
     ];
 
     if (!validRoles.includes(role)) {
-      throw new Error(
-        "Invalid role",
-      );
+      throw new Error("Invalid role");
     }
 
-    if (
-      pathname === "/" &&
-      role === "superadmin"
-    ) {
-      return NextResponse.redirect(
-        new URL(
-          "/platform",
-          request.url,
-        ),
-      );
-    }
-
-    if (
-      !canAccess(pathname, role)
-    ) {
+    if (!canAccess(pathname, role)) {
       return NextResponse.redirect(
         new URL(
           defaultRoute(role),
@@ -185,9 +167,7 @@ export async function proxy(
         ),
       );
 
-    response.cookies.delete(
-      cookieName,
-    );
+    response.cookies.delete(cookieName);
 
     return response;
   }
