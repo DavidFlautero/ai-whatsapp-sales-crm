@@ -1,5 +1,6 @@
 "use client";
 
+import "./subscription.css";
 import { useState } from "react";
 import { CompanyTabs, Metric, PageHeader, SectionHeading, StatusBadge } from "../../../_components/PagePrimitives";
 
