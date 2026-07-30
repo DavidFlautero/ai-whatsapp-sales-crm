@@ -1,516 +1,105 @@
-"use client";
-
 import {
-  useEffect,
-  useState,
-} from "react";
-import {
-  useRouter,
-} from "next/navigation";
-
-type SessionUser = {
-  name: string;
-  email: string;
-  role: string;
-  companyId: string | null;
-};
-
-const apiUrl = (
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://panel.fulanitasfabrica.site/api"
-).replace(/\/+$/, "");
+  ButtonLink,
+  Metric,
+  PageHeader,
+  SectionHeading,
+  StatusBadge,
+} from "./_components/PagePrimitives";
 
 const modules = [
-  {
-    title: "Empresas asociadas",
-    description:
-      "Espacios comerciales independientes con CRM, usuarios y robot propio.",
-    status: "Operativo",
-  },
-  {
-    title: "Robots conectados",
-    description:
-      "Control global de números, webhooks, estado e inteligencia comercial.",
-    status: "1 conectado",
-  },
-  {
-    title: "Planes y suscripciones",
-    description:
-      "Planes, límites, renovaciones y control por estado de pago.",
-    status: "Disponible para desarrollo",
-  },
-  {
-    title: "Facturación",
-    description:
-      "Ingresos mensuales, vencimientos, comprobantes y cobros.",
-    status: "Disponible para desarrollo",
-  },
-  {
-    title: "Usuarios globales",
-    description:
-      "Propietarios, administradores, supervisores y vendedores.",
-    status: "4 usuarios",
-  },
-  {
-    title: "Auditoría y seguridad",
-    description:
-      "Historial de accesos, eventos y cambios críticos.",
-    status: "Pendiente de activación",
-  },
-];
+  ["Empresas", "Operativo", "Administración de clientes, robots, usuarios y configuración individual.", "/platform/companies"],
+  ["Robots", "1 conectado", "Supervisión de números, webhooks, proveedor e inteligencia comercial.", "/platform/robots"],
+  ["Suscripciones", "Vista comercial", "Seguimiento de planes, renovaciones, pagos y estado del servicio.", "/platform/subscriptions"],
+  ["Usuarios", "4 configurados", "Control de superadministradores y equipos asociados a cada empresa.", "/platform/users"],
+  ["Facturación", "USD 50 MRR", "Resumen de ingresos registrados y próximos vencimientos.", "/platform/billing"],
+  ["Estado del sistema", "Operativo", "Salud de API, dashboard, almacenamiento, WhatsApp e IA.", "/platform/system"],
+] as const;
 
 export default function PlatformPage() {
-  const router = useRouter();
-
-  const [user, setUser] =
-    useState<SessionUser | null>(
-      null,
-    );
-
-  const [
-    showPending,
-    setShowPending,
-  ] = useState(false);
-
-  const [
-    loggingOut,
-    setLoggingOut,
-  ] = useState(false);
-
-  useEffect(() => {
-    async function loadSession() {
-      const response =
-        await fetch(
-          `${apiUrl}/auth/session`,
-          {
-            credentials:
-              "include",
-            cache: "no-store",
-          },
-        );
-
-      if (!response.ok) {
-        router.replace("/login");
-        return;
-      }
-
-      const body =
-        await response.json();
-
-      if (
-        body.user?.role !==
-        "superadmin"
-      ) {
-        router.replace("/");
-        return;
-      }
-
-      setUser(body.user);
-    }
-
-    void loadSession();
-  }, [router]);
-
-  async function logout() {
-    setLoggingOut(true);
-
-    try {
-      await fetch(
-        `${apiUrl}/auth/logout`,
-        {
-          method: "POST",
-          credentials:
-            "include",
-        },
-      );
-    } finally {
-      router.replace("/login");
-      router.refresh();
-    }
-  }
-
   return (
-    <main className="platform-page">
-      <aside className="platform-sidebar">
-        <div className="platform-brand">
-          <div className="platform-brand-mark">
-            N
-          </div>
+    <>
+      <PageHeader
+        kicker="CENTRO DE ADMINISTRACIÓN SAAS"
+        title="Control global de la plataforma"
+        description="Empresas, robots, usuarios, conexiones y crecimiento comercial desde una única operación."
+        actions={
+          <>
+            <ButtonLink href="/platform/companies" kind="ghost">Ver empresas</ButtonLink>
+            <ButtonLink href="/platform/companies/new" kind="primary">+ Agregar empresa</ButtonLink>
+          </>
+        }
+      />
 
-          <div>
-            <strong>
-              NEUROMIND
-            </strong>
-
-            <span>
-              Commerce OS
-            </span>
-          </div>
-        </div>
-
-        <nav className="platform-nav">
-          <a className="platform-nav-active">
-            Resumen global
-          </a>
-
-          <a>Empresas</a>
-          <a>Robots</a>
-          <a>Suscripciones</a>
-          <a>Planes</a>
-          <a>Usuarios</a>
-          <a>Facturación</a>
-          <a>Actividad</a>
-          <a>
-            Estado del sistema
-          </a>
-          <a>Configuración</a>
-        </nav>
-
-        <div className="platform-user">
-          <div className="platform-avatar">
-            SA
-          </div>
-
-          <div>
-            <strong>
-              {user?.name ||
-                "Superadministrador"}
-            </strong>
-
-            <span>
-              Control global
-            </span>
-          </div>
-
-          <button
-            onClick={logout}
-            disabled={loggingOut}
-          >
-            {loggingOut
-              ? "…"
-              : "Salir"}
-          </button>
-        </div>
-      </aside>
-
-      <section className="platform-content">
-        <header className="platform-header">
-          <div>
-            <span className="platform-kicker">
-              CENTRO DE ADMINISTRACIÓN SAAS
-            </span>
-
-            <h1>
-              Control global de la plataforma
-            </h1>
-
-            <p>
-              Empresas, robots, usuarios,
-              conexiones y crecimiento
-              comercial desde una única
-              operación.
-            </p>
-          </div>
-
-          <button
-            className="platform-primary-button"
-            onClick={() =>
-              setShowPending(true)
-            }
-          >
-            + Agregar empresa
-          </button>
-        </header>
-
-        <section className="platform-metrics">
-          <article>
-            <span>
-              Empresas activas
-            </span>
-            <strong>1</strong>
-            <small>
-              Fulanitas Fábrica
-            </small>
-          </article>
-
-          <article>
-            <span>
-              Robots conectados
-            </span>
-            <strong>1</strong>
-            <small>
-              WhatsApp operativo
-            </small>
-          </article>
-
-          <article>
-            <span>
-              Usuarios registrados
-            </span>
-            <strong>4</strong>
-            <small>
-              Plataforma y empresa
-            </small>
-          </article>
-
-          <article>
-            <span>
-              Ingreso mensual
-            </span>
-            <strong>
-              USD 50
-            </strong>
-            <small>
-              Cliente inicial
-            </small>
-          </article>
-
-          <article>
-            <span>
-              Estado del sistema
-            </span>
-            <strong className="platform-success">
-              Operativo
-            </strong>
-            <small>
-              API y panel en línea
-            </small>
-          </article>
-        </section>
-
-        <section className="platform-section">
-          <div className="platform-section-heading">
-            <div>
-              <span className="platform-kicker">
-                EMPRESAS ASOCIADAS
-              </span>
-
-              <h2>
-                Operaciones comerciales
-              </h2>
-            </div>
-
-            <span className="platform-count">
-              1 empresa
-            </span>
-          </div>
-
-          <div className="company-grid">
-            <article className="company-card company-card-active">
-              <div className="company-card-top">
-                <div className="company-logo">
-                  F
-                </div>
-
-                <div>
-                  <span className="company-state">
-                    <i />
-                    Activa
-                  </span>
-
-                  <h3>
-                    Fulanitas Fábrica
-                  </h3>
-
-                  <p>
-                    Cliente inicial · Comercio mayorista
-                  </p>
-                </div>
-              </div>
-
-              <div className="company-stats">
-                <div>
-                  <span>
-                    Robot WhatsApp
-                  </span>
-                  <strong>
-                    Conectado
-                  </strong>
-                </div>
-
-                <div>
-                  <span>Número</span>
-                  <strong>
-                    +54 9 11 6266-7360
-                  </strong>
-                </div>
-
-                <div>
-                  <span>
-                    Usuarios
-                  </span>
-                  <strong>3</strong>
-                </div>
-
-                <div>
-                  <span>Plan</span>
-                  <strong>
-                    Cliente inicial
-                  </strong>
-                </div>
-
-                <div>
-                  <span>
-                    Pago mensual
-                  </span>
-                  <strong>
-                    USD 50
-                  </strong>
-                </div>
-
-                <div>
-                  <span>
-                    IA comercial
-                  </span>
-                  <strong>
-                    Operativa
-                  </strong>
-                </div>
-              </div>
-
-              <div className="company-actions">
-                <button
-                  onClick={() =>
-                    setShowPending(true)
-                  }
-                >
-                  Entrar al panel
-                </button>
-
-                <button
-                  className="company-secondary"
-                  onClick={() =>
-                    setShowPending(true)
-                  }
-                >
-                  Ver robot
-                </button>
-              </div>
-            </article>
-
-            <article
-              className="company-card company-card-new"
-              onClick={() =>
-                setShowPending(true)
-              }
-            >
-              <div className="company-add-icon">
-                +
-              </div>
-
-              <h3>
-                Agregar nueva empresa
-              </h3>
-
-              <p>
-                Creá un espacio independiente
-                con WhatsApp, CRM, usuarios,
-                robot y métricas propias.
-              </p>
-
-              <span>
-                Disponible en versión multiempresa
-              </span>
-            </article>
-          </div>
-        </section>
-
-        <section className="platform-section">
-          <div className="platform-section-heading">
-            <div>
-              <span className="platform-kicker">
-                CAPACIDADES DEL PRODUCTO
-              </span>
-
-              <h2>
-                Infraestructura SaaS
-              </h2>
-            </div>
-          </div>
-
-          <div className="platform-modules">
-            {modules.map(
-              (module) => (
-                <article
-                  key={module.title}
-                >
-                  <div className="platform-module-icon" />
-
-                  <h3>
-                    {module.title}
-                  </h3>
-
-                  <p>
-                    {module.description}
-                  </p>
-
-                  <span>
-                    {module.status}
-                  </span>
-                </article>
-              ),
-            )}
-          </div>
-        </section>
+      <section className="saas-metrics">
+        <Metric label="Empresas activas" value="1" detail="Fulanitas Fábrica" />
+        <Metric label="Robots conectados" value="1" detail="WhatsApp operativo" />
+        <Metric label="Usuarios registrados" value="4" detail="Plataforma y empresa" />
+        <Metric label="Ingreso mensual" value="USD 50" detail="Cliente inicial" />
+        <Metric label="Estado del sistema" value="Operativo" detail="API y panel en línea" tone="success" />
       </section>
 
-      {showPending ? (
-        <div
-          className="platform-modal-backdrop"
-          onClick={() =>
-            setShowPending(false)
-          }
-        >
-          <section
-            className="platform-modal"
-            onClick={(event) =>
-              event.stopPropagation()
-            }
-          >
-            <span className="platform-kicker">
-              VERSIÓN MULTIEMPRESA
-            </span>
+      <section className="saas-section">
+        <SectionHeading
+          title="Operaciones comerciales"
+          description="Empresas asociadas y estado actual de cada operación."
+          aside={<StatusBadge>1 empresa activa</StatusBadge>}
+        />
 
-            <h2>
-              Módulo listo para desarrollar
-            </h2>
-
-            <p>
-              Permitirá crear nuevos clientes,
-              conectar un WhatsApp independiente,
-              separar CRM, usuarios,
-              conversaciones, catálogos,
-              métricas, planes y pagos.
-            </p>
-
-            <div className="platform-modal-list">
-              <span>
-                ✓ Empresa independiente
-              </span>
-              <span>
-                ✓ Robot y número propios
-              </span>
-              <span>
-                ✓ Usuarios y permisos
-              </span>
-              <span>
-                ✓ Planes y suscripciones
-              </span>
-              <span>
-                ✓ Facturación y pagos
-              </span>
+        <div className="saas-grid two">
+          <article className="saas-card saas-company-card">
+            <div className="saas-company-head">
+              <span className="saas-company-logo">F</span>
+              <div>
+                <StatusBadge>Activa</StatusBadge>
+                <h3>Fulanitas Fábrica</h3>
+                <p>Cliente inicial · Comercio mayorista</p>
+              </div>
             </div>
 
-            <button
-              onClick={() =>
-                setShowPending(false)
-              }
-            >
-              Entendido
-            </button>
-          </section>
+            <div className="saas-company-stats">
+              <div className="saas-stat-box"><span>Robot WhatsApp</span><strong>Conectado</strong></div>
+              <div className="saas-stat-box"><span>Número</span><strong>+54 9 11 6266-7360</strong></div>
+              <div className="saas-stat-box"><span>Usuarios</span><strong>3</strong></div>
+              <div className="saas-stat-box"><span>Plan</span><strong>Cliente inicial</strong></div>
+              <div className="saas-stat-box"><span>Pago mensual</span><strong>USD 50</strong></div>
+              <div className="saas-stat-box"><span>IA comercial</span><strong>Operativa</strong></div>
+            </div>
+
+            <div className="saas-card-actions">
+              <ButtonLink href="/platform/companies/fulanitas" kind="primary">Administrar empresa</ButtonLink>
+              <ButtonLink href="/platform/companies/fulanitas/robot">Ver robot</ButtonLink>
+            </div>
+          </article>
+
+          <article className="saas-empty">
+            <div>
+              <span className="saas-company-logo" style={{ margin: "0 auto 18px" }}>+</span>
+              <strong>Agregar nueva empresa</strong>
+              <p>Prepará un nuevo espacio independiente con WhatsApp, CRM, usuarios, robot, métricas y configuración propia.</p>
+              <div className="saas-card-actions" style={{ justifyContent: "center" }}>
+                <ButtonLink href="/platform/companies/new">Ver flujo de alta</ButtonLink>
+              </div>
+            </div>
+          </article>
         </div>
-      ) : null}
-    </main>
+      </section>
+
+      <section className="saas-section">
+        <SectionHeading title="Infraestructura SaaS" description="Todas las áreas del producto presentadas como módulos navegables." />
+        <div className="saas-grid">
+          {modules.map(([title, status, description, href]) => (
+            <article className="saas-card" key={title}>
+              <div className="saas-card-top">
+                <span className="saas-company-logo" style={{ width: 38, height: 38, borderRadius: 11, fontSize: ".85rem" }}>{title.charAt(0)}</span>
+                <StatusBadge tone={status === "Operativo" ? "success" : "neutral"}>{status}</StatusBadge>
+              </div>
+              <h3 style={{ marginTop: 18 }}>{title}</h3>
+              <p>{description}</p>
+              <div className="saas-card-actions"><ButtonLink href={href}>Abrir módulo</ButtonLink></div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }
