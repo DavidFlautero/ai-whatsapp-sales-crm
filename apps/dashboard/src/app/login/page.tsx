@@ -3,21 +3,157 @@
 import { useRouter } from "next/navigation";
 import {
   type FormEvent,
+  useEffect,
   useState,
 } from "react";
 
-const apiUrl =
+type LoginUser = {
+  role:
+    | "superadmin"
+    | "owner"
+    | "admin"
+    | "supervisor"
+    | "vendedor";
+};
+
+type PublicBranding = {
+  platform: {
+    name: string;
+    shortName: string;
+    loginEyebrow: string;
+    loginTitle: string;
+    loginMessage: string;
+    loginButtonLabel: string;
+    supportEmail: string;
+    primaryColor: string;
+    logoUrl: string | null;
+  };
+  defaultCompany: {
+    id: string;
+    name: string;
+    branding: {
+      shortName: string;
+      loginEyebrow: string;
+      loginTitle: string;
+      loginMessage: string;
+      loginButtonLabel: string;
+      primaryColor: string;
+      logoUrl: string | null;
+    };
+  } | null;
+};
+
+const apiUrl = (
   process.env.NEXT_PUBLIC_API_URL ||
-  "https://panel.fulanitasfabrica.site/api";
+  "https://panel.fulanitasfabrica.site/api"
+).replace(/\/+$/, "");
+
+const fallbackBranding: PublicBranding = {
+  platform: {
+    name: "Neuromind Commerce OS",
+    shortName: "NEUROMIND",
+    loginEyebrow: "OPERACIÓN COMERCIAL",
+    loginTitle: "Ventas inteligentes. Control humano.",
+    loginMessage:
+      "Clientes, conversaciones, pedidos, automatización e inteligencia comercial desde un único centro operativo.",
+    loginButtonLabel: "Ingresar al panel",
+    supportEmail: "admin@neuromind33.online",
+    primaryColor: "#d9a653",
+    logoUrl: null,
+  },
+  defaultCompany: {
+    id: "fulanitas",
+    name: "Fulanitas Fábrica",
+    branding: {
+      shortName: "FULANITAS",
+      loginEyebrow: "OPERACIÓN COMERCIAL",
+      loginTitle: "Ventas inteligentes. Control humano.",
+      loginMessage:
+        "Clientes, conversaciones, pedidos, automatización e inteligencia comercial desde un único centro operativo.",
+      loginButtonLabel: "Ingresar al panel",
+      primaryColor: "#d9a653",
+      logoUrl: null,
+    },
+  },
+};
+
+function routeForRole(role: LoginUser["role"]) {
+  if (role === "superadmin") {
+    return "/platform";
+  }
+
+  if (role === "vendedor") {
+    return "/conversations";
+  }
+
+  return "/";
+}
 
 export default function LoginPage() {
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [branding, setBranding] =
+    useState<PublicBranding>(fallbackBranding);
+
+  const [brandingReady, setBrandingReady] =
+    useState(false);
+
+  const [email, setEmail] =
+    useState("");
+
+  const [password, setPassword] =
+    useState("");
+
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadBranding() {
+      try {
+        const response = await fetch(
+          `${apiUrl}/platform/public-branding`,
+          {
+            credentials: "include",
+            cache: "no-store",
+          },
+        );
+
+        if (!response.ok) {
+          return;
+        }
+
+        const body = await response.json();
+
+        if (
+          active &&
+          body?.ok &&
+          body?.data?.platform
+        ) {
+          setBranding(body.data);
+        }
+      } catch {
+        // El fallback mantiene disponible el login.
+      } finally {
+        if (active) {
+          setBrandingReady(true);
+        }
+      }
+    }
+
+    void loadBranding();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
@@ -28,30 +164,47 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const response = await fetch(`${apiUrl}/auth/login`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${apiUrl}/auth/login`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            password,
+          }),
         },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
+      );
 
       const body = await response.json();
 
       if (!response.ok) {
         setError(
           body.message ||
-          "Correo o contraseña incorrectos.",
+            "Correo o contraseña incorrectos.",
         );
 
         return;
       }
 
-      router.replace("/");
+      const user =
+        body.user as LoginUser | undefined;
+
+      if (!user?.role) {
+        setError(
+          "La sesión fue creada, pero no se pudo determinar el acceso.",
+        );
+
+        return;
+      }
+
+      router.replace(
+        routeForRole(user.role),
+      );
+
       router.refresh();
     } catch {
       setError(
@@ -62,33 +215,64 @@ export default function LoginPage() {
     }
   }
 
+  const company =
+    branding.defaultCompany;
+
+  const visualBranding =
+    company?.branding ||
+    branding.platform;
+
+  const brandName =
+    company?.branding.shortName ||
+    branding.platform.shortName;
+
+  const logoLetter =
+    brandName.trim().charAt(0).toUpperCase() ||
+    "N";
+
   return (
-    <main className="login-page">
+    <main
+      className="login-page"
+      style={{
+        "--login-accent":
+          visualBranding.primaryColor,
+      } as React.CSSProperties}
+      data-branding-ready={brandingReady}
+    >
       <section className="login-presentation">
         <div className="login-logo">
-          <span>F</span>
+          {visualBranding.logoUrl ? (
+            <img
+              src={visualBranding.logoUrl}
+              alt={brandName}
+              className="login-logo-image"
+            />
+          ) : (
+            <span>{logoLetter}</span>
+          )}
 
           <div>
-            <strong>FULANITAS</strong>
-            <small>Commerce Intelligence</small>
+            <strong>{brandName}</strong>
+
+            <small>
+              {company
+                ? branding.platform.name
+                : "Commerce Intelligence"}
+            </small>
           </div>
         </div>
 
         <div className="login-copy">
           <span className="login-eyebrow">
-            OPERACIÓN COMERCIAL
+            {visualBranding.loginEyebrow}
           </span>
 
           <h1>
-            Ventas inteligentes.
-            <br />
-            Control humano.
+            {visualBranding.loginTitle}
           </h1>
 
           <p>
-            Clientes, conversaciones, pedidos,
-            automatización e inteligencia comercial
-            desde un único centro operativo.
+            {visualBranding.loginMessage}
           </p>
         </div>
 
@@ -111,8 +295,10 @@ export default function LoginPage() {
             <h2>Bienvenido</h2>
 
             <p>
-              Ingresá con tu cuenta asignada de
-              Fulanitas.
+              Ingresá con tu cuenta asignada
+              {company
+                ? ` de ${company.name}.`
+                : "."}
             </p>
           </header>
 
@@ -121,41 +307,48 @@ export default function LoginPage() {
 
             <input
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(event) =>
                 setEmail(event.target.value)
               }
-              autoComplete="email"
-              placeholder="nombre@fulanitasfabrica.site"
+              placeholder="nombre@empresa.com"
               required
+              disabled={loading}
             />
           </label>
 
           <label className="login-field">
             <span>Contraseña</span>
 
-            <div className="login-password">
+            <div className="login-password-control">
               <input
                 type={
                   showPassword
                     ? "text"
                     : "password"
                 }
+                autoComplete="current-password"
                 value={password}
                 onChange={(event) =>
-                  setPassword(event.target.value)
+                  setPassword(
+                    event.target.value,
+                  )
                 }
-                autoComplete="current-password"
-                placeholder="Ingresá tu contraseña"
+                placeholder="Tu contraseña"
                 minLength={8}
                 required
+                disabled={loading}
               />
 
               <button
                 type="button"
                 onClick={() =>
-                  setShowPassword((value) => !value)
+                  setShowPassword(
+                    (current) => !current,
+                  )
                 }
+                disabled={loading}
               >
                 {showPassword
                   ? "Ocultar"
@@ -165,7 +358,10 @@ export default function LoginPage() {
           </label>
 
           {error ? (
-            <div className="login-error">
+            <div
+              className="login-error"
+              role="alert"
+            >
               {error}
             </div>
           ) : null}
@@ -177,11 +373,17 @@ export default function LoginPage() {
           >
             {loading
               ? "Verificando acceso…"
-              : "Ingresar al panel"}
+              : visualBranding.loginButtonLabel}
           </button>
 
-          <footer>
-            Sesión cifrada · HTTPS · Acceso por roles
+          <footer className="login-card-footer">
+            <span>
+              Acceso protegido mediante sesión segura.
+            </span>
+
+            <span>
+              Soporte: {branding.platform.supportEmail}
+            </span>
           </footer>
         </form>
       </section>

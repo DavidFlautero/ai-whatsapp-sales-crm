@@ -1556,3 +1556,57 @@ h1 {
     padding: 27px 22px;
   }
 }
+
+/* Dynamic SaaS login branding */
+
+.login-page {
+  --login-accent: #d9a653;
+}
+
+.login-logo > span {
+  border-color: color-mix(
+    in srgb,
+    var(--login-accent) 55%,
+    transparent
+  );
+  color: var(--login-accent);
+}
+
+.login-logo-image {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 13px;
+}
+
+.login-eyebrow {
+  color: var(--login-accent);
+}
+
+.login-platform-status > span {
+  background: var(--login-accent);
+  box-shadow:
+    0 0 0 5px
+    color-mix(
+      in srgb,
+      var(--login-accent) 15%,
+      transparent
+    );
+}
+
+.login-submit {
+  background:
+    linear-gradient(
+      135deg,
+      var(--login-accent),
+      color-mix(
+        in srgb,
+        var(--login-accent) 72%,
+        #000
+      )
+    );
+}
+
+.login-page[data-branding-ready="false"] {
+  opacity: 0.99;
+}
