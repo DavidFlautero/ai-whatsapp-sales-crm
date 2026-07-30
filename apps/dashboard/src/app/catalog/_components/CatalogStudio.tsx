@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import {
   ChangeEvent,
   DragEvent,
@@ -25,6 +27,10 @@ import {
   variantPhysicalStock,
 } from "./catalog.types";
 import "./catalog-studio.css";
+import {
+  CatalogCommerceNav,
+} from "../_commerce/CatalogCommerceNav";
+
 
 const STORAGE_KEY =
   "fulanitas_catalog_studio_v2";
@@ -1298,15 +1304,16 @@ export function CatalogStudio({
               Guardar borrador
             </button>
 
-            <button
-              type="button"
+            <Link
+              href="/catalog/new"
               className="catalog-button primary"
-              onClick={addProduct}
             >
-              + Nuevo producto
-            </button>
+              + Nueva prenda
+            </Link>
           </div>
         </header>
+
+        <CatalogCommerceNav />
 
         <section className="catalog-metrics">
           <article>
