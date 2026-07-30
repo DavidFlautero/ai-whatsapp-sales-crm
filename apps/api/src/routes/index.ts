@@ -24,33 +24,26 @@ import {
 
 export const router = Router();
 
-/*
- * Rutas públicas.
- * Meta necesita acceder al webhook sin iniciar sesión.
- */
 router.use("/health", healthRoutes);
 router.use("/auth", authRoutes);
 router.use("/platform", platformPublicRoutes);
 router.use("/webhook/whatsapp", whatsappRoutes);
 
-/*
- * Rutas comerciales protegidas.
- * Cualquier usuario activo puede acceder.
- */
 router.use("/customers", requireAuth, customersRoutes);
 router.use("/orders", requireAuth, ordersRoutes);
 router.use("/stock", requireAuth, stockRoutes);
 
 router.use("/platform", platformAdminRoutes);
 
-/*
- * Administración.
- * Solo administradores y supervisores.
- */
 router.use(
   "/admin",
   requireAuth,
-  requireRoles("owner", "admin", "supervisor"),
+  requireRoles(
+    "superadmin",
+    "owner",
+    "admin",
+    "supervisor",
+  ),
 );
 
 router.use("/admin", adminStatusRoutes);
