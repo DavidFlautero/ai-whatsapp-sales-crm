@@ -51,3 +51,4 @@ temp/
 # Runtime SaaS configuration
 data/platform-config.json
 data/platform-config.json.tmp
+apps/dashboard/.next-before-recovery-*

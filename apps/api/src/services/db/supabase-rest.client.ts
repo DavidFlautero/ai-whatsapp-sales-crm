@@ -38,3 +38,88 @@ export async function supabaseRequest<T>(input: {
 
   return data as T;
 }
+
+
+export async function supabaseRpc<T>(
+  functionName: string,
+  body: Record<string, unknown>,
+): Promise<T> {
+  if (
+    !env.SUPABASE_URL
+    || !env.SUPABASE_SERVICE_ROLE_KEY
+  ) {
+    throw new Error(
+      "Supabase is not configured",
+    );
+  }
+
+  const baseUrl =
+    env.SUPABASE_URL.replace(
+      /\/+$/,
+      "",
+    );
+
+  const url =
+    `${baseUrl}/rest/v1/rpc/${encodeURIComponent(
+      functionName,
+    )}`;
+
+  const response =
+    await fetch(
+      url,
+      {
+        method: "POST",
+
+        headers: {
+          apikey:
+            env.SUPABASE_SERVICE_ROLE_KEY,
+
+          Authorization:
+            `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+
+          "Content-Type":
+            "application/json",
+
+          Prefer:
+            "return=representation",
+        },
+
+        body:
+          JSON.stringify(body),
+      },
+    );
+
+  const text =
+    await response.text();
+
+  let data:
+    unknown = null;
+
+  if (text) {
+    try {
+      data =
+        JSON.parse(text);
+    } catch {
+      data =
+        text;
+    }
+  }
+
+  if (!response.ok) {
+    console.error(
+      "[SUPABASE RPC ERROR]",
+      {
+        functionName,
+        status:
+          response.status,
+        data,
+      },
+    );
+
+    throw new Error(
+      `Supabase RPC failed: ${functionName}`,
+    );
+  }
+
+  return data as T;
+}

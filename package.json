@@ -9,7 +9,8 @@
     "doctor": "bash scripts/doctor.sh"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "tsx": "^4.21.0"
+    "supabase": "2.110.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }

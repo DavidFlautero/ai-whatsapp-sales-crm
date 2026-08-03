@@ -1,0 +1,93 @@
+===== INTEGRACIONES =====
+apps/api/src/routes/admin/integrations.routes.ts:30:export const adminIntegrationsRoutes =
+apps/api/src/routes/admin/integrations.routes.ts:128:adminIntegrationsRoutes.get(
+apps/api/src/routes/admin/integrations.routes.ts:159:adminIntegrationsRoutes.post(
+apps/api/src/routes/admin/integrations.routes.ts:197:adminIntegrationsRoutes.put(
+apps/api/src/routes/admin/integrations.routes.ts:236:adminIntegrationsRoutes.delete(
+apps/api/src/routes/index.ts:2:  adminIntegrationsRoutes,
+apps/api/src/routes/index.ts:3:} from "./admin/integrations.routes.js";
+apps/api/src/routes/index.ts:32:  "/admin/integrations",
+apps/api/src/routes/index.ts:34:  adminIntegrationsRoutes,
+apps/dashboard/src/app/integrations/ConnectionsPanel.tsx:513:export function ConnectionsPanel({
+apps/dashboard/src/app/integrations/ConnectionsPanel.tsx:661:          "/admin/integrations/config",
+apps/dashboard/src/app/integrations/ConnectionsPanel.tsx:763:          "/admin/integrations/test",
+apps/dashboard/src/app/integrations/ConnectionsPanel.tsx:816:          "/admin/integrations/config",
+apps/dashboard/src/app/integrations/ConnectionsPanel.tsx:914:          `/admin/integrations/${provider}`,
+apps/dashboard/src/app/integrations/page.tsx:14:  ConnectionsPanel,
+apps/dashboard/src/app/integrations/page.tsx:15:} from "./ConnectionsPanel";
+apps/dashboard/src/app/integrations/page.tsx:44:      <ConnectionsPanel
+
+===== AUTENTICACIÓN =====
+apps/api/src/platform/platform.service.ts:42:  companyId: string,
+apps/api/src/platform/platform.service.ts:48:      (company) => company.id === companyId,
+apps/api/src/platform/platform.service.ts:66:  companyId: string,
+apps/api/src/platform/platform.service.ts:73:    (company) => company.id === companyId,
+apps/api/src/platform/platform.service.ts:90:  companyId: string,
+apps/api/src/platform/platform.service.ts:97:    (company) => company.id === companyId,
+apps/api/src/platform/platform.service.ts:114:  companyId: string,
+apps/api/src/platform/platform.service.ts:121:    (company) => company.id === companyId,
+apps/api/src/platform/platform.service.ts:138:  companyId: string,
+apps/api/src/platform/platform.service.ts:147:    (company) => company.id === companyId,
+apps/api/src/platform/platform.routes.ts:14:  requireAuth,
+apps/api/src/platform/platform.routes.ts:15:  requireRoles,
+apps/api/src/platform/platform.routes.ts:27:  requireAuth,
+apps/api/src/platform/platform.routes.ts:28:  requireRoles("superadmin"),
+apps/api/src/platform/platform.routes.ts:42:  "/companies/:companyId",
+apps/api/src/platform/platform.routes.ts:52:  "/companies/:companyId",
+apps/api/src/platform/platform.routes.ts:57:  "/companies/:companyId/branding",
+apps/api/src/platform/platform.routes.ts:62:  "/companies/:companyId/robot",
+apps/api/src/platform/platform.routes.ts:67:  "/companies/:companyId/subscription",
+apps/api/src/platform/platform.controller.ts:71:    req.params.companyId as string,
+apps/api/src/platform/platform.controller.ts:111:      req.params.companyId as string,
+apps/api/src/platform/platform.controller.ts:137:      req.params.companyId as string,
+apps/api/src/platform/platform.controller.ts:163:      req.params.companyId as string,
+apps/api/src/platform/platform.controller.ts:189:      req.params.companyId as string,
+apps/api/src/middlewares/auth.middleware.ts:17:export async function requireAuth(
+apps/api/src/middlewares/auth.middleware.ts:50:export function requireRoles(...roles: UserRole[]) {
+apps/api/src/auth/auth.service.ts:68:    companyId: user.companyId,
+apps/api/src/auth/auth.service.ts:113:    const companyId =
+apps/api/src/auth/auth.service.ts:116:        : typeof payload.companyId === "string"
+apps/api/src/auth/auth.service.ts:117:          ? payload.companyId
+apps/api/src/auth/auth.service.ts:122:      !companyId
+apps/api/src/auth/auth.service.ts:132:      companyId,
+apps/api/src/auth/auth.config.ts:47:    const companyId =
+apps/api/src/auth/auth.config.ts:50:        : user.companyId || process.env.DEFAULT_COMPANY_ID || "fulanitas";
+apps/api/src/auth/auth.config.ts:58:      companyId,
+apps/api/src/auth/auth.config.ts:78:    "fulanitas_session",
+apps/api/src/auth/auth.types.ts:14:  companyId: string | null;
+apps/api/src/routes/admin/integrations.routes.ts:16:  requireRoles,
+apps/api/src/routes/admin/integrations.routes.ts:131:  requireRoles(
+apps/api/src/routes/admin/integrations.routes.ts:162:  requireRoles(
+apps/api/src/routes/admin/integrations.routes.ts:200:  requireRoles(
+apps/api/src/routes/admin/integrations.routes.ts:239:  requireRoles(
+apps/api/src/routes/auth.routes.ts:7:import { requireAuth } from "../middlewares/auth.middleware.js";
+apps/api/src/routes/auth.routes.ts:13:authRoutes.get("/session", requireAuth, getSession);
+apps/api/src/routes/index.ts:21:  requireAuth,
+apps/api/src/routes/index.ts:22:  requireRoles,
+apps/api/src/routes/index.ts:33:  requireAuth,
+apps/api/src/routes/index.ts:42:router.use("/customers", requireAuth, customersRoutes);
+apps/api/src/routes/index.ts:43:router.use("/orders", requireAuth, ordersRoutes);
+apps/api/src/routes/index.ts:44:router.use("/stock", requireAuth, stockRoutes);
+apps/api/src/routes/index.ts:50:  requireAuth,
+apps/api/src/routes/index.ts:51:  requireRoles(
+apps/dashboard/src/proxy.ts:32:  "fulanitas_session";
+apps/dashboard/src/app/platform/settings/page.tsx:3:export default function SettingsPage(){return <><PageHeader kicker="CONFIGURACIÓN" title="Ajustes de la plataforma" description="Presentación completa de identidad global, seguridad, soporte, dominios y comportamiento general del producto." actions={<button type="button" className="saas-button primary">Guardar configuración</button>}/><div className="saas-callout">Los valores sensibles permanecen fuera de la interfaz. Esta vista solo representa parámetros seguros y administrables.</div><section className="saas-section"><div className="saas-grid two"><article className="saas-card"><SectionHeading title="Identidad global" description="Marca visible para el superadministrador y comunicaciones del SaaS." aside={<StatusBadge>Actual</StatusBadge>}/><div className="saas-form-grid"><div className="saas-field"><label>Nombre de plataforma</label><input defaultValue="Neuromind Commerce OS"/></div><div className="saas-field"><label>Nombre corto</label><input defaultValue="NEUROMIND"/></div><div className="saas-field full"><label>Correo de soporte</label><input defaultValue="admin@neuromind33.online"/></div><div className="saas-field"><label>Color principal</label><input defaultValue="#d9a653"/></div><div className="saas-field"><label>URL de logo</label><input placeholder="https://..."/></div></div></article><article className="saas-card"><SectionHeading title="Seguridad" description="Parámetros visibles de sesión y control de acceso."/><div className="saas-list"><div className="saas-list-row"><span>Duración de sesión</span><strong>12 horas</strong></div><div className="saas-list-row"><span>Cookie</span><strong>HTTP only · Secure</strong></div><div className="saas-list-row"><span>Roles</span><strong>5 niveles</strong></div><div className="saas-list-row"><span>Separación empresarial</span><strong>companyId</strong></div><div className="saas-list-row"><span>Auditoría</span><strong>Preparada</strong></div></div></article></div></section><section className="saas-section"><SectionHeading title="Configuración operativa" description="Áreas previstas para la administración final del producto."/><div className="saas-grid"><article className="saas-card"><h3>Dominios</h3><p>Dominio principal, dominios personalizados por empresa y certificados SSL.</p></article><article className="saas-card"><h3>Notificaciones</h3><p>Alertas de pagos, incidencias, desconexiones y actividad importante.</p></article><article className="saas-card"><h3>Políticas</h3><p>Privacidad, términos, retención de datos y eliminación de información.</p></article></div></section></>}
+apps/dashboard/src/app/platform/users/page.tsx:3:export default function UsersPage(){return <StaticModulePage kicker="USUARIOS GLOBALES" title="Personas, roles y accesos" description="Visión central de superadministradores y equipos vinculados a cada empresa, sin mezclar permisos entre clientes." metrics={[["Usuarios","4","Plataforma y empresa",undefined],["Superadmin","1","Control global",undefined],["Admins empresa","1","Fulanitas",undefined],["Supervisores","1","Fulanitas",undefined],["Vendedores","1","Fulanitas",undefined]]} cards={[{title:"Aislamiento por empresa",description:"Cada miembro empresarial queda asociado a un companyId y solo ve su operación.",status:"Operativo"},{title:"Roles definidos",description:"Superadmin, owner, admin, supervisor y vendedor con alcances diferentes."},{title:"Invitaciones",description:"Vista preparada para altas por correo, activación, suspensión y restablecimiento."}]} rows={[{name:"Administrador de Plataforma",detail:"admin@neuromind33.online · Acceso global",status:"Activo"},{name:"Admin Fulanitas",detail:"admin@fulanitasfabrica.site · Empresa fulanitas",status:"Activo"},{name:"Supervisor Fulanitas",detail:"supervisor@fulanitasfabrica.site · Empresa fulanitas",status:"Activo"},{name:"Ventas Fulanitas",detail:"ventas@fulanitasfabrica.site · Empresa fulanitas",status:"Activo"}]} />}
+
+===== VENTAS, STOCK Y CLIENTES =====
+apps/api/src/routes/orders.routes.ts:3:export const ordersRoutes = Router();
+apps/api/src/routes/orders.routes.ts:5:ordersRoutes.get("/", (_req, res) => {
+apps/api/src/routes/customers.routes.ts:3:export const customersRoutes = Router();
+apps/api/src/routes/customers.routes.ts:5:customersRoutes.get("/", (_req, res) => {
+apps/api/src/routes/index.ts:9:import { customersRoutes } from "./customers.routes.js";
+apps/api/src/routes/index.ts:10:import { ordersRoutes } from "./orders.routes.js";
+apps/api/src/routes/index.ts:11:import { stockRoutes } from "./stock.routes.js";
+apps/api/src/routes/index.ts:42:router.use("/customers", requireAuth, customersRoutes);
+apps/api/src/routes/index.ts:43:router.use("/orders", requireAuth, ordersRoutes);
+apps/api/src/routes/index.ts:44:router.use("/stock", requireAuth, stockRoutes);
+apps/api/src/routes/stock.routes.ts:3:export const stockRoutes = Router();
+apps/api/src/routes/stock.routes.ts:5:stockRoutes.get("/", (_req, res) => {
+apps/dashboard/src/app/catalog/_components/CatalogStudio.tsx:444:        localStorage.getItem(
+apps/dashboard/src/app/catalog/_components/CatalogStudio.tsx:617:      localStorage.setItem(
+apps/dashboard/src/app/catalog/_commerce/commerce.storage.ts:48:      window.localStorage.getItem(
+apps/dashboard/src/app/catalog/_commerce/commerce.storage.ts:64:  window.localStorage.setItem(

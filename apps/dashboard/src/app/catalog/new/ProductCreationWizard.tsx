@@ -18,6 +18,16 @@ import type {
   SizeStock,
 } from "../_components/catalog.types";
 
+import type {
+  ProductPrice,
+} from "../_commerce/commerce.types";
+
+import {
+  STORAGE_KEYS,
+  loadStorage,
+  saveStorage,
+} from "../_commerce/commerce.storage";
+
 import {
   loadCatalogProducts,
   saveCatalogProducts,
@@ -233,6 +243,11 @@ export default function ProductCreationWizard() {
 
   const [description, setDescription] =
     useState("");
+
+  const [
+    wholesalePrice,
+    setWholesalePrice,
+  ] = useState(0);
 
   const [status, setStatus] =
     useState<GarmentStatus>(
@@ -517,6 +532,18 @@ export default function ProductCreationWizard() {
         );
         return false;
       }
+
+      if (
+        !Number.isFinite(
+          wholesalePrice,
+        )
+        || wholesalePrice <= 0
+      ) {
+        notify(
+          "Ingresá el precio mayorista en pesos argentinos",
+        );
+        return false;
+      }
     }
 
     if (step === 2) {
@@ -559,6 +586,18 @@ export default function ProductCreationWizard() {
     ) {
       notify(
         "Completá la información, colores y talles",
+      );
+      return;
+    }
+
+    if (
+      !Number.isFinite(
+        wholesalePrice,
+      )
+      || wholesalePrice <= 0
+    ) {
+      notify(
+        "Ingresá el precio mayorista en pesos argentinos",
       );
       return;
     }
@@ -607,6 +646,52 @@ export default function ProductCreationWizard() {
       ...existing,
     ]);
 
+    const currentPrices =
+      loadStorage<ProductPrice[]>(
+        STORAGE_KEYS.prices,
+        [],
+      );
+
+    const productPrice:
+      ProductPrice = {
+        id: uid("price"),
+        productId: product.id,
+        productName:
+          product.name,
+        baseSku:
+          product.baseSku,
+        cost: 0,
+        wholesale:
+          wholesalePrice,
+        transfer:
+          wholesalePrice,
+        cash:
+          wholesalePrice,
+        distributor:
+          wholesalePrice,
+        curveUnit:
+          wholesalePrice,
+        dozenUnit:
+          wholesalePrice,
+        suggestedRetail:
+          wholesalePrice,
+        promotional: 0,
+        currency: "ARS",
+        updatedAt: now,
+      };
+
+    saveStorage(
+      STORAGE_KEYS.prices,
+      [
+        productPrice,
+        ...currentPrices.filter(
+          (price) =>
+            price.productId
+            !== product.id,
+        ),
+      ],
+    );
+
     const createdCells =
       syncProductToInventory(
         product,
@@ -615,7 +700,7 @@ export default function ProductCreationWizard() {
     setSaved(true);
 
     notify(
-      `${product.name} creada con ${createdCells} variantes de inventario`,
+      `${product.name} creada a $ ${wholesalePrice.toLocaleString("es-AR")} ARS con ${createdCells} variantes de inventario`,
     );
   }
 
@@ -731,6 +816,35 @@ export default function ProductCreationWizard() {
                         updateBaseSku(
                           event.target
                             .value,
+                        )
+                      }
+                    />
+                  </label>
+
+                  <label>
+                    <span>
+                      Precio mayorista (ARS)
+                    </span>
+
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      inputMode="numeric"
+                      value={
+                        wholesalePrice
+                        || ""
+                      }
+                      placeholder="18500"
+                      onChange={(event) =>
+                        setWholesalePrice(
+                          Math.max(
+                            0,
+                            Number(
+                              event.target
+                                .value,
+                            ),
+                          ),
                         )
                       }
                     />

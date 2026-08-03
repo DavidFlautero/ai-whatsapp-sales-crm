@@ -1,0 +1,30 @@
+[
+  {
+    "name": "ventas-dashboard",
+    "pid": 95081,
+    "status": "online",
+    "restartCount": 60,
+    "unstableRestarts": 0,
+    "uptimeStartedAt": 1785502412542,
+    "createdAt": 1785502412430,
+    "executionMode": "fork_mode",
+    "workingDirectory": "/opt/ventas-ia-mayorista",
+    "scriptPath": "/usr/bin/bash",
+    "cpuPercent": 0,
+    "memoryBytes": 114786304
+  },
+  {
+    "name": "ventas-api",
+    "pid": 95056,
+    "status": "online",
+    "restartCount": 23,
+    "unstableRestarts": 0,
+    "uptimeStartedAt": 1785502412193,
+    "createdAt": 1785502412076,
+    "executionMode": "fork_mode",
+    "workingDirectory": "/opt/ventas-ia-mayorista",
+    "scriptPath": "/usr/bin/bash",
+    "cpuPercent": 0,
+    "memoryBytes": 114823168
+  }
+]

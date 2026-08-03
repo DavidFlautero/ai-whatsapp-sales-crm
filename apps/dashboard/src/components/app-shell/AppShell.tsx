@@ -16,6 +16,7 @@ const nav = [
   ["Clientes perdidos", "/recovery"],
   ["Campañas", "/campaigns"],
   ["Analytics", "/analytics"],
+  ["Nueva venta", "/orders/new"],
   ["Catálogo", "/catalog"],
   ["Prompts", "/prompts"],
   ["Robot e integraciones", "/integrations"],

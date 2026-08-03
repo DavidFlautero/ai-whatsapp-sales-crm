@@ -1,0 +1,98 @@
+risk	file	line	excerpt
+HARDCODED_COMPANY_FULANITAS	apps/api/src/auth/auth.config.ts	50	: user.companyId || process.env.DEFAULT_COMPANY_ID || "fulanitas";
+DIRECT_PROCESS_ENV_ACCESS	apps/api/src/auth/auth.config.ts	50	: user.companyId || process.env.DEFAULT_COMPANY_ID || "fulanitas";
+DEFAULT_COMPANY_VARIABLE	apps/api/src/auth/auth.config.ts	50	: user.companyId || process.env.DEFAULT_COMPANY_ID || "fulanitas";
+DIRECT_PROCESS_ENV_ACCESS	apps/api/src/auth/auth.config.ts	65	process.env.AUTH_SESSION_HOURS || "12",
+DIRECT_PROCESS_ENV_ACCESS	apps/api/src/auth/auth.config.ts	77	process.env.AUTH_COOKIE_NAME?.trim() ||
+RAW_CONSOLE_ERROR	apps/api/src/index.ts	31	console.error(
+RAW_CONSOLE_ERROR	apps/api/src/middlewares/error.middleware.ts	9	console.error("[api:error]", error);
+DIRECT_PROCESS_ENV_ACCESS	apps/api/src/platform/platform.repository.ts	7	process.env.PLATFORM_CONFIG_PATH ||
+FILESYSTEM_PERSISTENCE	apps/api/src/platform/platform.repository.ts	34	await fs.writeFile(
+RAW_CONSOLE_ERROR	apps/api/src/routes/admin/integrations.routes.ts	92	console.error(
+POSSIBLE_EMPTY_CUSTOMERS	apps/api/src/routes/customers.routes.ts	6	res.json({ customers: [] });
+POSSIBLE_EMPTY_ORDERS	apps/api/src/routes/orders.routes.ts	6	res.json({ orders: [] });
+POSSIBLE_EMPTY_STOCK	apps/api/src/routes/stock.routes.ts	6	res.json({ stock: [] });
+DIRECT_PROCESS_ENV_ACCESS	apps/api/src/server/createApp.ts	8	process.env.APP_ORIGIN?.trim() ||
+UNSAFE_ANY_TYPE	apps/api/src/services/analytics/analytics.service.ts	11	const inbound = messages.filter((message: any) => message.direction === "inbound").length;
+UNSAFE_ANY_TYPE	apps/api/src/services/analytics/analytics.service.ts	12	const outbound = messages.filter((message: any) => message.direction === "outbound").length;
+RAW_CONSOLE_ERROR	apps/api/src/services/anthropic/anthropic.client.ts	30	console.error("[anthropic] error", data);
+DIRECT_PROCESS_ENV_ACCESS	apps/api/src/services/anthropic/anthropic.service.ts	2	if (!process.env.ANTHROPIC_API_KEY) {
+DIRECT_PROCESS_ENV_ACCESS	apps/api/src/services/anthropic/anthropic.service.ts	10	"x-api-key": process.env.ANTHROPIC_API_KEY,
+RAW_CONSOLE_ERROR	apps/api/src/services/anthropic/anthropic.service.ts	30	console.error("[CLAUDE ERROR]", data);
+UNSAFE_ANY_TYPE	apps/api/src/services/anthropic/anthropic.service.ts	34	const text = data.content?.find((item: any) => item.type === "text")?.text;
+RAW_CONSOLE_ERROR	apps/api/src/services/anthropic/anthropic.service.ts	38	console.error("[CLAUDE REQUEST ERROR]", error);
+FILESYSTEM_PERSISTENCE	apps/api/src/services/audio/audio-transcription.service.ts	24	await fs.promises.writeFile(filePath, buffer);
+DIRECT_PROCESS_ENV_ACCESS	apps/api/src/services/audio/audio-transcription.service.ts	34	Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+DIRECT_PROCESS_ENV_ACCESS	apps/api/src/services/audio/groq-transcription.service.ts	7	if (!process.env.GROQ_API_KEY) {
+DIRECT_PROCESS_ENV_ACCESS	apps/api/src/services/audio/groq-transcription.service.ts	33	Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+RAW_CONSOLE_ERROR	apps/api/src/services/db/supabase-rest.client.ts	35	console.error("[SUPABASE ERROR]", data);
+DIRECT_PROCESS_ENV_ACCESS	apps/api/src/services/integrations/integration-secrets.repository.ts	74	process.env.INTEGRATIONS_STORE_PATH?.trim() ||
+DIRECT_PROCESS_ENV_ACCESS	apps/api/src/services/integrations/integration-secrets.repository.ts	86	process.env.INTEGRATIONS_AUDIT_PATH?.trim() ||
+FILESYSTEM_PERSISTENCE	apps/api/src/services/integrations/integration-secrets.repository.ts	402	await fs.writeFile(
+FILESYSTEM_PERSISTENCE	apps/api/src/services/integrations/integration-secrets.repository.ts	640	await fs.appendFile(
+UNSAFE_ANY_TYPE	apps/api/src/services/memory/customer-memory.repository.ts	64	.map((m: any) => `- ${m.key}: ${m.value} (${m.confidence ?? 70}% confianza)`)
+UNSAFE_ANY_TYPE	apps/api/src/services/recovery/recovery.repository.ts	53	.map((contact: any) => {
+UNSAFE_ANY_TYPE	apps/api/src/services/recovery/recovery.repository.ts	68	.filter((contact: any) => contact.daysInactive >= 1)
+UNSAFE_ANY_TYPE	apps/api/src/services/recovery/recovery.repository.ts	69	.sort((a: any, b: any) => b.daysInactive - a.daysInactive);
+UNSAFE_ANY_TYPE	apps/api/src/services/reports/report.service.ts	27	const rows = contacts.map((contact: any) =>
+UNSAFE_ANY_TYPE	apps/api/src/services/reports/report.service.ts	85	${report.contacts.map((c: any) => `
+HARDCODED_COMPANY_FULANITAS	apps/api/src/services/tenant/tenant.service.ts	13	name: "Fulanitas",
+HARDCODED_COMPANY_FULANITAS	apps/api/src/services/tenant/tenant.service.ts	14	slug: "fulanitas",
+RAW_CONSOLE_ERROR	apps/api/src/services/whatsapp/whatsapp-media.service.ts	13	console.error("[WHATSAPP MEDIA URL ERROR]", data);
+RAW_CONSOLE_ERROR	apps/api/src/services/whatsapp/whatsapp.client.ts	32	console.error("[WHATSAPP API ERROR]", data);
+RAW_CONSOLE_ERROR	apps/api/src/utils/logger.ts	3	error: (message: string, meta?: unknown) => console.error(message, meta ?? "")
+UNSAFE_ANY_TYPE	apps/dashboard/src/app/ai-core/page.tsx	112	events.slice(0, 20).map((event: any) => (
+UNSAFE_ANY_TYPE	apps/dashboard/src/app/ai-core/page.tsx	126	governanceEvents.slice(0, 10).map((g: any, i: number) => (
+UNSAFE_ANY_TYPE	apps/dashboard/src/app/analytics/page.tsx	27	qualityScores.slice(0, 10).map((q: any, i: number) => (
+UNSAFE_ANY_TYPE	apps/dashboard/src/app/analytics/page.tsx	46	predictiveProfiles.slice(0, 10).map((p: any) => (
+UNSAFE_ANY_TYPE	apps/dashboard/src/app/campaigns/page.tsx	17	campaigns.map((c: any, i: number) => (
+LOCAL_STORAGE_DEPENDENCY	apps/dashboard/src/app/catalog/_commerce/commerce.storage.ts	48	window.localStorage.getItem(
+LOCAL_STORAGE_DEPENDENCY	apps/dashboard/src/app/catalog/_commerce/commerce.storage.ts	64	window.localStorage.setItem(
+TECHNICAL_DEBT_MARKER	apps/dashboard/src/app/catalog/_components/CatalogStudio.tsx	204	season: "Todo el año",
+HARDCODED_COMPANY_FULANITAS	apps/dashboard/src/app/catalog/_components/CatalogStudio.tsx	205	brand: "Fulanitas",
+TECHNICAL_DEBT_MARKER	apps/dashboard/src/app/catalog/_components/CatalogStudio.tsx	339	"Todo el año",
+HARDCODED_COMPANY_FULANITAS	apps/dashboard/src/app/catalog/_components/CatalogStudio.tsx	340	brand: "Fulanitas",
+LOCAL_STORAGE_DEPENDENCY	apps/dashboard/src/app/catalog/_components/CatalogStudio.tsx	444	localStorage.getItem(
+LOCAL_STORAGE_DEPENDENCY	apps/dashboard/src/app/catalog/_components/CatalogStudio.tsx	617	localStorage.setItem(
+TECHNICAL_DEBT_MARKER	apps/dashboard/src/app/catalog/new/ProductCreationWizard.tsx	221	useState("Todo el año");
+HARDCODED_COMPANY_FULANITAS	apps/dashboard/src/app/catalog/new/ProductCreationWizard.tsx	224	useState("Fulanitas");
+UNSAFE_ANY_TYPE	apps/dashboard/src/app/conversations/page.tsx	18	conversations.map((chat: any) => (
+UNSAFE_ANY_TYPE	apps/dashboard/src/app/conversations/page.tsx	36	{messages.slice(0, 15).map((m: any) => (
+UNSAFE_ANY_TYPE	apps/dashboard/src/app/crm/page.tsx	37	contacts.map((c: any) => (
+DIRECT_PROCESS_ENV_ACCESS	apps/dashboard/src/app/integrations/ConnectionsPanel.tsx	12	process.env.NEXT_PUBLIC_API_URL ||
+DIRECT_PROCESS_ENV_ACCESS	apps/dashboard/src/app/login/page.tsx	47	process.env.NEXT_PUBLIC_API_URL ||
+HARDCODED_COMPANY_FULANITAS	apps/dashboard/src/app/login/page.tsx	65	id: "fulanitas",
+HARDCODED_COMPANY_FULANITAS	apps/dashboard/src/app/login/page.tsx	68	shortName: "FULANITAS",
+TECHNICAL_DEBT_MARKER	apps/dashboard/src/app/page.tsx	59	<h1>Todo el negocio mayorista, ordenado para vender mejor.</h1>
+UNSAFE_ANY_TYPE	apps/dashboard/src/app/page.tsx	76	catalogHighlights.map((product: any, index: number) => (
+UNSAFE_ANY_TYPE	apps/dashboard/src/app/page.tsx	172	leadScores.slice(0, 6).map((lead: any) => (
+UNSAFE_ANY_TYPE	apps/dashboard/src/app/page.tsx	219	<strong>{prompts.filter((prompt: any) => prompt.active).length}</strong>
+DIRECT_PROCESS_ENV_ACCESS	apps/dashboard/src/app/platform/_components/PlatformShell.tsx	8	process.env.NEXT_PUBLIC_API_URL ||
+HARDCODED_COMPANY_FULANITAS	apps/dashboard/src/app/platform/companies/fulanitas/branding/page.tsx	22	<div className="saas-field"><label>Nombre corto</label><input defaultValue="FULANITAS" /></div>
+TECHNICAL_DEBT_MARKER	apps/dashboard/src/app/platform/system/page.tsx	3	export default function SystemPage(){return <><PageHeader kicker="ESTADO DEL SISTEMA" title="Salud de la plataforma" description="Vista técnica ejecutiva de servicios, dependencias
+HARDCODED_COMPANY_FULANITAS	apps/dashboard/src/app/platform/users/page.tsx	3	export default function UsersPage(){return <StaticModulePage kicker="USUARIOS GLOBALES" title="Personas, roles y accesos" description="Visión central de superadministradores y equi
+UNSAFE_ANY_TYPE	apps/dashboard/src/app/prompts/page.tsx	15	{prompts.map((prompt: any) => (
+UNSAFE_ANY_TYPE	apps/dashboard/src/app/recovery/page.tsx	21	recoveryCandidates.map((c: any) => (
+UNSAFE_ANY_TYPE	apps/dashboard/src/app/recovery/page.tsx	39	recoveryEvents.map((e: any, i: number) => (
+HARDCODED_COMPANY_FULANITAS	apps/dashboard/src/app/settings/page.tsx	66	["Empresa", "Fulanitas", "Operación comercial principal"],
+DIRECT_PROCESS_ENV_ACCESS	apps/dashboard/src/components/app-shell/AppShell.tsx	8	process.env.NEXT_PUBLIC_API_URL ||
+DIRECT_PROCESS_ENV_ACCESS	apps/dashboard/src/lib/api.ts	36	process.env.NEXT_PUBLIC_API_URL ??
+DIRECT_PROCESS_ENV_ACCESS	apps/dashboard/src/proxy.ts	31	process.env.AUTH_COOKIE_NAME ||
+DIRECT_PROCESS_ENV_ACCESS	apps/dashboard/src/proxy.ts	35	process.env.AUTH_SECRET || "";
+HARDCODED_COMPANY_FULANITAS	data/platform-config.json	17	"id": "fulanitas",
+HARDCODED_COMPANY_FULANITAS	data/platform-config.json	18	"slug": "fulanitas",
+HARDCODED_COMPANY_FULANITAS	data/platform-config.json	24	"shortName": "FULANITAS",
+LOCAL_STORAGE_DEPENDENCY	docs/architecture/current-20260731-163322/09-inventory-summary.json	66	"browser.localStorage": 4,
+LOCAL_STORAGE_DEPENDENCY	docs/architecture/current-20260731-163322/10-risk-register.md	22	2. Eliminar la persistencia empresarial basada en localStorage.
+DEFAULT_COMPANY_VARIABLE	docs/architecture/current-20260731-163322/11-architecture-decisions.md	9	Ninguna ruta crítica utilizará `fulanitas` o `DEFAULT_COMPANY_ID` como fallback silencioso.
+LOCAL_STORAGE_DEPENDENCY	docs/architecture/current-20260731-163322/11-architecture-decisions.md	17	`localStorage` podrá usarse para preferencias visuales o borradores, pero no como fuente oficial de ventas, stock o clientes.
+HARDCODED_COMPANY_FULANITAS	supabase/migrations/20260731151000_commerce_transactional_core.sql	2934	'fulanitas',
+HARDCODED_COMPANY_FULANITAS	supabase/migrations/20260731151000_commerce_transactional_core.sql	2954	'fulanitas',
+HARDCODED_COMPANY_FULANITAS	supabase/migrations/20260731151000_commerce_transactional_core.sql	2971	'fulanitas',
+HARDCODED_COMPANY_FULANITAS	supabase/migrations/20260731151000_commerce_transactional_core.sql	2997	'fulanitas',
+HARDCODED_COMPANY_FULANITAS	supabase/migrations/20260731151000_commerce_transactional_core.sql	3007	'fulanitas',
+HARDCODED_COMPANY_FULANITAS	supabase/migrations/20260731151000_commerce_transactional_core.sql	3017	'fulanitas',
+HARDCODED_COMPANY_FULANITAS	supabase/migrations/20260731151000_commerce_transactional_core.sql	3027	'fulanitas',
+HARDCODED_COMPANY_FULANITAS	supabase/migrations/20260731151000_commerce_transactional_core.sql	3037	'fulanitas',
+HARDCODED_COMPANY_FULANITAS	supabase/migrations/20260731151000_commerce_transactional_core.sql	3047	'fulanitas',
+HARDCODED_COMPANY_FULANITAS	supabase/migrations/20260731151000_commerce_transactional_core.sql	3057	'fulanitas',

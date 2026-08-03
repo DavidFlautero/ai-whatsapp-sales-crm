@@ -1,4 +1,11 @@
+import {
+  adminIntegrationsRoutes,
+} from "./admin/integrations.routes.js";
+
 import { Router } from "express";
+import {
+  resolveAccessContext,
+} from "../core/http/access-context.middleware.js";
 import { authRoutes } from "./auth.routes.js";
 import { healthRoutes } from "./health.routes.js";
 import { whatsappRoutes } from "./whatsapp.routes.js";
@@ -24,14 +31,42 @@ import {
 
 export const router = Router();
 
+router.use(
+  "/admin/integrations",
+  requireAuth,
+  adminIntegrationsRoutes,
+);
+
 router.use("/health", healthRoutes);
 router.use("/auth", authRoutes);
 router.use("/platform", platformPublicRoutes);
 router.use("/webhook/whatsapp", whatsappRoutes);
 
 router.use("/customers", requireAuth, customersRoutes);
-router.use("/orders", requireAuth, ordersRoutes);
-router.use("/stock", requireAuth, stockRoutes);
+router.use(
+  "/orders",
+
+  requireAuth,
+
+  resolveAccessContext({
+    mode: "company",
+    source: "dashboard",
+  }),
+
+  ordersRoutes,
+);
+router.use(
+  "/stock",
+
+  requireAuth,
+
+  resolveAccessContext({
+    mode: "company",
+    source: "dashboard",
+  }),
+
+  stockRoutes,
+);
 
 router.use("/platform", platformAdminRoutes);
 

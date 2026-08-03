@@ -1,3 +1,6 @@
+import { resolveAccessContext } from "../core/http/access-context.middleware.js";
+import { requirePermission } from "../core/http/permission.middleware.js";
+import { observeAccessDecision } from "../core/http/access-observation.middleware.js";
 import { Router } from "express";
 import {
   companies,
@@ -25,7 +28,27 @@ platformPublicRoutes.get(
 
 platformAdminRoutes.use(
   requireAuth,
-  requireRoles("superadmin"),
+
+  requireRoles(
+    "superadmin",
+  ),
+
+  resolveAccessContext({
+    mode: "platform",
+    source: "dashboard",
+  }),
+
+  requirePermission(
+    "platform.read",
+    {
+      mode: "shadow",
+    },
+  ),
+
+  observeAccessDecision({
+    label:
+      "platform-admin-pilot",
+  }),
 );
 
 platformAdminRoutes.get(
