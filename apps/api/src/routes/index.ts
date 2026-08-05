@@ -30,6 +30,9 @@ import {
 } from "../platform/platform.routes.js";
 import { adminContactRoutes } from "./admin/contact.routes.js";
 import { adminMessageMediaRoutes } from "./admin/message-media.routes.js";
+import {
+  ninoxWebhookRoutes,
+} from "./webhooks/ninox.routes.js";
 
 export const router = Router();
 
@@ -43,6 +46,10 @@ router.use("/health", healthRoutes);
 router.use("/auth", authRoutes);
 router.use("/platform", platformPublicRoutes);
 router.use("/webhook/whatsapp", whatsappRoutes);
+router.use(
+  "/webhooks/ninox",
+  ninoxWebhookRoutes,
+);
 
 router.use("/customers", requireAuth, customersRoutes);
 router.use(
