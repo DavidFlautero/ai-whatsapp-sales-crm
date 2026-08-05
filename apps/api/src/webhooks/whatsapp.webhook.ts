@@ -13,11 +13,34 @@ import {
 import {
   findMessageByExternalId,
   saveMessage,
+  updateMessageBody,
 } from "../services/conversations/conversation.repository.js";
 
 import {
+  sendWhatsappImage,
   sendWhatsappText,
 } from "../services/whatsapp/whatsapp.service.js";
+
+import {
+  getWhatsappMediaUrl,
+  downloadWhatsappMedia,
+} from "../services/whatsapp/whatsapp-media.service.js";
+
+import {
+  transcribeAudio,
+} from "../services/audio/audio-transcription.service.js";
+
+import {
+  getOperatorMode,
+} from "../services/operator/operator.service.js";
+
+import {
+  extractAndStoreMemory,
+} from "../services/memory/memory-extractor.service.js";
+
+import {
+  recordCustomerInterestEvent,
+} from "../services/interests/customer-interest.repository.js";
 
 type WhatsappContact = {
   profile?: {
@@ -246,6 +269,19 @@ export async function handleWhatsappIncoming(
                 from,
               ),
 
+            metadata:
+              contactNames.has(
+                from,
+              )
+                ? {
+                    name_source:
+                      "whatsapp_profile",
+
+                    name_confirmed:
+                      false,
+                  }
+                : {},
+
             last_message:
               text
               ?? `[${messageType}]`,
@@ -303,10 +339,98 @@ export async function handleWhatsappIncoming(
           continue;
         }
 
+        let customerMessage =
+          text;
+
         if (
           messageType
+          === "audio"
+        ) {
+          const audioPayload =
+            message.audio
+            ?? {};
+
+          const mediaId =
+            typeof audioPayload.id
+            === "string"
+              ? audioPayload.id
+              : null;
+
+          if (!mediaId) {
+            console.error(
+              "[WHATSAPP AUDIO WITHOUT MEDIA ID]",
+              {
+                companyId,
+                from,
+                externalMessageId,
+              },
+            );
+
+            continue;
+          }
+
+          const mediaUrl =
+            await getWhatsappMediaUrl(
+              mediaId,
+            );
+
+          const audioBuffer =
+            await downloadWhatsappMedia(
+              mediaUrl,
+            );
+
+          customerMessage =
+            (
+              await transcribeAudio({
+                buffer:
+                  audioBuffer,
+
+                filename:
+                  `${externalMessageId ?? mediaId}.ogg`,
+
+                mimeType:
+                  typeof audioPayload.mime_type
+                  === "string"
+                    ? audioPayload.mime_type
+                    : "audio/ogg",
+              })
+            ).trim();
+
+          if (!customerMessage) {
+            console.error(
+              "[WHATSAPP AUDIO EMPTY TRANSCRIPTION]",
+              {
+                companyId,
+                from,
+                mediaId,
+              },
+            );
+
+            continue;
+          }
+
+          if (inbound.message.id) {
+            await updateMessageBody(
+              inbound.message.id,
+              customerMessage,
+              companyId,
+            );
+          }
+
+          console.log(
+            "[WHATSAPP AUDIO TRANSCRIBED]",
+            {
+              companyId,
+              from,
+              mediaId,
+              transcriptionLength:
+                customerMessage.length,
+            },
+          );
+        } else if (
+          messageType
           !== "text"
-          || !text
+          || !customerMessage
         ) {
           console.log(
             "[WHATSAPP NON-TEXT STORED]",
@@ -320,61 +444,260 @@ export async function handleWhatsappIncoming(
           continue;
         }
 
+        const operatorMode =
+          await getOperatorMode(
+            from,
+            companyId,
+          );
+
+        if (
+          operatorMode.status
+          === "human"
+          || operatorMode.status
+          === "paused"
+        ) {
+          console.log(
+            "[WHATSAPP AI PAUSED]",
+            {
+              companyId,
+              from,
+              operatorStatus:
+                operatorMode.status,
+              assignedTo:
+                operatorMode.assigned_to
+                ?? null,
+            },
+          );
+
+          continue;
+        }
+
+        await extractAndStoreMemory({
+          phone:
+            from,
+
+          message:
+            customerMessage,
+
+          companyId,
+
+          messageId:
+            inbound.message.id,
+        });
+
         const reply =
           await salesAgentReply({
             phone:
               from,
 
             message:
-              text,
+              customerMessage,
 
             companyId,
+
+            currentMessageId:
+              inbound.message.id,
           });
 
-        const sent =
-          await sendWhatsappText({
-            to:
-              from,
+        const sentMessages = [];
 
-            text:
-              reply,
-          });
+        if (
+          reply.media.length
+          > 0
+        ) {
+          for (
+            const [
+              index,
+              media,
+            ]
+            of reply.media.entries()
+          ) {
+            const sent =
+              await sendWhatsappImage({
+                to:
+                  from,
 
-        await saveMessage(
-          {
-            contact_phone:
-              from,
+                imageUrl:
+                  media.url,
 
-            external_message_id:
-              sent.externalMessageId,
+                caption:
+                  index === 0
+                    ? reply.text
+                        .slice(0, 900)
+                    : undefined,
+              });
 
-            direction:
-              "outbound",
+            sentMessages.push(
+              {
+                sent,
+                media,
+                body:
+                  index === 0
+                    ? reply.text
+                    : "",
+              },
+            );
+          }
+        } else {
+          const sent =
+            await sendWhatsappText({
+              to:
+                from,
 
-            channel:
-              "whatsapp",
+              text:
+                reply.text,
+            });
 
-            message_type:
-              "text",
+          sentMessages.push(
+            {
+              sent,
+              media:
+                null,
+              body:
+                reply.text,
+            },
+          );
+        }
 
-            body:
-              reply,
+        const shownProductKeys =
+          new Set<string>();
 
-            raw_payload:
-              sent.raw,
+        for (
+          const item
+          of sentMessages
+        ) {
+          const storedOutbound =
+            await saveMessage(
+            {
+              contact_phone:
+                from,
 
-            delivery_status:
-              sent.status
-              === "accepted"
-                ? "queued"
-                : "sent",
+              external_message_id:
+                item.sent.externalMessageId,
 
-            occurred_at:
-              new Date()
-                .toISOString(),
-          },
-          companyId,
-        );
+              direction:
+                "outbound",
+
+              channel:
+                "whatsapp",
+
+              message_type:
+                item.media
+                  ? "image"
+                  : "text",
+
+              body:
+                item.body,
+
+              media:
+                item.media
+                  ? {
+                      type:
+                        item.media.type,
+
+                      url:
+                        item.media.url,
+
+                      role:
+                        item.media.role,
+
+                      productId:
+                        item.media.productId,
+
+                      variantId:
+                        item.media.variantId,
+
+                      sku:
+                        item.media.sku,
+                    }
+                  : undefined,
+
+              raw_payload:
+                item.sent.raw,
+
+              delivery_status:
+                item.sent.status
+                === "accepted"
+                  ? "queued"
+                  : "sent",
+
+              occurred_at:
+                new Date()
+                  .toISOString(),
+            },
+            companyId,
+          );
+
+          if (item.media) {
+            const shownProductKey =
+              item.media.variantId
+              ?? item.media.productId
+              ?? item.media.sku
+              ?? item.media.url;
+
+            if (
+              shownProductKeys.has(
+                shownProductKey,
+              )
+            ) {
+              continue;
+            }
+
+            shownProductKeys.add(
+              shownProductKey,
+            );
+
+            await recordCustomerInterestEvent(
+              {
+                contact_phone:
+                  from,
+
+                event_type:
+                  "product_shown",
+
+                product_id:
+                  item.media.productId
+                  ?? null,
+
+                variant_id:
+                  item.media.variantId
+                  ?? null,
+
+                sku:
+                  item.media.sku
+                  ?? null,
+
+                value:
+                  item.media.sku
+                  ?? "producto_mostrado",
+
+                source:
+                  "sales_agent",
+
+                message_id:
+                  storedOutbound
+                    .message
+                    .id
+                  ?? null,
+
+                metadata: {
+                  image_url:
+                    item.media.url,
+
+                  image_role:
+                    item.media.role
+                    ?? null,
+                },
+              },
+              companyId,
+            );
+          }
+        }
+
+        const lastSent =
+          sentMessages[
+            sentMessages.length - 1
+          ];
 
         console.log(
           "[WHATSAPP MESSAGE PROCESSED]",
@@ -386,7 +709,8 @@ export async function handleWhatsappIncoming(
               externalMessageId,
 
             outboundMessageId:
-              sent.externalMessageId,
+              lastSent?.sent.externalMessageId
+              ?? null,
           },
         );
       } catch (error) {

@@ -52,3 +52,8 @@ temp/
 data/platform-config.json
 data/platform-config.json.tmp
 apps/dashboard/.next-before-recovery-*
+
+# Runtime data and local Supabase state
+apps/api/data/
+supabase/.temp/
+supabase/.branches/

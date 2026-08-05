@@ -561,3 +561,250 @@ export async function listMessages(
     query,
   });
 }
+
+export async function updateMessageBody(
+  messageId: string,
+  body: string,
+  companyId = env.DEFAULT_COMPANY_ID,
+): Promise<Message> {
+  if (!isSupabaseConfigured()) {
+    const message =
+      memoryMessages.find(
+        (item) =>
+          item.id === messageId
+          && item.company_id === companyId,
+      );
+
+    if (!message) {
+      throw new Error("MESSAGE_NOT_FOUND");
+    }
+
+    message.body = body;
+
+    if (message.conversation_id) {
+      for (const conversation of memoryConversations.values()) {
+        if (
+          conversation.id === message.conversation_id
+          && conversation.company_id === companyId
+        ) {
+          conversation.last_message = body;
+          conversation.last_message_at =
+            new Date().toISOString();
+        }
+      }
+    }
+
+    return message;
+  }
+
+  const rows =
+    await supabaseRequest<Message[]>({
+      table: "messages",
+      method: "PATCH",
+      query:
+        `?company_id=eq.${encodeURIComponent(companyId)}`
+        + `&id=eq.${encodeURIComponent(messageId)}`,
+      prefer: "return=representation",
+      body: {
+        body,
+      },
+    });
+
+  const updated = rows[0];
+
+  if (!updated?.id) {
+    throw new Error("MESSAGE_UPDATE_FAILED");
+  }
+
+  if (updated.conversation_id) {
+    await supabaseRequest<Conversation[]>({
+      table: "conversations",
+      method: "PATCH",
+      query:
+        `?company_id=eq.${encodeURIComponent(companyId)}`
+        + `&id=eq.${encodeURIComponent(updated.conversation_id)}`,
+      prefer: "return=representation",
+      body: {
+        last_message: body,
+        last_message_at:
+          new Date().toISOString(),
+      },
+    });
+  }
+
+  return updated;
+}
+
+
+export async function getConversationByPhone(
+  phone: string,
+  companyId = env.DEFAULT_COMPANY_ID,
+  channel = "whatsapp",
+): Promise<Conversation | null> {
+  if (!isSupabaseConfigured()) {
+    return (
+      memoryConversations.get(
+        conversationKey(
+          companyId,
+          phone,
+          channel,
+        ),
+      )
+      ?? null
+    );
+  }
+
+  const rows =
+    await supabaseRequest<
+      Conversation[]
+    >({
+      table:
+        "conversations",
+
+      query:
+        `?company_id=eq.${encodeURIComponent(companyId)}`
+        + `&contact_phone=eq.${encodeURIComponent(phone)}`
+        + `&channel=eq.${encodeURIComponent(channel)}`
+        + "&select=*"
+        + "&limit=1",
+    });
+
+  return rows[0]
+    ?? null;
+}
+
+export async function updateConversationMetadata(
+  phone: string,
+  metadata:
+    Record<string, unknown>,
+  companyId = env.DEFAULT_COMPANY_ID,
+  channel = "whatsapp",
+): Promise<Conversation> {
+  const existing =
+    await getConversationByPhone(
+      phone,
+      companyId,
+      channel,
+    );
+
+  if (!existing?.id) {
+    const created =
+      await getOrCreateConversation(
+        phone,
+        undefined,
+        companyId,
+        channel,
+      );
+
+    if (!created.conversation.id) {
+      throw new Error(
+        "CONVERSATION_ID_REQUIRED",
+      );
+    }
+
+    return updateConversationMetadata(
+      phone,
+      metadata,
+      companyId,
+      channel,
+    );
+  }
+
+  const mergedMetadata = {
+    ...(existing.metadata
+      ?? {}),
+    ...metadata,
+  };
+
+  if (!isSupabaseConfigured()) {
+    existing.metadata =
+      mergedMetadata;
+
+    return existing;
+  }
+
+  const rows =
+    await supabaseRequest<
+      Conversation[]
+    >({
+      table:
+        "conversations",
+
+      method:
+        "PATCH",
+
+      query:
+        `?company_id=eq.${encodeURIComponent(companyId)}`
+        + `&id=eq.${encodeURIComponent(existing.id)}`,
+
+      prefer:
+        "return=representation",
+
+      body: {
+        metadata:
+          mergedMetadata,
+
+        updated_at:
+          new Date()
+            .toISOString(),
+      },
+    });
+
+  const updated =
+    rows[0];
+
+  if (!updated?.id) {
+    throw new Error(
+      "CONVERSATION_METADATA_UPDATE_FAILED",
+    );
+  }
+
+  return updated;
+}
+
+export async function getMessageById(
+  messageId: string,
+  companyId =
+    env.DEFAULT_COMPANY_ID,
+) {
+  const cleanId =
+    messageId.trim();
+
+  if (!cleanId) {
+    throw new Error(
+      "MESSAGE_ID_REQUIRED",
+    );
+  }
+
+  if (
+    !isSupabaseConfigured()
+  ) {
+    return (
+      memoryMessages.find(
+        (message) =>
+          message.company_id
+            === companyId
+          && message.id
+            === cleanId,
+      )
+      ?? null
+    );
+  }
+
+  const rows =
+    await supabaseRequest<
+      Message[]
+    >({
+      table:
+        "messages",
+
+      query:
+        `?company_id=eq.${encodeURIComponent(companyId)}`
+        + `&id=eq.${encodeURIComponent(cleanId)}`
+        + "&select=*"
+        + "&limit=1",
+    });
+
+  return rows[0]
+    ?? null;
+}

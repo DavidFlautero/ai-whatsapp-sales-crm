@@ -63,6 +63,16 @@ function canAccess(
   pathname: string,
   role: UserRole,
 ) {
+  const isDashboardApi =
+    matchesRoute(
+      pathname,
+      "/dashboard-api",
+    );
+
+  if (isDashboardApi) {
+    return true;
+  }
+
   const isPlatform =
     matchesRoute(pathname, "/platform");
 
@@ -175,6 +185,6 @@ export async function proxy(
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|robots.txt).*)",
+    "/((?!api|dashboard-api|_next/static|_next/image|favicon.ico|robots.txt).*)",
   ],
 };

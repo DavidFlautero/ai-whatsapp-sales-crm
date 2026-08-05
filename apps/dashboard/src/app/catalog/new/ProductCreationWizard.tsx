@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import {
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -15,6 +16,7 @@ import type {
   ColorVariant,
   GarmentProduct,
   GarmentStatus,
+  ProductImage,
   SizeStock,
 } from "../_components/catalog.types";
 
@@ -49,6 +51,135 @@ const categories = [
   "Faldas",
   "Accesorios",
 ];
+
+const CUSTOM_SUBCATEGORY =
+  "__custom__";
+
+const subcategoriesByCategory:
+  Record<string, readonly string[]> = {
+    Jeans: [
+      "Baggy",
+      "Cargo",
+      "Recto",
+      "Skinny",
+      "Wide leg",
+      "Mom",
+      "Oxford",
+      "Jogger",
+      "Short de jean",
+    ],
+    Pantalones: [
+      "Cargo",
+      "Jogger",
+      "Sastrero",
+      "Palazzo",
+      "Oxford",
+      "Recto",
+      "Deportivo",
+      "Calza",
+    ],
+    Remeras: [
+      "Básica",
+      "Oversize",
+      "Crop",
+      "Manga larga",
+      "Musculosa",
+      "Estampada",
+      "Deportiva",
+      "Polo",
+    ],
+    Buzos: [
+      "Hoodie",
+      "Canguro",
+      "Cuello redondo",
+      "Oversize",
+      "Crop",
+      "Con cierre",
+      "Deportivo",
+    ],
+    Camperas: [
+      "Puffer",
+      "Rompeviento",
+      "Denim",
+      "Cuero",
+      "Bomber",
+      "Parka",
+      "Chaleco",
+    ],
+    Vestidos: [
+      "Corto",
+      "Midi",
+      "Largo",
+      "Bodycon",
+      "Camisero",
+      "Fiesta",
+      "Casual",
+    ],
+    Conjuntos: [
+      "Deportivo",
+      "Urbano",
+      "Sastrero",
+      "Remera y short",
+      "Buzo y pantalón",
+      "Infantil",
+    ],
+    Shorts: [
+      "Denim",
+      "Cargo",
+      "Deportivo",
+      "Sastrero",
+      "Ciclista",
+      "Bermuda",
+      "Pollera short",
+    ],
+    Faldas: [
+      "Mini",
+      "Midi",
+      "Larga",
+      "Plisada",
+      "Denim",
+      "Cargo",
+      "Tubo",
+    ],
+    Accesorios: [
+      "Gorra",
+      "Cinturón",
+      "Cartera",
+      "Mochila",
+      "Riñonera",
+      "Medias",
+      "Bufanda",
+      "Otro accesorio",
+    ],
+  };
+
+const collectionOptions = [
+  "Colección actual",
+  "Nueva colección",
+  "Básicos",
+  "Cápsula",
+  "Edición limitada",
+  "Temporada anterior",
+  "Outlet",
+  "Liquidación",
+] as const;
+
+const seasonOptions = [
+  "Todo el año",
+  "Primavera",
+  "Verano",
+  "Otoño",
+  "Invierno",
+  "Primavera / Verano",
+  "Otoño / Invierno",
+  "Media estación",
+] as const;
+
+const brandOptions = [
+  "Fulanitas",
+  "Sin marca",
+  "Otra marca",
+] as const;
 
 const standardSizes = [
   "XS",
@@ -212,13 +343,28 @@ export default function ProductCreationWizard() {
   const [baseSku, setBaseSku] =
     useState(initialSku);
 
+  const [audience, setAudience] =
+    useState<
+      | "men"
+      | "women"
+      | "boys"
+      | "girls"
+      | "baby"
+      | "unisex"
+    >("unisex");
+
   const [category, setCategory] =
     useState("Jeans");
 
   const [
     subcategory,
     setSubcategory,
-  ] = useState("");
+  ] = useState("Baggy");
+
+  const [
+    customSubcategory,
+    setCustomSubcategory,
+  ] = useState(false);
 
   const [
     collection,
@@ -272,6 +418,17 @@ export default function ProductCreationWizard() {
 
   const [saved, setSaved] =
     useState(false);
+
+  const [isSaving, setIsSaving] =
+    useState(false);
+
+  const idempotencyKeyRef =
+    useRef<string | null>(null);
+
+  const [
+    uploadingImage,
+    setUploadingImage,
+  ] = useState<string | null>(null);
 
   const sizeOptions =
     sizeSystem === "letters"
@@ -387,6 +544,21 @@ export default function ProductCreationWizard() {
     );
   }
 
+  function updateCategory(
+    nextCategory: string,
+  ) {
+    const options =
+      subcategoriesByCategory[
+        nextCategory
+      ] ?? [];
+
+    setCategory(nextCategory);
+    setSubcategory(
+      options[0] ?? "",
+    );
+    setCustomSubcategory(false);
+  }
+
   function addPresetColor(
     preset: (typeof presetColors)[number],
   ) {
@@ -469,6 +641,176 @@ export default function ProductCreationWizard() {
 
         return nextColor;
       }),
+    );
+  }
+
+  async function uploadColorImage(
+    colorId: string,
+    role: ProductImage["role"],
+    file: File,
+  ) {
+    const color =
+      colors.find(
+        (item) =>
+          item.id === colorId,
+      );
+
+    if (!color) {
+      notify(
+        "No se encontró el color",
+      );
+      return;
+    }
+
+    if (
+      ![
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+      ].includes(file.type)
+    ) {
+      notify(
+        "Usá una imagen JPG, PNG o WEBP",
+      );
+      return;
+    }
+
+    if (
+      file.size
+      > 5 * 1024 * 1024
+    ) {
+      notify(
+        "La imagen supera los 5 MB",
+      );
+      return;
+    }
+
+    const uploadKey =
+      `${colorId}:${role}`;
+
+    setUploadingImage(
+      uploadKey,
+    );
+
+    try {
+      const formData =
+        new FormData();
+
+      formData.append(
+        "file",
+        file,
+      );
+
+      formData.append(
+        "baseSku",
+        baseSku,
+      );
+
+      formData.append(
+        "colorCode",
+        color.code,
+      );
+
+      formData.append(
+        "role",
+        role,
+      );
+
+      const response =
+        await fetch(
+          "/dashboard-api/catalog/images/upload",
+          {
+            method: "POST",
+            body: formData,
+          },
+        );
+
+      const payload =
+        await response.json();
+
+      if (
+        !response.ok
+        || !payload.ok
+      ) {
+        throw new Error(
+          payload.error
+          || "No se pudo subir la imagen",
+        );
+      }
+
+      const image:
+        ProductImage = {
+        id: uid("image"),
+        url:
+          payload.image.url,
+        name:
+          file.name,
+        role,
+        isCover:
+          role === "cover",
+        order:
+          color.images.length,
+        createdAt:
+          new Date().toISOString(),
+      };
+
+      setColors((current) =>
+        current.map(
+          (item) =>
+            item.id === colorId
+              ? {
+                  ...item,
+                  images: [
+                    ...item.images.filter(
+                      (existing) =>
+                        existing.role
+                        !== role,
+                    ),
+                    image,
+                  ],
+                }
+              : item,
+        ),
+      );
+
+      notify(
+        `Foto ${role} subida para ${color.name}`,
+      );
+    } catch (error) {
+      console.error(
+        "[UPLOAD COLOR IMAGE ERROR]",
+        error,
+      );
+
+      notify(
+        error instanceof Error
+          ? error.message
+          : "No se pudo subir la imagen",
+      );
+    } finally {
+      setUploadingImage(null);
+    }
+  }
+
+  function removeColorImage(
+    colorId: string,
+    imageId: string,
+  ) {
+    setColors((current) =>
+      current.map(
+        (color) =>
+          color.id === colorId
+            ? {
+                ...color,
+                images:
+                  color.images.filter(
+                    (image) =>
+                      image.id
+                      !== imageId,
+                  ),
+              }
+            : color,
+      ),
     );
   }
 
@@ -579,7 +921,15 @@ export default function ProductCreationWizard() {
     );
   }
 
-  function saveProduct() {
+  async function saveProduct() {
+    notify(
+      `Click recibido · nombre=${name.trim() ? "sí" : "no"} · colores=${colors.length} · precio=${wholesalePrice}`,
+    );
+
+    if (isSaving) {
+      return;
+    }
+
     if (
       !name.trim() ||
       colors.length === 0
@@ -601,6 +951,15 @@ export default function ProductCreationWizard() {
       );
       return;
     }
+
+    const idempotencyKey =
+      idempotencyKeyRef.current
+      ?? crypto.randomUUID();
+
+    idempotencyKeyRef.current =
+      idempotencyKey;
+
+    setIsSaving(true);
 
     const now =
       new Date().toISOString();
@@ -625,6 +984,7 @@ export default function ProductCreationWizard() {
       origin: "Argentina",
       status,
       tags: [
+        audience,
         category.toLowerCase(),
         subcategory
           .toLowerCase()
@@ -637,6 +997,122 @@ export default function ProductCreationWizard() {
       createdAt: now,
       updatedAt: now,
     };
+
+    try {
+      const response =
+        await fetch(
+        "/dashboard-api/catalog/products/full",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            "X-Idempotency-Key":
+              idempotencyKey,
+          },
+          body: JSON.stringify({
+            baseSku,
+            name: name.trim(),
+            audience,
+            category,
+            subcategory,
+            collection,
+            season,
+            brand,
+            supplier,
+            composition,
+            description,
+            currency: "ARS",
+            price: wholesalePrice,
+            tags: product.tags,
+            active:
+              status !== "draft",
+            variants:
+              colors.flatMap(
+                (color) =>
+                  color.sizes
+                    .filter(
+                      (size) =>
+                        size.enabled,
+                    )
+                    .map(
+                      (size) => ({
+                        sku: size.sku,
+                        barcode:
+                          size.barcode,
+                        colorName:
+                          color.name,
+                        colorCode:
+                          color.code,
+                        colorHex:
+                          color.hex,
+                        size:
+                          size.size,
+                        physical:
+                          size.physical,
+                        minimum:
+                          size.minimum,
+                        incoming:
+                          size.incoming,
+                        images:
+                          color.images.map(
+                            (image) => ({
+                              id:
+                                image.id,
+                              url:
+                                image.url,
+                              name:
+                                image.name,
+                              role:
+                                image.role,
+                              isCover:
+                                image.isCover,
+                              order:
+                                image.order,
+                            }),
+                          ),
+                        active:
+                          color.status
+                          !== "discontinued",
+                      }),
+                    ),
+              ),
+          }),
+        },
+      );
+
+      const payload =
+        await response.json().catch(
+          () => ({
+            ok: false,
+            error:
+              "Respuesta inválida del servidor",
+          }),
+        );
+
+      if (
+        !response.ok
+        || !payload.ok
+      ) {
+        notify(
+          Array.isArray(payload.issues)
+            ? `${payload.error}: ${payload.issues
+                .map(
+                  (issue: {
+                    path?: Array<
+                      string | number
+                    >;
+                    message?: string;
+                  }) =>
+                    `${issue.path?.join(".") ?? "payload"}: ${issue.message ?? "inválido"}`,
+                )
+                .join(" · ")}`
+            : payload.error
+              || "No se pudo guardar el producto",
+        );
+        return;
+      }
 
     const existing =
       loadCatalogProducts();
@@ -697,11 +1173,28 @@ export default function ProductCreationWizard() {
         product,
       );
 
-    setSaved(true);
+      idempotencyKeyRef.current =
+        null;
 
-    notify(
-      `${product.name} creada a $ ${wholesalePrice.toLocaleString("es-AR")} ARS con ${createdCells} variantes de inventario`,
-    );
+      setSaved(true);
+
+      notify(
+        `${product.name} creada con ${payload.product.variantsCreated} variantes y ${payload.product.totalStock} unidades reales`,
+      );
+    } catch (error) {
+      console.error(
+        "[CATALOG PRODUCT SAVE]",
+        error,
+      );
+
+      notify(
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar el producto",
+      );
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -788,7 +1281,138 @@ export default function ProductCreationWizard() {
                 </div>
 
                 <div className="commerce-form-grid">
-                  <label>
+                    <label>
+                    <span>
+                      Categoría
+                    </span>
+
+                    <select
+                      value={category}
+                      onChange={(event) =>
+                          updateCategory(
+                            event.target.value,
+                          )
+                        }
+                    >
+                      {categories.map(
+                        (item) => (
+                          <option
+                            key={item}
+                          >
+                            {item}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                    <label>
+                    <span>
+                      Subcategoría
+                    </span>
+
+                    <select
+                      value={
+                        customSubcategory
+                          ? CUSTOM_SUBCATEGORY
+                          : subcategory
+                      }
+                      onChange={(event) => {
+                        const value =
+                          event.target.value;
+
+                        if (
+                          value
+                          === CUSTOM_SUBCATEGORY
+                        ) {
+                          setCustomSubcategory(
+                            true,
+                          );
+                          setSubcategory("");
+                          return;
+                        }
+
+                        setCustomSubcategory(
+                          false,
+                        );
+                        setSubcategory(value);
+                      }}
+                    >
+                      {(
+                        subcategoriesByCategory[
+                          category
+                        ] ?? []
+                      ).map((item) => (
+                        <option
+                          key={item}
+                          value={item}
+                        >
+                          {item}
+                        </option>
+                      ))}
+
+                      <option
+                        value={
+                          CUSTOM_SUBCATEGORY
+                        }
+                      >
+                        Otra / personalizada
+                      </option>
+                    </select>
+
+                    {customSubcategory ? (
+                      <input
+                        value={subcategory}
+                        autoFocus
+                        placeholder="Escribí la subcategoría"
+                        onChange={(event) =>
+                          setSubcategory(
+                            event.target
+                              .value,
+                          )
+                        }
+                      />
+                    ) : null}
+                  </label>
+                    <label>
+                    <span>
+                      Público
+                    </span>
+
+                    <select
+                      value={audience}
+                      onChange={(event) =>
+                        setAudience(
+                          event.target.value as
+                            | "men"
+                            | "women"
+                            | "boys"
+                            | "girls"
+                            | "baby"
+                            | "unisex",
+                        )
+                      }
+                    >
+                      <option value="men">
+                        Hombre
+                      </option>
+                      <option value="women">
+                        Mujer
+                      </option>
+                      <option value="boys">
+                        Niño
+                      </option>
+                      <option value="girls">
+                        Niña
+                      </option>
+                      <option value="baby">
+                        Bebé
+                      </option>
+                      <option value="unisex">
+                        Unisex
+                      </option>
+                    </select>
+                  </label>
+                    <label>
                     <span>
                       Nombre de la prenda
                     </span>
@@ -804,8 +1428,7 @@ export default function ProductCreationWizard() {
                       }
                     />
                   </label>
-
-                  <label>
+                    <label>
                     <span>
                       SKU base
                     </span>
@@ -820,8 +1443,7 @@ export default function ProductCreationWizard() {
                       }
                     />
                   </label>
-
-                  <label>
+                    <label>
                     <span>
                       Precio mayorista (ARS)
                     </span>
@@ -849,134 +1471,7 @@ export default function ProductCreationWizard() {
                       }
                     />
                   </label>
-
-                  <label>
-                    <span>
-                      Categoría
-                    </span>
-
-                    <select
-                      value={category}
-                      onChange={(event) =>
-                        setCategory(
-                          event.target
-                            .value,
-                        )
-                      }
-                    >
-                      {categories.map(
-                        (item) => (
-                          <option
-                            key={item}
-                          >
-                            {item}
-                          </option>
-                        ),
-                      )}
-                    </select>
-                  </label>
-
-                  <label>
-                    <span>
-                      Subcategoría
-                    </span>
-
-                    <input
-                      value={
-                        subcategory
-                      }
-                      placeholder="Baggy, cargo, oversize..."
-                      onChange={(event) =>
-                        setSubcategory(
-                          event.target
-                            .value,
-                        )
-                      }
-                    />
-                  </label>
-
-                  <label>
-                    <span>
-                      Colección
-                    </span>
-
-                    <input
-                      value={collection}
-                      onChange={(event) =>
-                        setCollection(
-                          event.target
-                            .value,
-                        )
-                      }
-                    />
-                  </label>
-
-                  <label>
-                    <span>
-                      Temporada
-                    </span>
-
-                    <input
-                      value={season}
-                      onChange={(event) =>
-                        setSeason(
-                          event.target
-                            .value,
-                        )
-                      }
-                    />
-                  </label>
-
-                  <label>
-                    <span>Marca</span>
-
-                    <input
-                      value={brand}
-                      onChange={(event) =>
-                        setBrand(
-                          event.target
-                            .value,
-                        )
-                      }
-                    />
-                  </label>
-
-                  <label>
-                    <span>
-                      Proveedor
-                    </span>
-
-                    <input
-                      value={supplier}
-                      onChange={(event) =>
-                        setSupplier(
-                          event.target
-                            .value,
-                        )
-                      }
-                    />
-                  </label>
-
-                  <label>
-                    <span>
-                      Composición
-                    </span>
-
-                    <input
-                      value={
-                        composition
-                      }
-                      placeholder="98% algodón, 2% elastano"
-                      onChange={(event) =>
-                        setComposition(
-                          event.target
-                            .value,
-                        )
-                      }
-                    />
-                  </label>
-
-                  <label>
+                    <label>
                     <span>Estado</span>
 
                     <select
@@ -1005,8 +1500,115 @@ export default function ProductCreationWizard() {
                       </option>
                     </select>
                   </label>
+                    <label>
+                    <span>
+                      Colección
+                    </span>
 
-                  <label className="full">
+                    <select
+                      value={collection}
+                      onChange={(event) =>
+                        setCollection(
+                          event.target.value,
+                        )
+                      }
+                    >
+                      {collectionOptions.map(
+                        (option) => (
+                          <option
+                            key={option}
+                            value={option}
+                          >
+                            {option}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                    <label>
+                    <span>
+                      Temporada
+                    </span>
+
+                    <select
+                      value={season}
+                      onChange={(event) =>
+                        setSeason(
+                          event.target.value,
+                        )
+                      }
+                    >
+                      {seasonOptions.map(
+                        (option) => (
+                          <option
+                            key={option}
+                            value={option}
+                          >
+                            {option}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                    <label>
+                    <span>
+                      Marca
+                    </span>
+
+                    <select
+                      value={brand}
+                      onChange={(event) =>
+                        setBrand(
+                          event.target.value,
+                        )
+                      }
+                    >
+                      {brandOptions.map(
+                        (option) => (
+                          <option
+                            key={option}
+                            value={option}
+                          >
+                            {option}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                    <label>
+                    <span>
+                      Proveedor
+                    </span>
+
+                    <input
+                      value={supplier}
+                      onChange={(event) =>
+                        setSupplier(
+                          event.target
+                            .value,
+                        )
+                      }
+                    />
+                  </label>
+                    <label>
+                    <span>
+                      Composición
+                    </span>
+
+                    <input
+                      value={
+                        composition
+                      }
+                      placeholder="98% algodón, 2% elastano"
+                      onChange={(event) =>
+                        setComposition(
+                          event.target
+                            .value,
+                        )
+                      }
+                    />
+                  </label>
+                    <label className="full">
                     <span>
                       Descripción
                     </span>
@@ -1022,7 +1624,7 @@ export default function ProductCreationWizard() {
                       }
                     />
                   </label>
-                </div>
+                  </div>
               </section>
             ) : null}
 
@@ -1263,6 +1865,136 @@ export default function ProductCreationWizard() {
                           }{" "}
                           talles
                         </strong>
+
+                        <div className="color-image-manager">
+                          <span>
+                            Fotos de este color
+                          </span>
+
+                          <div className="color-image-actions">
+                            {(
+                              [
+                                [
+                                  "cover",
+                                  "Portada",
+                                ],
+                                [
+                                  "back",
+                                  "Espalda",
+                                ],
+                                [
+                                  "detail",
+                                  "Detalle",
+                                ],
+                                [
+                                  "model",
+                                  "Modelo",
+                                ],
+                              ] as const
+                            ).map(
+                              ([
+                                role,
+                                label,
+                              ]) => {
+                                const uploadKey =
+                                  `${color.id}:${role}`;
+
+                                return (
+                                  <label
+                                    key={role}
+                                    className={
+                                      uploadingImage
+                                      === uploadKey
+                                        ? "uploading"
+                                        : ""
+                                    }
+                                  >
+                                    <input
+                                      type="file"
+                                      accept="image/jpeg,image/png,image/webp"
+                                      disabled={
+                                        uploadingImage
+                                        !== null
+                                      }
+                                      onChange={(
+                                        event,
+                                      ) => {
+                                        const file =
+                                          event
+                                            .target
+                                            .files?.[0];
+
+                                        if (file) {
+                                          void uploadColorImage(
+                                            color.id,
+                                            role,
+                                            file,
+                                          );
+                                        }
+
+                                        event.target.value =
+                                          "";
+                                      }}
+                                    />
+
+                                    <span>
+                                      {uploadingImage
+                                      === uploadKey
+                                        ? "Subiendo..."
+                                        : `+ ${label}`}
+                                    </span>
+                                  </label>
+                                );
+                              },
+                            )}
+                          </div>
+
+                          {color.images.length
+                          > 0 ? (
+                            <div className="color-image-previews">
+                              {color.images.map(
+                                (image) => (
+                                  <article
+                                    key={
+                                      image.id
+                                    }
+                                  >
+                                    <img
+                                      src={
+                                        image.url
+                                      }
+                                      alt={`${color.name} ${image.role}`}
+                                    />
+
+                                    <div>
+                                      <span>
+                                        {
+                                          image.role
+                                        }
+                                      </span>
+
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          removeColorImage(
+                                            color.id,
+                                            image.id,
+                                          )
+                                        }
+                                      >
+                                        Quitar
+                                      </button>
+                                    </div>
+                                  </article>
+                                ),
+                              )}
+                            </div>
+                          ) : (
+                            <small>
+                              Todavía no cargaste fotos para este color.
+                            </small>
+                          )}
+                        </div>
 
                         <button
                           type="button"
@@ -1659,8 +2391,12 @@ export default function ProductCreationWizard() {
                     type="button"
                     className="wizard-save"
                     onClick={saveProduct}
+                    disabled={isSaving}
+                    aria-busy={isSaving}
                   >
-                    Crear prenda y cargar inventario
+                    {isSaving
+                      ? "Guardando prenda..."
+                      : "Crear prenda y cargar inventario"}
                   </button>
                 )}
               </section>

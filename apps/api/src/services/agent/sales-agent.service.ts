@@ -24,7 +24,16 @@ import {
 
 import {
   buildCatalogContext,
+  findRequestedCatalogImage,
 } from "../catalog/catalog.repository.js";
+
+import {
+  listMessages,
+} from "../conversations/conversation.repository.js";
+
+import {
+  handleWhatsappOrder,
+} from "../orders/whatsapp-order.service.js";
 
 type SafeResult<T> = {
   value: T;
@@ -65,11 +74,82 @@ export async function salesAgentReply(
     phone: string;
     message: string;
     companyId?: string;
+      currentMessageId?: string;
   },
 ) {
   const companyId =
     input.companyId
     ?? env.DEFAULT_COMPANY_ID;
+
+    const recentMessages =
+      await listMessages(
+        input.phone,
+        companyId,
+      );
+
+    const conversationHistory =
+      recentMessages
+        .filter(
+          (message) =>
+            message.id
+            !== input.currentMessageId,
+        )
+        .filter(
+          (message) =>
+            Boolean(
+              message.body?.trim(),
+            ),
+        )
+        .slice(0, 15)
+        .reverse()
+        .map(
+          (message) =>
+            `${
+              message.direction === "inbound"
+                ? "Cliente"
+                : "Vendedor"
+            }: ${message.body}`,
+        )
+        .join("\n")
+      || "Sin mensajes anteriores.";
+
+  const orderWorkflow =
+    await handleWhatsappOrder({
+      phone:
+        input.phone,
+
+      message:
+        input.message,
+
+      conversationHistory,
+
+      companyId,
+    });
+
+  if (
+    orderWorkflow.handled
+    && orderWorkflow.text
+  ) {
+    console.log(
+      "[SALES AGENT ORDER WORKFLOW]",
+      {
+        companyId,
+        phone:
+          input.phone,
+
+        responseLength:
+          orderWorkflow.text.length,
+      },
+    );
+
+    return {
+      text:
+        orderWorkflow.text,
+
+      media:
+        [],
+    };
+  }
 
   const [
     salesPromptResult,
@@ -131,7 +211,11 @@ export async function salesAgentReply(
 
         () =>
           buildCatalogContext(
-            input.message,
+            [
+              input.message,
+              conversationHistory,
+            ].join("\n"),
+            companyId,
           ),
 
         "Catálogo temporalmente no disponible. No confirmar precio ni stock.",
@@ -159,11 +243,25 @@ export async function salesAgentReply(
 
       catalogContext:
         catalogResult.value,
+
+      conversationHistory,
     });
 
   const response =
     await generateAgentResponse(
       prompt,
+    );
+
+  const requestedImage =
+    await safeResolve(
+      "catalog-image",
+      () =>
+        findRequestedCatalogImage(
+          input.message,
+          conversationHistory,
+          companyId,
+        ),
+      null,
     );
 
   const degradedSources = [
@@ -182,6 +280,10 @@ export async function salesAgentReply(
     catalogResult.degraded
       ? "catalog"
       : null,
+
+    requestedImage.degraded
+      ? "catalog-image"
+      : null,
   ].filter(Boolean);
 
   console.log(
@@ -198,5 +300,43 @@ export async function salesAgentReply(
     },
   );
 
-  return response;
+  return {
+    text:
+      response,
+
+    media:
+      requestedImage.value
+        ? requestedImage.value
+            .images
+            .map(
+              (image) => ({
+                type:
+                  "image" as const,
+
+                url:
+                  image.url,
+
+                role:
+                  image.role
+                  ?? null,
+
+                productId:
+                  requestedImage.value!
+                    .product
+                    .productId,
+
+                variantId:
+                  requestedImage.value!
+                    .product
+                    .variantId
+                  ?? null,
+
+                sku:
+                  requestedImage.value!
+                    .product
+                    .sku,
+              }),
+            )
+        : [],
+  };
 }

@@ -28,6 +28,8 @@ import {
   platformAdminRoutes,
   platformPublicRoutes,
 } from "../platform/platform.routes.js";
+import { adminContactRoutes } from "./admin/contact.routes.js";
+import { adminMessageMediaRoutes } from "./admin/message-media.routes.js";
 
 export const router = Router();
 
@@ -84,8 +86,29 @@ router.use(
 router.use("/admin", adminStatusRoutes);
 router.use("/admin", adminDataRoutes);
 router.use("/admin", adminRecoveryRoutes);
+router.use("/admin", adminContactRoutes);
+router.use("/admin", adminMessageMediaRoutes);
+
 router.use("/admin", adminAdvancedRoutes);
-router.use("/admin", adminOperatorRoutes);
+router.use(
+  "/admin",
+
+  resolveAccessContext({
+    mode: "company",
+    source: "dashboard",
+  }),
+
+  adminOperatorRoutes,
+);
 router.use("/admin", adminReportsRoutes);
 router.use("/admin", adminFutureRoutes);
-router.use("/admin", adminIntelligenceRoutes);
+router.use(
+  "/admin",
+
+  resolveAccessContext({
+    mode: "company",
+    source: "dashboard",
+  }),
+
+  adminIntelligenceRoutes,
+);

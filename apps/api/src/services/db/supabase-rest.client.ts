@@ -40,6 +40,34 @@ export async function supabaseRequest<T>(input: {
 }
 
 
+export class SupabaseRpcError extends Error {
+  readonly functionName: string;
+  readonly status: number;
+  readonly code: string | null;
+  readonly details: unknown;
+
+  constructor(input: {
+    functionName: string;
+    status: number;
+    code?: string | null;
+    message: string;
+    details?: unknown;
+  }) {
+    super(input.message);
+
+    this.name = "SupabaseRpcError";
+    this.functionName =
+      input.functionName;
+    this.status =
+      input.status;
+    this.code =
+      input.code ?? null;
+    this.details =
+      input.details ?? null;
+  }
+}
+
+
 export async function supabaseRpc<T>(
   functionName: string,
   body: Record<string, unknown>,
@@ -116,9 +144,27 @@ export async function supabaseRpc<T>(
       },
     );
 
-    throw new Error(
-      `Supabase RPC failed: ${functionName}`,
-    );
+    const rpcData =
+      data
+      && typeof data === "object"
+        ? data as Record<string, unknown>
+        : null;
+
+    throw new SupabaseRpcError({
+      functionName,
+      status:
+        response.status,
+      code:
+        typeof rpcData?.code === "string"
+          ? rpcData.code
+          : null,
+      message:
+        typeof rpcData?.message === "string"
+          ? rpcData.message
+          : `Supabase RPC failed: ${functionName}`,
+      details:
+        rpcData?.details ?? data,
+    });
   }
 
   return data as T;

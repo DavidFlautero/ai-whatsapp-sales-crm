@@ -34,6 +34,10 @@ import {
 } from "../../services/memory/customer-memory.repository.js";
 
 import {
+  listCustomerInterestEvents,
+} from "../../services/interests/customer-interest.repository.js";
+
+import {
   listLeadScores,
 } from "../../services/scoring/lead-scoring.service.js";
 
@@ -251,7 +255,7 @@ export async function getAdminOverview(
 
     safeLoad({
       name: "lead-scores",
-      loader: listLeadScores,
+      loader: async () => [],
       fallback: [],
       requestId,
       degradedModules,
@@ -267,7 +271,7 @@ export async function getAdminOverview(
 
     safeLoad({
       name: "recovery-templates",
-      loader: listRecoveryTemplates,
+      loader: async () => [],
       fallback: [],
       requestId,
       degradedModules,
@@ -275,7 +279,7 @@ export async function getAdminOverview(
 
     safeLoad({
       name: "recovery-events",
-      loader: listRecoveryEvents,
+      loader: async () => [],
       fallback: [],
       requestId,
       degradedModules,
@@ -299,7 +303,7 @@ export async function getAdminOverview(
 
     safeLoad({
       name: "governance-events",
-      loader: listGovernanceEvents,
+      loader: async () => [],
       fallback: [],
       requestId,
       degradedModules,
@@ -307,7 +311,7 @@ export async function getAdminOverview(
 
     safeLoad({
       name: "quality-scores",
-      loader: listQualityScores,
+      loader: async () => [],
       fallback: [],
       requestId,
       degradedModules,

@@ -36,26 +36,204 @@ function companyFilter(
 export async function listOrders(
   companyId: string,
 ) {
-  return supabaseRequest<Array<Record<string, unknown>>>({
-    table: "commerce_orders",
-    query:
-      `?company_id=eq.${companyFilter(companyId)}`
-      + "&select=*"
-      + "&order=created_at.desc"
-      + "&limit=200",
-  });
+  const encodedCompanyId =
+    companyFilter(companyId);
+
+  const [
+    orders,
+    customers,
+    reservations,
+    items,
+  ] =
+    await Promise.all([
+      supabaseRequest<
+        Array<Record<string, unknown>>
+      >({
+        table:
+          "commerce_orders",
+
+        query:
+          `?company_id=eq.${encodedCompanyId}`
+          + "&select=*"
+          + "&order=created_at.desc"
+          + "&limit=200",
+      }),
+
+      supabaseRequest<
+        Array<Record<string, unknown>>
+      >({
+        table:
+          "commerce_customers",
+
+        query:
+          `?company_id=eq.${encodedCompanyId}`
+          + "&select=id,name,business_name,whatsapp,email,city",
+      }),
+
+      supabaseRequest<
+        Array<Record<string, unknown>>
+      >({
+        table:
+          "commerce_reservations",
+
+        query:
+          `?company_id=eq.${encodedCompanyId}`
+          + "&select=id,order_id,status,expires_at,created_at"
+          + "&order=created_at.desc",
+      }),
+
+      supabaseRequest<
+        Array<Record<string, unknown>>
+      >({
+        table:
+          "commerce_order_items",
+
+        query:
+          `?company_id=eq.${encodedCompanyId}`
+          + "&select=id,order_id,sku_snapshot,product_name_snapshot,color_name_snapshot,size_snapshot,quantity,unit_price,subtotal"
+          + "&order=created_at.asc",
+      }),
+    ]);
+
+  const customersById =
+    new Map(
+      customers.map(
+        (customer) => [
+          String(
+            customer.id
+            ?? "",
+          ),
+          customer,
+        ],
+      ),
+    );
+
+  const reservationsByOrder =
+    new Map<string, Record<string, unknown>>();
+
+  for (
+    const reservation
+    of reservations
+  ) {
+    const orderId =
+      String(
+        reservation.order_id
+        ?? "",
+      );
+
+    if (
+      orderId
+      && !reservationsByOrder
+        .has(orderId)
+    ) {
+      reservationsByOrder.set(
+        orderId,
+        reservation,
+      );
+    }
+  }
+
+  const itemsByOrder =
+    new Map<
+      string,
+      Array<Record<string, unknown>>
+    >();
+
+  for (const item of items) {
+    const orderId =
+      String(
+        item.order_id
+        ?? "",
+      );
+
+    const current =
+      itemsByOrder.get(orderId)
+      ?? [];
+
+    current.push(item);
+
+    itemsByOrder.set(
+      orderId,
+      current,
+    );
+  }
+
+  return orders.map(
+    (order) => {
+      const orderId =
+        String(
+          order.id
+          ?? "",
+        );
+
+      const customerId =
+        String(
+          order.customer_id
+          ?? "",
+        );
+
+      const orderItems =
+        itemsByOrder.get(
+          orderId,
+        )
+        ?? [];
+
+      return {
+        ...order,
+
+        customer:
+          customersById.get(
+            customerId,
+          )
+          ?? null,
+
+        reservation:
+          reservationsByOrder.get(
+            orderId,
+          )
+          ?? null,
+
+        items:
+          orderItems,
+
+        item_count:
+          orderItems.reduce(
+            (
+              total,
+              item,
+            ) =>
+              total
+              + Number(
+                item.quantity
+                ?? 0,
+              ),
+            0,
+          ),
+      };
+    },
+  );
 }
 
 export async function getOrder(
   companyId: string,
   orderId: string,
 ) {
+  const encodedCompanyId =
+    companyFilter(companyId);
+
+  const encodedOrderId =
+    encodeURIComponent(orderId);
+
   const orders =
-    await supabaseRequest<Array<Record<string, unknown>>>({
-      table: "commerce_orders",
+    await supabaseRequest<
+      Array<Record<string, unknown>>
+    >({
+      table:
+        "commerce_orders",
+
       query:
-        `?company_id=eq.${companyFilter(companyId)}`
-        + `&id=eq.${encodeURIComponent(orderId)}`
+        `?company_id=eq.${encodedCompanyId}`
+        + `&id=eq.${encodedOrderId}`
         + "&select=*"
         + "&limit=1",
     });
@@ -67,19 +245,168 @@ export async function getOrder(
     return null;
   }
 
-  const items =
-    await supabaseRequest<Array<Record<string, unknown>>>({
-      table: "commerce_order_items",
-      query:
-        `?company_id=eq.${companyFilter(companyId)}`
-        + `&order_id=eq.${encodeURIComponent(orderId)}`
-        + "&select=*"
-        + "&order=created_at.asc",
-    });
+  const customerId =
+    String(
+      order.customer_id
+      ?? "",
+    );
+
+  const [
+    items,
+    customers,
+    reservations,
+    payments,
+    events,
+    fulfillments,
+    shipments,
+    packages,
+  ] =
+    await Promise.all([
+      supabaseRequest<
+        Array<Record<string, unknown>>
+      >({
+        table:
+          "commerce_order_items",
+
+        query:
+          `?company_id=eq.${encodedCompanyId}`
+          + `&order_id=eq.${encodedOrderId}`
+          + "&select=*"
+          + "&order=created_at.asc",
+      }),
+
+      customerId
+        ? supabaseRequest<
+            Array<Record<string, unknown>>
+          >({
+            table:
+              "commerce_customers",
+
+            query:
+              `?company_id=eq.${encodedCompanyId}`
+              + `&id=eq.${encodeURIComponent(customerId)}`
+              + "&select=*"
+              + "&limit=1",
+          })
+        : Promise.resolve([]),
+
+      supabaseRequest<
+        Array<Record<string, unknown>>
+      >({
+        table:
+          "commerce_reservations",
+
+        query:
+          `?company_id=eq.${encodedCompanyId}`
+          + `&order_id=eq.${encodedOrderId}`
+          + "&select=*"
+          + "&order=created_at.desc"
+          + "&limit=1",
+      }),
+
+      supabaseRequest<
+        Array<Record<string, unknown>>
+      >({
+        table:
+          "commerce_payments",
+
+        query:
+          `?company_id=eq.${encodedCompanyId}`
+          + `&order_id=eq.${encodedOrderId}`
+          + "&select=*"
+          + "&order=created_at.desc",
+      }),
+
+      supabaseRequest<
+        Array<Record<string, unknown>>
+      >({
+        table:
+          "commerce_order_events",
+
+        query:
+          `?company_id=eq.${encodedCompanyId}`
+          + `&order_id=eq.${encodedOrderId}`
+          + "&select=*"
+          + "&order=created_at.desc",
+      }),
+
+      supabaseRequest<
+        Array<Record<string, unknown>>
+      >({
+        table:
+          "commerce_fulfillments",
+
+        query:
+          `?company_id=eq.${encodedCompanyId}`
+          + `&order_id=eq.${encodedOrderId}`
+          + "&select=*"
+          + "&limit=1",
+      }),
+
+      supabaseRequest<
+        Array<Record<string, unknown>>
+      >({
+        table:
+          "commerce_shipments",
+
+        query:
+          `?company_id=eq.${encodedCompanyId}`
+          + `&order_id=eq.${encodedOrderId}`
+          + "&select=*"
+          + "&limit=1",
+      }),
+
+      supabaseRequest<
+        Array<Record<string, unknown>>
+      >({
+        table:
+          "commerce_packages",
+
+        query:
+          `?company_id=eq.${encodedCompanyId}`
+          + `&order_id=eq.${encodedOrderId}`
+          + "&select=*"
+          + "&order=package_number.asc",
+      }),
+    ]);
 
   return {
     ...order,
+
+    customer:
+      customers[0]
+      ?? null,
+
+    reservation:
+      reservations[0]
+      ?? null,
+
+    fulfillment:
+      fulfillments[0]
+      ?? null,
+
+    shipment:
+      shipments[0]
+      ?? null,
+
     items,
+    payments,
+    events,
+    packages,
+
+    item_count:
+      items.reduce(
+        (
+          total,
+          item,
+        ) =>
+          total
+          + Number(
+            item.quantity
+            ?? 0,
+          ),
+        0,
+      ),
   };
 }
 

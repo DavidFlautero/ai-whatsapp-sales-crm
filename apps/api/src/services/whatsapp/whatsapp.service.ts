@@ -70,3 +70,81 @@ export async function sendWhatsappText(
       response,
   };
 }
+
+export type SendWhatsappImageResult = {
+  externalMessageId:
+    string | null;
+
+  status:
+    string;
+
+  raw:
+    WhatsappApiResponse;
+};
+
+export async function sendWhatsappImage(
+  input: {
+    to: string;
+    imageUrl: string;
+    caption?: string;
+  },
+): Promise<SendWhatsappImageResult> {
+  console.log(
+    "[WHATSAPP SEND IMAGE]",
+    {
+      to:
+        input.to,
+
+      imageUrl:
+        input.imageUrl,
+
+      captionLength:
+        input.caption?.length
+        ?? 0,
+    },
+  );
+
+  const response =
+    await postWhatsappMessage({
+      messaging_product:
+        "whatsapp",
+
+      recipient_type:
+        "individual",
+
+      to:
+        input.to,
+
+      type:
+        "image",
+
+      image: {
+        link:
+          input.imageUrl,
+
+        ...(input.caption
+          ? {
+              caption:
+                input.caption,
+            }
+          : {}),
+      },
+    });
+
+  const sentMessage =
+    response.messages?.[0];
+
+  return {
+    externalMessageId:
+      sentMessage?.id
+      ?? null,
+
+    status:
+      sentMessage?.message_status
+      ?? "sent",
+
+    raw:
+      response,
+  };
+}
+

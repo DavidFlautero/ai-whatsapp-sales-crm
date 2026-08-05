@@ -1,52 +1,54 @@
-import { getAdminOverview } from "../../lib/api";
-import { AppShell } from "../../components/app-shell/AppShell";
-import { Header } from "../../components/ui/Header";
+import {
+  AppShell,
+} from "../../components/app-shell/AppShell";
 
-function tempClass(value?: string) {
-  if (value === "hot") return "hot";
-  if (value === "cold") return "cold";
-  return "warm";
-}
+import {
+  Header,
+} from "../../components/ui/Header";
+
+import {
+  getAdminOverview,
+  getOrders,
+} from "../../lib/api";
+
+import {
+  CRMClient,
+  type CRMContact,
+} from "./CRMClient";
 
 export default async function CRMPage() {
-  const data = await getAdminOverview();
-  const contacts = data.contacts ?? [];
+  const [
+    data,
+    orders,
+  ] =
+    await Promise.all([
+      getAdminOverview(),
+      getOrders(),
+    ]);
+
+  const contacts =
+    Array.isArray(
+      data.contacts,
+    )
+      ? data.contacts as CRMContact[]
+      : [];
 
   return (
     <AppShell>
       <Header
         kicker="CUSTOMER RELATIONSHIP MANAGEMENT"
         title="CRM Comercial"
-        description="Contactos, temperatura comercial, estado de lead y último mensaje recibido."
-        action={<a className="btn" href="/api/admin/reports/contacts.csv">Exportar CSV</a>}
+        description="Contactos, clasificación, ubicación, notas, actividad y pedidos vinculados en una sola vista."
       />
 
-      <section className="section card panel">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Teléfono</th>
-              <th>Estado</th>
-              <th>Temperatura</th>
-              <th>Último mensaje</th>
-            </tr>
-          </thead>
-          <tbody>
-            {contacts.length === 0 ? <tr><td colSpan={5}>Sin contactos.</td></tr> :
-              contacts.map((c: any) => (
-                <tr key={c.phone}>
-                  <td><strong>{c.name ?? "Cliente WhatsApp"}</strong></td>
-                  <td>{c.phone}</td>
-                  <td>{c.status ?? "lead"}</td>
-                  <td><span className={`temperature ${tempClass(c.temperature)}`}>{c.temperature ?? "warm"}</span></td>
-                  <td>{c.last_message ?? "-"}</td>
-                </tr>
-              ))
-            }
-          </tbody>
-        </table>
-      </section>
+      <CRMClient
+        initialContacts={
+          contacts
+        }
+        orders={
+          orders
+        }
+      />
     </AppShell>
   );
 }

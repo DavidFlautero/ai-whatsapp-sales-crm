@@ -17,6 +17,14 @@ export type Contact = {
   name?: string;
   business_name?: string;
 
+  name_source?:
+    | "whatsapp_profile"
+    | "customer"
+    | "operator"
+    | "unknown";
+
+  name_confirmed?: boolean;
+
   status?:
     | "lead"
     | "customer"
@@ -53,15 +61,96 @@ export async function upsertContact(
   companyId =
     env.DEFAULT_COMPANY_ID,
 ) {
-  const contact: Contact = {
-    ...input,
+  const previous =
+    await getContactByPhone(
+      input.phone,
+      companyId,
+    );
 
+  const previousMetadata =
+    previous?.metadata
+    && typeof previous.metadata
+      === "object"
+      ? previous.metadata
+      : {};
+
+  const incomingMetadata =
+    input.metadata
+    && typeof input.metadata
+      === "object"
+      ? input.metadata
+      : {};
+
+  const contact: Contact = {
     company_id:
       companyId,
+
+    phone:
+      input.phone.trim(),
+
+    ...(input.name !== undefined
+      ? {
+          name:
+            input.name.trim(),
+        }
+      : {}),
+
+    ...(input.business_name !== undefined
+      ? {
+          business_name:
+            input.business_name.trim(),
+        }
+      : {}),
+
+    ...(input.status !== undefined
+      ? {
+          status:
+            input.status,
+        }
+      : {}),
+
+    ...(input.temperature !== undefined
+      ? {
+          temperature:
+            input.temperature,
+        }
+      : {}),
+
+    ...(input.ai_score !== undefined
+      ? {
+          ai_score:
+            input.ai_score,
+        }
+      : {}),
+
+    ...(input.total_sales !== undefined
+      ? {
+          total_sales:
+            input.total_sales,
+        }
+      : {}),
+
+    ...(input.last_message !== undefined
+      ? {
+          last_message:
+            input.last_message,
+        }
+      : {}),
+
+    metadata: {
+      ...previousMetadata,
+      ...incomingMetadata,
+    },
 
     last_seen_at:
       new Date().toISOString(),
   };
+
+  if (!contact.phone) {
+    throw new Error(
+      "CONTACT_PHONE_REQUIRED",
+    );
+  }
 
   if (
     !isSupabaseConfigured()
@@ -69,7 +158,7 @@ export async function upsertContact(
     const key =
       contactKey(
         companyId,
-        input.phone,
+        contact.phone,
       );
 
     const stored = {
@@ -187,3 +276,191 @@ export async function listContacts(
       + "&order=last_seen_at.desc",
   });
 }
+
+export async function updateContactIdentity(
+  input: {
+    phone: string;
+    name?: string;
+    business_name?: string;
+    name_confirmed?: boolean;
+
+    email?: string;
+    country?: string;
+    province?: string;
+    city?: string;
+    address?: string;
+    postal_code?: string;
+    address_reference?: string;
+    notes?: string;
+
+    customer_type?:
+      | "retail"
+      | "wholesaler"
+      | "distributor"
+      | "reseller"
+      | "vip"
+      | "other";
+
+    temperature?:
+      | "cold"
+      | "warm"
+      | "hot";
+
+    status?:
+      | "lead"
+      | "customer"
+      | "inactive"
+      | "blocked";
+  },
+  companyId =
+    env.DEFAULT_COMPANY_ID,
+) {
+  const phone =
+    input.phone.trim();
+
+  if (!phone) {
+    throw new Error(
+      "CONTACT_PHONE_REQUIRED",
+    );
+  }
+
+  const previous =
+    await getContactByPhone(
+      phone,
+      companyId,
+    );
+
+  const name =
+    input.name
+      ?.trim();
+
+  if (
+    name !== undefined
+    && name.length < 2
+  ) {
+    throw new Error(
+      "CONTACT_NAME_TOO_SHORT",
+    );
+  }
+
+  const metadata = {
+    ...(
+      previous?.metadata
+      && typeof previous.metadata
+        === "object"
+        ? previous.metadata
+        : {}
+    ),
+
+    ...(name !== undefined
+      ? {
+          name_source:
+            "operator",
+
+          name_confirmed:
+            input.name_confirmed
+            ?? true,
+        }
+      : {}),
+
+    ...(input.email !== undefined
+      ? {
+          email:
+            input.email.trim(),
+        }
+      : {}),
+
+    ...(input.country !== undefined
+      ? {
+          country:
+            input.country.trim(),
+        }
+      : {}),
+
+    ...(input.province !== undefined
+      ? {
+          province:
+            input.province.trim(),
+        }
+      : {}),
+
+    ...(input.city !== undefined
+      ? {
+          city:
+            input.city.trim(),
+        }
+      : {}),
+
+    ...(input.address !== undefined
+      ? {
+          address:
+            input.address.trim(),
+        }
+      : {}),
+
+    ...(input.postal_code !== undefined
+      ? {
+          postal_code:
+            input.postal_code.trim(),
+        }
+      : {}),
+
+    ...(input.address_reference !== undefined
+      ? {
+          address_reference:
+            input.address_reference.trim(),
+        }
+      : {}),
+
+    ...(input.customer_type !== undefined
+      ? {
+          customer_type:
+            input.customer_type,
+        }
+      : {}),
+
+    ...(input.notes !== undefined
+      ? {
+          notes:
+            input.notes.trim(),
+        }
+      : {}),
+  };
+
+  return upsertContact(
+    {
+      phone,
+
+      ...(name !== undefined
+        ? {
+            name,
+          }
+        : {}),
+
+      ...(input.business_name !== undefined
+        ? {
+            business_name:
+              input.business_name.trim(),
+          }
+        : {}),
+
+      ...(input.temperature !== undefined
+        ? {
+            temperature:
+              input.temperature,
+          }
+        : {}),
+
+      ...(input.status !== undefined
+        ? {
+            status:
+              input.status,
+          }
+        : {}),
+
+      metadata,
+    },
+    companyId,
+  );
+}
+
