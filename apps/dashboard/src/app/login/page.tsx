@@ -376,6 +376,22 @@ export default function LoginPage() {
               : visualBranding.loginButtonLabel}
           </button>
 
+          <div
+            style={{
+              marginTop: 14,
+              textAlign: "right",
+            }}
+          >
+            <a
+              href="/forgot-password"
+              style={{
+                fontSize: 12,
+              }}
+            >
+              ¿Olvidaste tu contraseña?
+            </a>
+          </div>
+
           <footer className="login-card-footer">
             <span>
               Acceso protegido mediante sesión segura.

@@ -108,3 +108,137 @@ export async function uploadCatalogImage(input: {
       `${baseUrl}/storage/v1/object/public/${BUCKET}/${objectPath}`,
   };
 }
+
+
+
+export async function deleteCatalogImage(
+  input: {
+    bucket:
+      string;
+
+    path:
+      string;
+  },
+) {
+  if (
+    !env.SUPABASE_URL
+    || !env.SUPABASE_SERVICE_ROLE_KEY
+  ) {
+    throw new Error(
+      "Supabase no está configurado",
+    );
+  }
+
+
+  if (
+    input.bucket
+    !== BUCKET
+  ) {
+    throw new Error(
+      "CATALOG_IMAGE_INVALID_BUCKET",
+    );
+  }
+
+
+  const objectPath =
+    input.path
+      .trim()
+      .replace(
+        /^\/+/,
+        "",
+      );
+
+
+  if (
+    !objectPath
+    || objectPath.includes(
+      "..",
+    )
+  ) {
+    throw new Error(
+      "CATALOG_IMAGE_INVALID_PATH",
+    );
+  }
+
+
+  const encodedPath =
+    objectPath
+      .split("/")
+      .map(
+        encodeURIComponent,
+      )
+      .join("/");
+
+
+  const baseUrl =
+    env.SUPABASE_URL
+      .replace(
+        /\/+$/,
+        "",
+      );
+
+
+  const deleteUrl =
+    `${baseUrl}/storage/v1/object/${
+      encodeURIComponent(
+        input.bucket,
+      )
+    }/${encodedPath}`;
+
+
+  const response =
+    await fetch(
+      deleteUrl,
+      {
+        method:
+          "DELETE",
+
+        headers: {
+          apikey:
+            env.SUPABASE_SERVICE_ROLE_KEY,
+
+          Authorization:
+            `Bearer ${
+              env.SUPABASE_SERVICE_ROLE_KEY
+            }`,
+        },
+      },
+    );
+
+
+  const responseText =
+    await response.text();
+
+
+  if (
+    !response.ok
+    && response.status
+      !== 404
+  ) {
+    console.error(
+      "[CATALOG IMAGE DELETE ERROR]",
+      {
+        status:
+          response.status,
+
+        body:
+          responseText,
+      },
+    );
+
+
+    throw new Error(
+      "No se pudo eliminar la imagen de Supabase",
+    );
+  }
+
+
+  return {
+    deleted:
+      response.ok,
+
+    alreadyMissing:
+      response.status
+      === 404,
+  };
+}

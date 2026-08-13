@@ -1305,3 +1305,356 @@
 
 /* SETTINGS_IMPLEMENTATION_PILLS_END */
 
+
+
+/* PAYMENT_SETTINGS_PANEL_START */
+
+.paymentSettingsSection {
+  display: grid;
+  gap: 18px;
+  padding: 26px;
+  border: 1px solid var(--settings-border, #dce4e9);
+  border-radius: 18px;
+  background: var(--settings-surface, #ffffff);
+  box-shadow: 0 10px 28px rgba(28, 47, 61, 0.055);
+}
+
+.paymentSettingsHeader,
+.paymentPanelHeader,
+.paymentAccountTop,
+.paymentAccountActions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.paymentSettingsHeader {
+  align-items: center;
+}
+
+.paymentSummary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.paymentSummary span,
+.paymentDefaultBadge {
+  padding: 7px 10px;
+  border: 1px solid #cbdde8;
+  border-radius: 999px;
+  color: #285c7d;
+  background: #edf6fb;
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.paymentSettingsGrid {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.05fr)
+    minmax(360px, 0.95fr);
+  gap: 18px;
+}
+
+.paymentPanel,
+.paymentOwnerPanel {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--settings-border, #dce4e9);
+  border-radius: 15px;
+  background: var(--settings-surface-soft, #f7fafb);
+}
+
+.paymentPanelHeader {
+  margin-bottom: 17px;
+}
+
+.paymentPanelHeader h3,
+.paymentOwnerPanel h3 {
+  margin: 0;
+  color: #17212b;
+  font-size: 18px;
+}
+
+.paymentPanelHeader p,
+.paymentOwnerPanel p {
+  margin: 7px 0 0;
+  color: #647683;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.paymentAccountList {
+  display: grid;
+  gap: 12px;
+}
+
+.paymentAccountCard {
+  display: grid;
+  gap: 15px;
+  padding: 17px;
+  border: 1px solid #dce5ea;
+  border-radius: 13px;
+  background: #ffffff;
+}
+
+.paymentAccountTop strong {
+  display: block;
+  color: #17212b;
+  font-size: 15px;
+}
+
+.paymentAccountTop span:not(.paymentDefaultBadge) {
+  display: block;
+  margin-top: 4px;
+  color: #71808b;
+  font-size: 12px;
+}
+
+.paymentAccountDetails {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.paymentAccountDetails div {
+  min-width: 0;
+}
+
+.paymentAccountDetails dt {
+  color: #7a8994;
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.paymentAccountDetails dd {
+  overflow-wrap: anywhere;
+  margin: 4px 0 0;
+  color: #20313e;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.paymentFormGrid {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.paymentFormGrid label,
+.paymentOwnerForm label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.paymentFormGrid label > span,
+.paymentOwnerForm label > span {
+  color: #526570;
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.paymentFormGrid input,
+.paymentFormGrid select,
+.paymentFormGrid textarea,
+.paymentOwnerForm input[type="tel"] {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid #ccd8df;
+  border-radius: 9px;
+  color: #17212b;
+  background: #ffffff;
+  font: inherit;
+  outline: none;
+}
+
+.paymentFormGrid input:focus,
+.paymentFormGrid select:focus,
+.paymentFormGrid textarea:focus,
+.paymentOwnerForm input[type="tel"]:focus {
+  border-color: #39769b;
+  box-shadow: 0 0 0 3px rgba(57, 118, 155, 0.12);
+}
+
+.paymentFullField {
+  grid-column: 1 / -1;
+}
+
+.paymentPrimaryButton,
+.paymentSecondaryButton,
+.paymentDangerButton,
+.paymentDangerPrimaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 39px;
+  padding: 0 14px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 780;
+  cursor: pointer;
+}
+
+.paymentPrimaryButton {
+  border: 1px solid #17364d;
+  color: #ffffff;
+  background: #17364d;
+}
+
+.paymentSecondaryButton {
+  border: 1px solid #cbd8df;
+  color: #304958;
+  background: #ffffff;
+}
+
+.paymentDangerButton {
+  border: 1px solid #e3c7c7;
+  color: #8b4040;
+  background: #fff8f8;
+}
+
+.paymentDangerPrimaryButton {
+  border: 1px solid #8c3737;
+  color: #ffffff;
+  background: #8c3737;
+}
+
+.paymentPrimaryButton:disabled,
+.paymentSecondaryButton:disabled,
+.paymentDangerButton:disabled,
+.paymentDangerPrimaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.paymentOwnerPanel {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 0.9fr)
+    minmax(360px, 1.1fr);
+  gap: 28px;
+  align-items: center;
+}
+
+.paymentOwnerForm {
+  display: grid;
+  gap: 14px;
+}
+
+.paymentConfirmation {
+  display: grid !important;
+  grid-template-columns: auto 1fr;
+  align-items: flex-start;
+  gap: 10px !important;
+  padding: 12px;
+  border: 1px solid #ead6bd;
+  border-radius: 10px;
+  background: #fffaf3;
+}
+
+.paymentConfirmation input {
+  margin-top: 2px;
+}
+
+.paymentConfirmation span {
+  color: #6e583d !important;
+  font-size: 12px !important;
+  line-height: 1.5;
+}
+
+.paymentOwnerLocked {
+  display: grid;
+  gap: 5px;
+  padding: 18px;
+  border: 1px solid #c8dfd3;
+  border-radius: 13px;
+  background: #f2faf6;
+}
+
+.paymentOwnerLocked span {
+  color: #557367;
+  font-size: 12px;
+}
+
+.paymentOwnerLocked strong {
+  color: #24513e;
+  font-size: 24px;
+}
+
+.paymentOwnerLocked small {
+  color: #6a7f76;
+  font-size: 12px;
+}
+
+.paymentError,
+.paymentSuccess,
+.paymentEmpty {
+  padding: 13px 15px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.paymentError {
+  color: #7b3030;
+  background: #fff2f2;
+  border: 1px solid #eccdcd;
+}
+
+.paymentSuccess {
+  color: #285b44;
+  background: #eff9f3;
+  border: 1px solid #cbe4d5;
+}
+
+.paymentEmpty {
+  color: #687a86;
+  background: #ffffff;
+  border: 1px dashed #ccd8df;
+}
+
+@media (max-width: 1080px) {
+  .paymentSettingsGrid,
+  .paymentOwnerPanel {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .paymentSettingsSection {
+    padding: 18px;
+  }
+
+  .paymentSettingsHeader,
+  .paymentPanelHeader,
+  .paymentAccountTop,
+  .paymentAccountActions {
+    flex-direction: column;
+  }
+
+  .paymentSummary {
+    justify-content: flex-start;
+  }
+
+  .paymentFormGrid,
+  .paymentAccountDetails {
+    grid-template-columns: 1fr;
+  }
+
+  .paymentFullField {
+    grid-column: auto;
+  }
+}
+
+/* PAYMENT_SETTINGS_PANEL_END */

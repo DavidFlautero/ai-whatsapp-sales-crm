@@ -18,7 +18,8 @@ type Provider =
   | "anthropic"
   | "groq"
   | "supabase"
-  | "ninox";
+  | "ninox"
+  | "vision";
 
 type ConnectionStatus =
   | "online"
@@ -93,6 +94,16 @@ type PublicConfig = {
     apiKeyMasked:
       | string
       | null;
+  };
+
+  vision: {
+    configured: boolean;
+
+    apiKeyMasked:
+      | string
+      | null;
+
+    model: string;
   };
 
   supabase: {
@@ -255,6 +266,37 @@ const definitions:
     ],
   },
   {
+    id: "vision",
+    eyebrow:
+      "BÚSQUEDA VISUAL",
+    title:
+      "Visión de productos",
+    description:
+      "Analiza fotos recibidas por WhatsApp y busca productos similares en el catálogo real.",
+
+    fields: [
+      {
+        key: "apiKey",
+        label:
+          "Vision API Key",
+        type: "password",
+        placeholder:
+          "Dejar vacío para conservar la key actual",
+        helperKey:
+          "apiKeyMasked",
+      },
+      {
+        key: "model",
+        label:
+          "Modelo con visión",
+        type: "text",
+        placeholder:
+          "Ej: claude-sonnet-...",
+      },
+    ],
+  },
+
+  {
     id: "groq",
     eyebrow:
       "AUDIO Y TRANSCRIPCIÓN",
@@ -376,6 +418,11 @@ const emptyDraft:
     apiKey: "",
   },
 
+  vision: {
+    apiKey: "",
+    model: "",
+  },
+
   groq: {
     apiKey: "",
   },
@@ -452,6 +499,9 @@ function statusForProvider(
       return status
         .services
         .audio;
+
+    case "vision":
+      return null;
 
     case "supabase":
       return status
@@ -613,6 +663,16 @@ export function ConnectionsPanel({
 
       anthropic: {
         apiKey: "",
+      },
+
+      vision: {
+        apiKey: "",
+
+        model:
+          nextConfig
+            .vision
+            .model ||
+          "",
       },
 
       groq: {
@@ -997,7 +1057,7 @@ export function ConnectionsPanel({
         >
           <article>
             <strong>
-              {configuredCount}/5
+              {configuredCount}/{definitions.length}
             </strong>
 
             <span>

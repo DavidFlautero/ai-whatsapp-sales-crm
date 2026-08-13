@@ -33,6 +33,9 @@ export const companyBrandingSchema = z.object({
   robotName: z.string().trim().min(2).max(120),
   primaryColor: colorSchema,
   logoUrl: nullableUrlSchema,
+heroImageUrl: nullableUrlSchema
+  .optional()
+  .default(null),
 });
 
 export const companyRobotSchema = z.object({

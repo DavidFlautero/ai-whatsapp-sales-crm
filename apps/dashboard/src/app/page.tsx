@@ -51,6 +51,12 @@ export default async function Page() {
   const connected = whatsappStatus === "online";
   const catalogHighlights = catalogProducts.slice(0, 3);
 
+  const genericHeroImages = [
+    "/hero-fashion/fashion-1.jpg",
+    "/hero-fashion/fashion-2.jpg",
+    "/hero-fashion/fashion-3.jpg",
+  ];
+
   return (
     <AppShell>
       <section className="company-hero">
@@ -80,8 +86,11 @@ export default async function Page() {
               >
                 <img
                   src={
-                    catalogImageBySku[product.sku] ||
-                    "https://fulanitasmayorista.com/wp-content/uploads/2025/06/metalizado-plateado-300x400.png"
+                    catalogImageBySku[product.sku]
+                    || genericHeroImages[
+                      index
+                      % genericHeroImages.length
+                    ]
                   }
                   alt={product.name}
                 />
@@ -91,13 +100,23 @@ export default async function Page() {
               </article>
             ))
           ) : (
-            <article className="company-product-shot shot-2">
-              <img
-                src="https://fulanitasmayorista.com/wp-content/uploads/2025/06/metalizado-plateado-300x400.png"
-                alt="Colección Fulanitas"
-              />
-              <span>Catálogo mayorista Fulanitas</span>
-            </article>
+            genericHeroImages.map(
+              (image, index) => (
+                <article
+                  className={`company-product-shot shot-${index + 1}`}
+                  key={image}
+                >
+                  <img
+                    src={image}
+                    alt={`Colección Fulanitas ${index + 1}`}
+                  />
+
+                  <span>
+                    Colección mayorista Fulanitas
+                  </span>
+                </article>
+              ),
+            )
           )}
 
           <div className="company-live-badge">

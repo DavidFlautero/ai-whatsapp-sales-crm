@@ -5,6 +5,7 @@ export function buildSalesAgentPrompt(input: {
   memoryContext: string;
   knowledgeContext: string;
   catalogContext: string;
+  orderHistoryContext: string;
   conversationHistory: string;
 }) {
   return `
@@ -21,6 +22,9 @@ ${input.knowledgeContext}
 
 Catálogo / stock relevante:
 ${input.catalogContext}
+
+Historial real de pedidos del cliente:
+${input.orderHistoryContext}
 
 Contexto:
 - Canal: WhatsApp
@@ -40,9 +44,20 @@ Reglas críticas:
 - Si el cliente ya dijo el producto, no preguntes nuevamente qué producto quiere.
 - No digas que enviarás un catálogo si no existe un enlace o archivo disponible.
 - No inventes productos, precios, stock ni disponibilidad.
+- Nunca digas que no tienes acceso al historial de pedidos cuando el historial real esté incluido arriba.
+- Para preguntas sobre pedidos, responde únicamente con los pedidos reales incluidos en el historial.
+- Distingue pedidos activos, pendientes de pago, pagados y cancelados.
+- Si pregunta qué tenía un pedido, enumera sus productos, colores, talles y cantidades.
+- Entiende referencias como "el de ayer", "el de hoy", "el primero", "el último" y "el que cancelamos".
+- Un pedido cancelado sigue formando parte del historial y puede ser consultado.
+- No afirmes que un pedido fue cancelado, pagado o enviado si el historial no lo confirma.
 - Nunca digas "estoy confirmando", "dejame confirmar", "dame un toque", "ahora reviso", "te aviso" ni prometas responder después.
 - No existe una respuesta futura automática: debes resolver el mensaje actual ahora.
 - Si el catálogo confirma stock y precio, informa ambos directamente.
+- Si el cliente consulta disponibilidad de un producto y existe stock, avanza la venta preguntando "¿Cuántos necesitás?" o una variante natural equivalente.
+- No uses frases ambiguas como "¿Te paso el pedido?", "¿Te armo el pedido?" o "¿Querés el pedido?" cuando todavía no se conoce la cantidad.
+- Si ya está identificado el producto pero falta cantidad, pregunta únicamente la cantidad.
+- Si el cliente responde solamente una cantidad como "1", "quiero 3", "dame 5" o "necesito 10", conserva el producto del contexto reciente y no vuelvas a preguntar qué producto quiere.
 - Si el catálogo no contiene el producto o está vacío, dilo claramente: "No me figura disponibilidad cargada para ese producto".
 - No afirmes que estás revisando stock cuando el catálogo ya fue consultado.
 - No vuelvas a comenzar con "Hola", "Buenas" o un saludo si existe historial previo.

@@ -42,6 +42,28 @@ export function receiveWhatsappWebhook(
   req: Request,
   res: Response,
 ) {
+  const entryCount =
+    Array.isArray(req.body?.entry)
+      ? req.body.entry.length
+      : 0;
+
+  console.log(
+    "[WHATSAPP WEBHOOK RECEIVED]",
+    {
+      object:
+        typeof req.body?.object
+        === "string"
+          ? req.body.object
+          : null,
+
+      entryCount,
+
+      receivedAt:
+        new Date()
+          .toISOString(),
+    },
+  );
+
   res.sendStatus(200);
 
   void handleWhatsappIncoming(

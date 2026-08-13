@@ -3,7 +3,13 @@ import { Router } from "express";
 import {
   requirePermission,
 } from "../../core/http/permission.middleware.js";
-import { getIntelligenceDashboard, saveCatalogProduct, saveFullCatalogProduct, uploadCatalogProductImage } from "../../controllers/admin/intelligence.controller.js";
+import {
+  getIntelligenceDashboard,
+  saveCatalogProduct,
+  saveFullCatalogProduct,
+  saveCatalogVariantImages,
+  uploadCatalogProductImage,
+} from "../../controllers/admin/intelligence.controller.js";
 
 
 const catalogImageUpload = multer({
@@ -43,6 +49,14 @@ adminIntelligenceRoutes.post(
     "catalog.manage",
   ),
   saveFullCatalogProduct,
+);
+
+adminIntelligenceRoutes.put(
+  "/catalog/variants/:variantId/images",
+  requirePermission(
+    "catalog.manage",
+  ),
+  saveCatalogVariantImages,
 );
 
 adminIntelligenceRoutes.post(

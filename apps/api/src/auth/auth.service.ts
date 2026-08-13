@@ -6,6 +6,10 @@ import type {
   UserRole,
 } from "./auth.types.js";
 
+import {
+  readPasswordOverride,
+} from "./password-reset.service.js";
+
 const jwtSecret = new TextEncoder().encode(
   authConfig.secret,
 );
@@ -41,9 +45,15 @@ export async function authenticateUser(
     return null;
   }
 
+  const passwordOverride =
+    await readPasswordOverride(
+      record.id,
+    );
+
   const valid = await bcrypt.compare(
     password,
-    record.passwordHash,
+    passwordOverride?.passwordHash
+    ?? record.passwordHash,
   );
 
   if (!valid) {
@@ -122,6 +132,33 @@ export async function verifySessionToken(
       !companyId
     ) {
       return null;
+    }
+
+    const passwordOverride =
+      await readPasswordOverride(
+        payload.sub,
+      );
+
+    if (
+      passwordOverride
+    ) {
+      const changedAt =
+        Math.floor(
+          new Date(
+            passwordOverride
+              .passwordChangedAt,
+          )
+            .getTime()
+          / 1000,
+        );
+
+      if (
+        !payload.iat
+        || payload.iat
+          < changedAt
+      ) {
+        return null;
+      }
     }
 
     return {

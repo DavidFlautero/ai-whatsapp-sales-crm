@@ -11,6 +11,7 @@ type UserRole =
 
 const publicRoutes = new Set([
   "/login",
+  "/forgot-password",
   "/privacy",
   "/terms",
   "/data-deletion",
@@ -27,6 +28,12 @@ const supervisorBlockedRoutes = [
   "/settings",
 ];
 
+
+/* ADMIN_ONLY_CATALOG_MEDIA_V1 */
+const adminOnlyRoutes = [
+  "/catalog/media-missing",
+];
+
 const cookieName =
   process.env.AUTH_COOKIE_NAME ||
   "fulanitas_session";
@@ -36,6 +43,14 @@ const authSecret =
 
 const secret =
   new TextEncoder().encode(authSecret);
+
+const storeLinkSecret =
+  process.env.STORE_LINK_SECRET || "";
+
+const storeSecret =
+  new TextEncoder().encode(
+    storeLinkSecret,
+  );
 
 function matchesRoute(
   pathname: string,
@@ -73,6 +88,26 @@ function canAccess(
     return true;
   }
 
+
+  const isAdminOnly =
+    adminOnlyRoutes.some(
+      (route) =>
+        matchesRoute(
+          pathname,
+          route,
+        ),
+    );
+
+
+  if (isAdminOnly) {
+    return (
+      role === "superadmin"
+      || role === "owner"
+      || role === "admin"
+    );
+  }
+
+
   const isPlatform =
     matchesRoute(pathname, "/platform");
 
@@ -109,6 +144,121 @@ export async function proxy(
 ) {
   const { pathname } =
     request.nextUrl;
+
+  /* =====================================================
+     STORE ACCESS
+
+     /tienda/acceso:
+       público únicamente para canjear
+       el link firmado enviado por WhatsApp.
+
+     resto de /tienda:
+       requiere cookie firmada válida.
+     ===================================================== */
+
+  if (
+    pathname
+    === "/tienda/acceso"
+  ) {
+    return NextResponse.next();
+  }
+
+  if (
+    pathname === "/tienda"
+    || pathname.startsWith(
+      "/tienda/",
+    )
+  ) {
+    const storeCookieName =
+      "fulanitas_store_access";
+
+    const storeToken =
+      request.cookies
+        .get(
+          storeCookieName,
+        )
+        ?.value;
+
+    if (
+      !storeToken
+      || !storeLinkSecret
+    ) {
+      return new NextResponse(
+        "Acceso al catálogo no disponible. Solicitá un enlace nuevo desde WhatsApp.",
+        {
+          status:
+            403,
+
+          headers: {
+            "Content-Type":
+              "text/plain; charset=utf-8",
+
+            "Cache-Control":
+              "no-store",
+          },
+        },
+      );
+    }
+
+    try {
+      const {
+        payload:
+          storePayload,
+      } =
+        await jwtVerify(
+          storeToken,
+          storeSecret,
+          {
+            issuer:
+              "fulanitas-store",
+
+            audience:
+              "fulanitas-storefront",
+
+            algorithms: [
+              "HS256",
+            ],
+          },
+        );
+
+      if (
+        storePayload.companyId
+          !== "fulanitas"
+        || storePayload.scope
+          !== "store"
+      ) {
+        throw new Error(
+          "Invalid store session",
+        );
+      }
+
+      return NextResponse.next();
+    } catch {
+      const response =
+        new NextResponse(
+          "La sesión del catálogo venció. Solicitá un enlace nuevo desde WhatsApp.",
+          {
+            status:
+              403,
+
+            headers: {
+              "Content-Type":
+                "text/plain; charset=utf-8",
+
+              "Cache-Control":
+                "no-store",
+            },
+          },
+        );
+
+      response.cookies.delete(
+        storeCookieName,
+      );
+
+      return response;
+    }
+  }
+
 
   const isPublic =
     publicRoutes.has(pathname) ||

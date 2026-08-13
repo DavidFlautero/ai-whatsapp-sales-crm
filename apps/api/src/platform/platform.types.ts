@@ -21,6 +21,7 @@ export type CompanyBranding = {
   robotName: string;
   primaryColor: string;
   logoUrl: string | null;
+heroImageUrl: string | null;
 };
 
 export type CompanyRobot = {

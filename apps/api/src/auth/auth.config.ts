@@ -18,6 +18,35 @@ function requiredEnv(name: string): string {
   return value;
 }
 
+function normalizeUserPhone(
+  value: unknown,
+): string | null {
+  const digits =
+    String(
+      value ?? "",
+    )
+      .replace(
+        /\D/g,
+        "",
+      );
+
+  if (!digits) {
+    return null;
+  }
+
+  if (
+    digits.length < 8
+    || digits.length > 15
+  ) {
+    throw new Error(
+      "Invalid auth user phone",
+    );
+  }
+
+  return digits;
+}
+
+
 function parseUsers(): AuthUserRecord[] {
   const raw = requiredEnv("AUTH_USERS_JSON");
   const parsed: unknown = JSON.parse(raw);
@@ -56,6 +85,12 @@ function parseUsers(): AuthUserRecord[] {
       passwordHash: user.passwordHash,
       role: user.role,
       companyId,
+
+      phone:
+        normalizeUserPhone(
+          user.phone,
+        ),
+
       active: user.active !== false,
     };
   });

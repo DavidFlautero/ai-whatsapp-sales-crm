@@ -57,3 +57,12 @@ apps/dashboard/.next-before-recovery-*
 apps/api/data/
 supabase/.temp/
 supabase/.branches/
+/apps/api/dist-hardened/
+/apps/api/dist-test/
+/apps/dashboard/apps/
+/backups/
+/data/
+/logs/
+/docs/drafts/
+*.bak*
+/App runtime, multi-company data and Sonnet integration"

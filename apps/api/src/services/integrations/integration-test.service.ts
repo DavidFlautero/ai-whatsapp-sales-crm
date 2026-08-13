@@ -557,6 +557,132 @@ export async function testIntegration(
         };
       }
 
+      case "vision": {
+        const apiKey =
+          text(
+            candidate,
+            "apiKey",
+            current
+              .vision
+              ?.apiKey
+            ?? "",
+          );
+
+        const model =
+          text(
+            candidate,
+            "model",
+            current
+              .vision
+              ?.model
+            ?? "",
+          );
+
+        if (
+          !apiKey
+          || !model
+        ) {
+          return missing(
+            provider,
+            "Faltan la API key y el modelo de visión.",
+          );
+        }
+
+        const {
+          response,
+          latencyMs,
+        } = await timedFetch(
+          "https://api.anthropic.com/v1/models?limit=100",
+          {
+            headers: {
+              "x-api-key":
+                apiKey,
+
+              "anthropic-version":
+                "2023-06-01",
+            },
+          },
+        );
+
+        if (!response.ok) {
+          return httpFailure(
+            provider,
+            response,
+            latencyMs,
+          );
+        }
+
+        const body =
+          await response
+            .json()
+            .catch(
+              () => ({}),
+            ) as {
+              data?: Array<{
+                id?: unknown;
+              }>;
+            };
+
+        const available =
+          Array.isArray(
+            body.data,
+          )
+            ? body.data.some(
+                (item) =>
+                  item?.id
+                  === model,
+              )
+            : false;
+
+        if (!available) {
+          return {
+            provider,
+
+            status:
+              "invalid_config",
+
+            configured:
+              true,
+
+            checkedAt:
+              new Date()
+                .toISOString(),
+
+            latencyMs,
+
+            message:
+              `La key es válida, pero el modelo "${model}" no apareció entre los modelos disponibles.`,
+
+            details: {
+              model,
+            },
+          };
+        }
+
+        return {
+          provider,
+
+          status:
+            "online",
+
+          configured:
+            true,
+
+          checkedAt:
+            new Date()
+              .toISOString(),
+
+          latencyMs,
+
+          message:
+            "Visión validó la API key y el modelo.",
+
+          details: {
+            model,
+          },
+        };
+      }
+
       case "groq": {
         const apiKey =
           text(
@@ -743,15 +869,18 @@ export async function testIntegration(
           baseUrl,
         );
 
+        const healthUrl =
+          `${baseUrl}/integraciones/terceros/GetDataCurva`;
+
         const {
           response,
           latencyMs,
         } = await timedFetch(
-          `${baseUrl}/teams`,
+          healthUrl,
           {
             headers: {
-              Authorization:
-                `Bearer ${apiKey}`,
+              "X-NX-TOKEN":
+                apiKey,
 
               Accept:
                 "application/json",
@@ -760,6 +889,47 @@ export async function testIntegration(
         );
 
         if (!response.ok) {
+          const raw =
+            await response
+              .text()
+              .catch(
+                () => "",
+              );
+
+          if (
+            response.status === 403
+            && /600 segundos|esperar/i.test(
+              raw,
+            )
+          ) {
+            return {
+              provider,
+
+              status:
+                "online",
+
+              configured:
+                true,
+
+              checkedAt:
+                new Date()
+                  .toISOString(),
+
+              latencyMs,
+
+              message:
+                "Ninox está conectado. El catálogo está dentro de su ventana de espera de 10 minutos.",
+
+              details: {
+                rateLimited:
+                  true,
+
+                retryAfterSeconds:
+                  600,
+              },
+            };
+          }
+
           return httpFailure(
             provider,
             response,

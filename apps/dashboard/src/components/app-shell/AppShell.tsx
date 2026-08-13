@@ -9,19 +9,89 @@ const apiUrl = (
   "https://panel.fulanitasfabrica.site/api"
 ).replace(/\/+$/, "");
 
-const nav = [
-  ["Dashboard", "/"],
-  ["Conversaciones", "/conversations"],
-  ["CRM y clientes", "/crm"],
-  ["Clientes perdidos", "/recovery"],
-  ["Pedidos y ventas", "/orders"],
-  ["Nueva venta", "/orders/new"],
-  ["Catálogo", "/catalog"],
-  ["Prompts", "/prompts"],
-  ["Robot e integraciones", "/integrations"],
-  ["AI Core", "/ai-core"],
-  ["Configuración", "/settings"],
-] as const;
+type UserRole =
+  | "superadmin"
+  | "owner"
+  | "admin"
+  | "supervisor"
+  | "vendedor";
+
+type NavItem = {
+  label: string;
+  href: string;
+  roles?: readonly UserRole[];
+};
+
+type NavSection = {
+  label: string;
+  items: readonly NavItem[];
+};
+
+const administrativeRoles =
+  ["superadmin", "owner", "admin"] as const;
+
+const navSections: readonly NavSection[] = [
+  {
+    label: "Principal",
+    items: [
+      { label: "Dashboard", href: "/" },
+    ],
+  },
+  {
+    label: "Atención y clientes",
+    items: [
+      { label: "Conversaciones", href: "/conversations" },
+      { label: "CRM y clientes", href: "/crm" },
+      { label: "Clientes perdidos", href: "/recovery" },
+    ],
+  },
+  {
+    label: "Ventas",
+    items: [
+      { label: "Pedidos", href: "/orders" },
+      { label: "Nueva venta", href: "/orders/new" },
+      { label: "Comprobantes", href: "/comprobantes" },
+    ],
+  },
+  {
+    label: "Catálogo",
+    items: [
+      { label: "Productos", href: "/catalog" },
+      { label: "Stock", href: "/catalog/stock" },
+      { label: "Precios", href: "/catalog/pricing" },
+      { label: "Curvas", href: "/catalog/curves" },
+      { label: "Ingreso de mercadería", href: "/catalog/intake" },
+      { label: "Nuevo producto", href: "/catalog/new" },
+      {
+        label: "Fotos pendientes",
+        href: "/catalog/media-missing",
+        roles: administrativeRoles,
+      },
+    ],
+  },
+  {
+    label: "Crecimiento",
+    items: [
+      { label: "Campañas", href: "/campaigns" },
+      { label: "Analytics", href: "/analytics" },
+    ],
+  },
+  {
+    label: "Automatización",
+    items: [
+      { label: "Prompts", href: "/prompts" },
+      { label: "Robot e integraciones", href: "/integrations" },
+      { label: "WhatsApp Business", href: "/whatsapp-business" },
+      { label: "AI Core", href: "/ai-core" },
+    ],
+  },
+  {
+    label: "Sistema",
+    items: [
+      { label: "Configuración", href: "/settings" },
+    ],
+  },
+];
 
 type SessionUser = {
   name: string;
@@ -53,6 +123,44 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const isSuperadmin = user?.role === "superadmin";
 
+  const visibleSections = navSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
+        (item) =>
+          !item.roles
+          || (
+            Boolean(user)
+            && item.roles.includes(
+              user?.role as UserRole,
+            )
+          ),
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
+
+  const visibleItems =
+    visibleSections.flatMap(
+      (section) => section.items,
+    );
+
+  const activeItem =
+    visibleItems
+      .filter((item) =>
+        item.href === "/"
+          ? pathname === "/"
+          : (
+              pathname === item.href
+              || pathname.startsWith(
+                `${item.href}/`,
+              )
+            ),
+      )
+      .sort(
+        (left, right) =>
+          right.href.length - left.href.length,
+      )[0];
+
   return (
     <main className="shell company-shell">
       <aside className="sidebar company-sidebar">
@@ -72,17 +180,58 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <nav className="nav company-nav">
-          {nav.map(([label, href]) => {
-            const active = href === "/"
-              ? pathname === "/"
-              : pathname === href || pathname.startsWith(`${href}/`);
+        <nav
+          className="nav company-nav"
+          aria-label="Navegación principal"
+        >
+          {visibleSections.map((section) => {
+            const sectionActive =
+              section.items.some(
+                (item) =>
+                  activeItem?.href === item.href,
+              );
 
             return (
-              <Link href={href} key={href} className={active ? "is-active" : ""}>
-                <span className="nav-icon" />
-                {label}
-              </Link>
+              <details
+                className="company-nav-section"
+                key={section.label}
+                open={
+                  section.label === "Principal"
+                  || sectionActive
+                }
+              >
+                <summary>
+                  <span className="company-nav-section-title">
+                    {section.label}
+                  </span>
+                  <span
+                    className="company-nav-section-arrow"
+                    aria-hidden="true"
+                  />
+                </summary>
+
+                <div className="company-nav-items">
+                  {section.items.map((item) => {
+                    const active =
+                      activeItem?.href === item.href;
+
+                    return (
+                      <Link
+                        href={item.href}
+                        key={item.href}
+                        className={
+                          active
+                            ? "is-active"
+                            : ""
+                        }
+                      >
+                        <span className="nav-icon" />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </details>
             );
           })}
         </nav>

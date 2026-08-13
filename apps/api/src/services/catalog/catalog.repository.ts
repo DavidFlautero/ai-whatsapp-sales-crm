@@ -1,7 +1,23 @@
 import {
+  ensureRuntimeAccess,
+} from "../runtime/core-state.service.js";
+
+import {
   isSupabaseConfigured,
   supabaseRequest,
 } from "../db/supabase-rest.client.js";
+
+import {
+  searchNinoxCatalog,
+} from "../ninox/ninox-catalog-search.service.js";
+
+import {
+  readIntegrationSecrets,
+} from "../integrations/integration-secrets.repository.js";
+
+import {
+  ensureCommerceVariantFromNinox,
+} from "../ninox/ninox-commerce-bridge.service.js";
 
 type ProductRow = {
   id: string;
@@ -81,6 +97,7 @@ export type CatalogProductInput = {
   color?: string;
   size?: string;
   price?: number;
+  currency?: string;
   stock?: number;
   tags?: string[];
   description?: string;
@@ -178,6 +195,10 @@ function metadataTags(
 export async function listProducts(
   companyId = "fulanitas",
 ): Promise<CatalogItem[]> {
+
+  /* RUNTIME_CHECK_A5 */
+  ensureRuntimeAccess("catalog");
+
   if (!isSupabaseConfigured()) {
     return fallbackProducts.filter(
       (product) =>
@@ -709,6 +730,50 @@ export async function findRequestedCatalogImage(
     return null;
   }
 
+  /*
+   * La fuente de imágenes debe respetar exactamente
+   * la misma fuente comercial que stock/precio/productos.
+   *
+   * Si Ninox está activo NO se permite completar imágenes
+   * desde el catálogo interno del panel.
+   *
+   * Actualmente el catálogo Ninox no expone imágenes,
+   * así que devolvemos null hasta implementar imágenes
+   * provenientes explícitamente de Ninox.
+   */
+  const integrations =
+    await readIntegrationSecrets();
+
+  const ninoxActive =
+    Boolean(
+      integrations
+        .ninox
+        .enabled
+      && integrations
+        .ninox
+        .apiKey
+        ?.trim(),
+    );
+
+  if (ninoxActive) {
+    console.log(
+      "[CATALOG IMAGE SOURCE]",
+      {
+        companyId,
+        source:
+          "ninox",
+
+        available:
+          false,
+
+        reason:
+          "NINOX_IMAGES_NOT_AVAILABLE",
+      },
+    );
+
+    return null;
+  }
+
   const matches =
     await searchProducts(
       [
@@ -747,43 +812,361 @@ export async function buildCatalogContext(
   message: string,
   companyId = "fulanitas",
 ): Promise<string> {
-  const matches =
-    await searchProducts(
-      message,
-      companyId,
+  const normalizedMessage =
+    message
+      .normalize("NFD")
+      .replace(
+        /[\u0300-\u036f]/g,
+        "",
+      )
+      .toLowerCase()
+      .trim();
+
+  const genericCatalogRequest =
+    /^(que|qué|dime|decime|mostrame|muestrame|mostrar|ver|quiero ver|tienes|tenes|que tienes|que tenes).*(disponible|catalogo|productos|stock|vendes|tienen|tenes)|^(catalogo|productos|disponible|disponibilidad|stock)$/i
+      .test(
+        normalizedMessage,
+      );
+
+  const integrations =
+    await readIntegrationSecrets();
+
+  const ninoxActive =
+    Boolean(
+      integrations
+        .ninox
+        .enabled
+      && integrations
+        .ninox
+        .apiKey
+        ?.trim(),
     );
 
-  if (!matches.length) {
-    return [
-      "No se encontraron productos específicos",
-      "en el catálogo interno para esta consulta.",
-      "No inventar disponibilidad, precio ni stock.",
-    ].join(" ");
-  }
+  /*
+   * Regla de arquitectura:
+   *
+   * Ninox activo   -> sólo Ninox.
+   * Ninox inactivo -> sólo catálogo interno.
+   *
+   * Nunca mezclamos ambas fuentes.
+   */
+  if (ninoxActive) {
+    const query =
+      genericCatalogRequest
+        ? ""
+        : message;
 
-  return matches
-    .map((product) => {
-      const image =
-        selectCatalogImage(
-          product,
+    const ninoxMatches =
+      await searchNinoxCatalog({
+        query,
+        limit:
+          genericCatalogRequest
+            ? 40
+            : 30,
+      })
+        .catch(
+          (error: unknown) => {
+            console.error(
+              "[CATALOG NINOX SEARCH ERROR]",
+              {
+                companyId,
+                message,
+
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : String(error),
+              },
+            );
+
+            return [];
+          },
         );
 
-      return [
-        `Producto: ${product.name}`,
-        `SKU: ${product.sku}`,
-        `Categoría: ${product.category ?? "-"}`,
-        `Color: ${product.color ?? "-"}`,
-        `Talle: ${product.size ?? "-"}`,
-        `Precio: ${product.price} ${product.currency}`,
-        `Stock disponible: ${product.stock}`,
-        `Stock entrante informado: ${product.incoming}`,
-        `Imagen disponible: ${image ? "sí" : "no"}`,
-        `Descripción: ${product.description ?? "-"}`,
-      ].join("\n");
-    })
+    const available =
+      ninoxMatches
+        .filter(
+          (product) =>
+            product.available > 0,
+        );
+
+    const rawSelected =
+      (
+        genericCatalogRequest
+          ? available
+          : ninoxMatches.filter(
+              (product) =>
+                product.available > 0,
+            )
+      )
+        .slice(
+          0,
+          genericCatalogRequest
+            ? 12
+            : 30,
+        );
+
+    /*
+     * Ninox sigue siendo la fuente comercial,
+     * pero el stock vendible debe respetar
+     * reservas y compromisos locales.
+     */
+    const selected =
+      await Promise.all(
+        rawSelected.map(
+          async (
+            product,
+          ) => {
+            const bridged =
+              await ensureCommerceVariantFromNinox({
+                companyId,
+
+                query: [
+                  product.code,
+                  product.color,
+                  product.size,
+                ]
+                  .filter(Boolean)
+                  .join(" "),
+              })
+                .catch(
+                  (
+                    error:
+                      unknown,
+                  ) => {
+                    console.error(
+                      "[CATALOG LIVE STOCK ERROR]",
+                      {
+                        companyId,
+                        sku:
+                          product.code,
+
+                        error:
+                          error
+                          instanceof Error
+                            ? error.message
+                            : String(error),
+                      },
+                    );
+
+                    return null;
+                  },
+                );
+
+            const available =
+              Number(
+                bridged
+                  ?.stockSync
+                  ?.available
+                ?? product
+                  .available
+                ?? 0,
+              );
+
+            return {
+              ...product,
+
+              available:
+                Number.isFinite(
+                  available,
+                )
+                  ? Math.max(
+                      available,
+                      0,
+                    )
+                  : 0,
+            };
+          },
+        ),
+      );
+
+    if (!selected.length) {
+      return genericCatalogRequest
+        ? [
+            "Fuente activa: NinoxNet.",
+            "No hay productos con stock disponible para mostrar ahora.",
+            "No inventar productos, precios ni disponibilidad.",
+          ].join(" ")
+        : [
+            "Fuente activa: NinoxNet.",
+            "No se encontraron productos para esta consulta.",
+            "No inventar disponibilidad, precio ni stock.",
+          ].join(" ");
+    }
+
+    return selected
+      .map(
+        (product) => [
+          "Fuente: NinoxNet",
+          `Producto: ${product.name}`,
+          `SKU: ${product.code}`,
+          `Color: ${product.color ?? "-"}`,
+          `Talle: ${product.size ?? "-"}`,
+          `Precio: ${product.price} ARS`,
+          `Stock disponible: ${product.available}`,
+          `Descripción: ${product.description ?? "-"}`,
+        ].join("\n"),
+      )
+      .join("\n\n");
+  }
+
+  /*
+   * Catálogo interno.
+   */
+  const internalMatches =
+    genericCatalogRequest
+      ? (
+          await listProducts(
+            companyId,
+          )
+        )
+          .filter(
+            (product) =>
+              product.active
+              && product.stock > 0,
+          )
+      : await searchProducts(
+          message,
+          companyId,
+        );
+
+  const selected =
+    internalMatches
+      .slice(
+        0,
+        genericCatalogRequest
+          ? 12
+          : 30,
+      );
+
+  if (!selected.length) {
+    return genericCatalogRequest
+      ? [
+          "Fuente activa: catálogo interno.",
+          "No hay productos con stock disponible para mostrar ahora.",
+          "No inventar productos, precios ni disponibilidad.",
+        ].join(" ")
+      : [
+          "Fuente activa: catálogo interno.",
+          "No se encontraron productos para esta consulta.",
+          "No inventar disponibilidad, precio ni stock.",
+        ].join(" ");
+  }
+
+  return selected
+    .map(
+      (product) => {
+        const image =
+          selectCatalogImage(
+            product,
+          );
+
+        return [
+          "Fuente: catálogo interno",
+          `Producto: ${product.name}`,
+          `SKU: ${product.sku}`,
+          `Categoría: ${product.category ?? "-"}`,
+          `Color: ${product.color ?? "-"}`,
+          `Talle: ${product.size ?? "-"}`,
+          `Precio: ${product.price} ${product.currency}`,
+          `Stock disponible: ${product.stock}`,
+          `Imagen disponible: ${image ? "sí" : "no"}`,
+          `Descripción: ${product.description ?? "-"}`,
+        ].join("\n");
+      },
+    )
     .join("\n\n");
 }
 
+
+export async function updateVariantImages(
+  input: {
+    companyId: string;
+    variantId: string;
+    images: CatalogImage[];
+  },
+): Promise<VariantRow> {
+  if (!isSupabaseConfigured()) {
+    throw new Error("SUPABASE_NOT_CONFIGURED");
+  }
+
+  const companyId =
+    input.companyId.trim();
+
+  const variantId =
+    input.variantId.trim();
+
+  if (!companyId || !variantId) {
+    throw new Error(
+      "CATALOG_VARIANT_CONTEXT_REQUIRED",
+    );
+  }
+
+  const rows =
+    await supabaseRequest<VariantRow[]>({
+      table:
+        "commerce_product_variants",
+
+      query:
+        `?select=*&company_id=eq.${encodeURIComponent(companyId)}`
+        + `&id=eq.${encodeURIComponent(variantId)}`
+        + "&limit=1",
+    });
+
+  const variant =
+    rows[0];
+
+  if (!variant) {
+    throw new Error(
+      "CATALOG_VARIANT_NOT_FOUND",
+    );
+  }
+
+  const metadata = {
+    ...(variant.metadata ?? {}),
+    images:
+      input.images.map(
+        (image, index) => ({
+          ...image,
+          order:
+            image.order
+            ?? index,
+        }),
+      ),
+  };
+
+  const updatedRows =
+    await supabaseRequest<VariantRow[]>({
+      table:
+        "commerce_product_variants",
+
+      method: "PATCH",
+
+      query:
+        `?company_id=eq.${encodeURIComponent(companyId)}`
+        + `&id=eq.${encodeURIComponent(variantId)}`,
+
+      prefer:
+        "return=representation",
+
+      body: {
+        metadata,
+        updated_at:
+          new Date().toISOString(),
+      },
+    });
+
+  const updated =
+    updatedRows[0];
+
+  if (!updated) {
+    throw new Error(
+      "CATALOG_VARIANT_IMAGE_UPDATE_FAILED",
+    );
+  }
+
+  return updated;
+}
 
 export async function upsertProduct(
   input: CatalogProductInput,
@@ -812,7 +1195,9 @@ export async function upsertProduct(
       color: input.color,
       size: input.size,
       price: input.price ?? 0,
-      currency: "EUR",
+      currency:
+        input.currency
+        ?? "ARS",
       stock: input.stock ?? 0,
       incoming: 0,
       active: input.active ?? true,
@@ -840,7 +1225,9 @@ export async function upsertProduct(
         description:
           input.description
           ?? null,
-        currency: "EUR",
+        currency:
+          input.currency
+          ?? "ARS",
         default_price:
           input.price
           ?? 0,

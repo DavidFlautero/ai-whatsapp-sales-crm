@@ -1610,3 +1610,121 @@ h1 {
 .login-page[data-branding-ready="false"] {
   opacity: 0.99;
 }
+
+/* GROUPED_COMPANY_NAV_V1 */
+.company-sidebar {
+  overflow: hidden;
+}
+
+.company-nav {
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: 1fr;
+  align-content: start;
+  gap: 10px;
+  margin-top: 20px;
+  padding-right: 5px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color:
+    rgba(215, 164, 82, 0.45)
+    transparent;
+}
+
+.company-nav-section {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.company-nav-section summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  color: #a8a9ae;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.company-nav-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.company-nav-section[open] summary {
+  color: #f4d8a6;
+  background: rgba(215, 164, 82, 0.07);
+}
+
+.company-nav-section-title {
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.company-nav-section-arrow::before {
+  content: "+";
+  display: block;
+  color: #d7a452;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.company-nav-section[open]
+.company-nav-section-arrow::before {
+  content: "−";
+}
+
+.company-nav-items {
+  display: grid;
+  gap: 5px;
+  padding: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.company-nav-items a {
+  margin: 0;
+  padding: 10px 11px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+}
+
+.company-nav-items .nav-icon {
+  width: 7px;
+  height: 7px;
+  opacity: 0.7;
+}
+
+.company-nav-items a.is-active {
+  color: #f4d8a6;
+  background: rgba(215, 164, 82, 0.12);
+  box-shadow:
+    inset 0 0 0 1px rgba(215, 164, 82, 0.16);
+}
+
+.company-nav-items a.is-active .nav-icon {
+  background: #d7a452;
+  box-shadow: 0 0 12px rgba(215, 164, 82, 0.45);
+  opacity: 1;
+}
+
+@media (max-width: 1100px) {
+  .company-sidebar {
+    overflow: visible;
+  }
+
+  .company-nav {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 720px) {
+  .company-nav {
+    grid-template-columns: 1fr;
+  }
+}

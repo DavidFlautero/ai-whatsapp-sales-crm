@@ -148,3 +148,138 @@ export async function sendWhatsappImage(
   };
 }
 
+
+
+export async function sendWhatsappImageById(
+  input: {
+    to: string;
+    mediaId: string;
+    caption?: string;
+  },
+): Promise<SendWhatsappImageResult> {
+  console.log(
+    "[WHATSAPP SEND IMAGE BY ID]",
+    {
+      to:
+        input.to,
+
+      mediaId:
+        input.mediaId,
+
+      captionLength:
+        input.caption?.length
+        ?? 0,
+    },
+  );
+
+  const response =
+    await postWhatsappMessage({
+      messaging_product:
+        "whatsapp",
+
+      recipient_type:
+        "individual",
+
+      to:
+        input.to,
+
+      type:
+        "image",
+
+      image: {
+        id:
+          input.mediaId,
+
+        ...(input.caption
+          ? {
+              caption:
+                input.caption,
+            }
+          : {}),
+      },
+    });
+
+  const sentMessage =
+    response.messages?.[0];
+
+  return {
+    externalMessageId:
+      sentMessage?.id
+      ?? null,
+
+    status:
+      sentMessage?.message_status
+      ?? "sent",
+
+    raw:
+      response,
+  };
+}
+
+
+export async function sendWhatsappDocumentById(
+  input: {
+    to: string;
+    mediaId: string;
+    filename?: string;
+    caption?: string;
+  },
+): Promise<SendWhatsappImageResult> {
+  console.log(
+    "[WHATSAPP SEND DOCUMENT BY ID]",
+    {
+      to:
+        input.to,
+
+      mediaId:
+        input.mediaId,
+    },
+  );
+
+  const response =
+    await postWhatsappMessage({
+      messaging_product:
+        "whatsapp",
+
+      recipient_type:
+        "individual",
+
+      to:
+        input.to,
+
+      type:
+        "document",
+
+      document: {
+        id:
+          input.mediaId,
+
+        filename:
+          input.filename
+          ?? "comprobante.pdf",
+
+        ...(input.caption
+          ? {
+              caption:
+                input.caption,
+            }
+          : {}),
+      },
+    });
+
+  const sentMessage =
+    response.messages?.[0];
+
+  return {
+    externalMessageId:
+      sentMessage?.id
+      ?? null,
+
+    status:
+      sentMessage?.message_status
+      ?? "sent",
+
+    raw:
+      response,
+  };
+}

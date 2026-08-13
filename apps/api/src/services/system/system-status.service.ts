@@ -269,45 +269,103 @@ async function checkSupabase(): Promise<ConnectionCheck> {
 
 async function checkNinox(): Promise<ConnectionCheck> {
   if (!env.NINOX_API_KEY) {
-    return missingConfig("Falta NINOX_API_KEY.");
+    return missingConfig(
+      "Falta NINOX_API_KEY.",
+    );
   }
 
-  const startedAt = Date.now();
-  const baseUrl = (env.NINOX_BASE_URL || "https://api.ninox.com/v1").replace(/\/+$/, "");
-  const url = baseUrl.endsWith("/teams") ? baseUrl : `${baseUrl}/teams`;
+  const startedAt =
+    Date.now();
 
+  const baseUrl =
+    (
+      env.NINOX_BASE_URL
+      || "https://api.ninox.com.ar"
+    ).replace(
+      /\/+$/,
+      "",
+    );
+
+  /*
+   * IMPORTANTE:
+   *
+   * NO usamos GetData/GetDataCurva como health-check.
+   * Ninox limita catálogo a una consulta cada 600 s.
+   *
+   * El status general únicamente verifica que
+   * el host de API sea alcanzable.
+   *
+   * La validez funcional del token queda
+   * demostrada por la sincronización real.
+   */
   try {
-    const response = await fetchWithTimeout(url, {
-      headers: {
-        Authorization: `Bearer ${env.NINOX_API_KEY}`,
-        "Content-Type": "application/json"
-      }
-    });
-    const latencyMs = Date.now() - startedAt;
+    const response =
+      await fetchWithTimeout(
+        baseUrl,
+        {
+          method:
+            "HEAD",
+        },
+      );
 
-    if (!response.ok) {
-      return failedCheck(response, "Ninox", latencyMs);
+    const latencyMs =
+      Date.now()
+      - startedAt;
+
+    if (
+      !response.ok
+      && response.status
+        >= 500
+    ) {
+      return failedCheck(
+        response,
+        "Ninox",
+        latencyMs,
+      );
     }
 
-    const data = (await response.json()) as unknown;
-
     return {
-      status: "online",
-      configured: true,
-      checkedAt: now(),
+      status:
+        "online",
+
+      configured:
+        true,
+
+      checkedAt:
+        now(),
+
       latencyMs,
-      message: "La API key de Ninox es válida.",
+
+      message:
+        "Ninox está configurado y el servicio API responde.",
+
       details: {
-        workspaces: Array.isArray(data) ? data.length : null
-      }
+        baseUrl,
+
+        catalogHealthCheck:
+          "disabled_due_to_600s_rate_limit",
+      },
     };
+
   } catch (error) {
     return {
-      status: "unreachable",
-      configured: true,
-      checkedAt: now(),
-      latencyMs: Date.now() - startedAt,
-      message: errorMessage(error)
+      status:
+        "unreachable",
+
+      configured:
+        true,
+
+      checkedAt:
+        now(),
+
+      latencyMs:
+        Date.now()
+        - startedAt,
+
+      message:
+        errorMessage(
+          error,
+        ),
     };
   }
 }

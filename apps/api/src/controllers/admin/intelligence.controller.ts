@@ -1,6 +1,16 @@
+import { createHash } from "node:crypto";
+
 import {
   uploadCatalogImage,
 } from "../../services/catalog/catalog-image.service.js";
+
+import {
+  registerCatalogMediaAsset,
+} from "../../services/catalog/catalog-media.repository.js";
+
+import {
+  scheduleCatalogMediaMonitor,
+} from "../../services/catalog/catalog-media-monitor.service.js";
 import {
   createFullCatalogProduct,
 } from "../../services/catalog/catalog-full.service.js";
@@ -14,7 +24,11 @@ import {
 } from "zod";
 import { listGovernanceEvents } from "../../services/governance/agent-governance.service.js";
 import { listQualityScores } from "../../services/quality/conversation-quality.service.js";
-import { listProducts, upsertProduct } from "../../services/catalog/catalog.repository.js";
+import {
+  listProducts,
+  upsertProduct,
+  updateVariantImages,
+} from "../../services/catalog/catalog.repository.js";
 
 export async function getIntelligenceDashboard(_req: Request, res: Response) {
   const [governance, quality, catalog] = await Promise.all([
@@ -324,6 +338,98 @@ const fullCatalogProductSchema =
     },
   );
 
+
+export async function saveCatalogVariantImages(
+  req: Request,
+  res: Response,
+) {
+  try {
+    const companyId =
+      req.tenantContext
+        ?.effectiveCompanyId;
+
+    if (!companyId) {
+      return res.status(400).json({
+        ok: false,
+        error:
+          "COMPANY_CONTEXT_REQUIRED",
+      });
+    }
+
+    const variantId =
+      String(
+        req.params.variantId ?? "",
+      ).trim();
+
+    if (!variantId) {
+      return res.status(400).json({
+        ok: false,
+        error:
+          "CATALOG_VARIANT_ID_REQUIRED",
+      });
+    }
+
+    const images =
+      z.array(
+        catalogImageSchema,
+      )
+        .max(24)
+        .parse(
+          req.body?.images ?? [],
+        );
+
+    const variant =
+      await updateVariantImages({
+        companyId,
+        variantId,
+        images,
+      });
+
+    return res.json({
+      ok: true,
+      variant,
+      images:
+        variant.metadata?.images
+        ?? [],
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        ok: false,
+        error:
+          "CATALOG_IMAGES_INVALID",
+        issues:
+          error.issues,
+      });
+    }
+
+    if (
+      error instanceof Error
+      && error.message ===
+        "CATALOG_VARIANT_NOT_FOUND"
+    ) {
+      return res.status(404).json({
+        ok: false,
+        error:
+          "CATALOG_VARIANT_NOT_FOUND",
+      });
+    }
+
+    console.error(
+      "[CATALOG VARIANT IMAGES ERROR]",
+      error,
+    );
+
+    return res.status(400).json({
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "CATALOG_VARIANT_IMAGES_UPDATE_FAILED",
+    });
+  }
+}
+
 function catalogErrorStatus(
   error: unknown,
 ): number {
@@ -608,9 +714,116 @@ export async function uploadCatalogProductImage(
         },
       });
 
+    /*
+     * CATALOG IMAGE REGISTRY BRIDGE
+     *
+     * Desde ahora TODA imagen subida desde
+     * el Catálogo tradicional también entra
+     * automáticamente a la capa multimedia.
+     *
+     * Supabase = archivo físico
+     * Registry = relación artículo ↔ imagen
+     */
+    const imageSha256 =
+      createHash(
+        "sha256",
+      )
+        .update(
+          req.file.buffer,
+        )
+        .digest(
+          "hex",
+        );
+
+
+    const registeredMedia =
+      await registerCatalogMediaAsset({
+        companyId,
+
+        articleCode:
+          baseSku,
+
+        colorCode:
+          colorCode
+          || null,
+
+        colorName:
+          typeof req.body?.colorName
+            === "string"
+            ? req.body.colorName
+                .trim()
+                || null
+            : null,
+
+        role,
+
+        url:
+          image.url,
+
+        bucket:
+          image.bucket
+          ?? null,
+
+        storagePath:
+          image.path
+          ?? null,
+
+        sha256:
+          imageSha256,
+
+        source:
+          "panel",
+      });
+
+
+    /*
+     * No bloqueamos el upload esperando
+     * escaneo completo. Debounce + cron
+     * reconciliarán el estado.
+     */
+    scheduleCatalogMediaMonitor({
+      companyId,
+
+      source:
+        "catalog-image-upload",
+    });
+
+
+    console.log(
+      "[CATALOG IMAGE REGISTRY BRIDGE]",
+      {
+        companyId,
+
+        articleCode:
+          baseSku,
+
+        role,
+
+        created:
+          registeredMedia.created,
+
+        assetId:
+          registeredMedia.asset.id,
+      },
+    );
+
+
     return res.status(201).json({
-      ok: true,
+      ok:
+        true,
+
       image,
+
+      media: {
+        registered:
+          true,
+
+        created:
+          registeredMedia.created,
+
+        assetId:
+          registeredMedia.asset.id,
+      },
     });
   } catch (error) {
     console.error(

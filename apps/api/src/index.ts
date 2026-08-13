@@ -7,10 +7,27 @@ import {
 } from "./config/env.js";
 
 import {
+  ensureRuntimeAccess,
+} from "./services/runtime/core-state.service.js";
+
+import {
   hydrateIntegrationSecrets,
 } from "./services/integrations/integration-secrets.repository.js";
 
 async function bootstrap() {
+
+  /*
+   * Licencia Neuromind:
+   * se valida ANTES de inicializar integraciones
+   * o abrir el puerto HTTP.
+   *
+   * No existe bypass por variable de entorno.
+   */
+  const license =
+    ensureRuntimeAccess("api");
+
+  console.log("[RUNTIME] READY");
+
   await hydrateIntegrationSecrets();
 
   const app =

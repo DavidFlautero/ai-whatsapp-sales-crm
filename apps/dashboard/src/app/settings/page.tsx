@@ -1,7 +1,14 @@
+import {
+  StoreHeroSettings,
+} from "./_components/StoreHeroSettings";
+
 import Link from "next/link";
 import { AppShell } from "../../components/app-shell/AppShell";
 import { Header } from "../../components/ui/Header";
 import styles from "./Settings.module.css";
+import {
+  PaymentSettingsPanel,
+} from "../../components/settings/payment-settings-panel";
 
 const agents = [
   {
@@ -87,6 +94,8 @@ export default function SettingsPage() {
           title="Configuración del sistema"
           description="Perfil operativo de Neuromind Commerce OS: alcance, responsabilidades de cada agente y estado de la arquitectura comercial."
         />
+
+        <PaymentSettingsPanel />
 
         <section className={styles.summaryGrid} aria-label="Resumen del sistema">
           {summary.map(([label, value, meta]) => (
@@ -227,7 +236,9 @@ export default function SettingsPage() {
             </div>
           </article>
         </section>
-      </main>
+        <StoreHeroSettings />
+
+</main>
     </AppShell>
   );
 }

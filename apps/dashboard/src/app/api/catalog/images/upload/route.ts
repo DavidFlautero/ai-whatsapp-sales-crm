@@ -13,6 +13,8 @@ function apiBaseUrl() {
 export async function POST(
   request: NextRequest,
 ) {
+  console.log("[CATALOG DASHBOARD UPLOAD] request received");
+
   try {
     const formData =
       await request.formData();

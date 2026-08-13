@@ -65,6 +65,8 @@ export type GarmentProduct = {
   composition: string;
   origin: string;
   status: GarmentStatus;
+  price: number;
+  currency: string;
   tags: string[];
   colorVariants: ColorVariant[];
   createdAt: string;
@@ -73,15 +75,29 @@ export type GarmentProduct = {
 
 export type ApiCatalogProduct = {
   id?: string;
+  productId?: string;
+  variantId?: string;
   sku?: string;
+  baseSku?: string;
   name?: string;
   description?: string;
   category?: string;
   color?: string;
   size?: string;
   price?: number;
+  currency?: string;
   stock?: number;
+  incoming?: number;
   tags?: string[];
+  images?: Array<{
+    id?: string;
+    url: string;
+    name?: string;
+    role?: string;
+    isCover?: boolean;
+    order?: number;
+    createdAt?: string;
+  }>;
   active?: boolean;
 };
 

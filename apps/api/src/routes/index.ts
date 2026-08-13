@@ -2,12 +2,28 @@ import {
   adminIntegrationsRoutes,
 } from "./admin/integrations.routes.js";
 
+import {
+  adminWhatsappBusinessProfileRoutes,
+} from "./admin/whatsapp-business-profile.routes.js";
+
 import { Router } from "express";
+import {
+  adminCatalogMediaRoutes,
+} from "./admin/catalog-media.routes.js";
+
 import {
   resolveAccessContext,
 } from "../core/http/access-context.middleware.js";
 import { authRoutes } from "./auth.routes.js";
 import { healthRoutes } from "./health.routes.js";
+import {
+  publicCatalogRoutes,
+} from "./public/catalog.routes.js";
+
+import {
+  publicStoreSettingsRoutes,
+} from "./public/store-settings.routes.js";
+
 import { whatsappRoutes } from "./whatsapp.routes.js";
 import { customersRoutes } from "./customers.routes.js";
 import { ordersRoutes } from "./orders.routes.js";
@@ -20,6 +36,10 @@ import { adminOperatorRoutes } from "./admin/operator.routes.js";
 import { adminReportsRoutes } from "./admin/reports.routes.js";
 import { adminFutureRoutes } from "./admin/future.routes.js";
 import { adminIntelligenceRoutes } from "./admin/intelligence.routes.js";
+import {
+  adminStoreHeroRoutes,
+} from "./admin/store-hero.routes.js";
+
 import {
   requireAuth,
   requireRoles,
@@ -34,6 +54,14 @@ import {
   ninoxWebhookRoutes,
 } from "./webhooks/ninox.routes.js";
 
+import {
+  adminPaymentSettingsRoutes,
+} from "./admin/payment-settings.routes.js";
+
+import {
+  adminPaymentSubmissionsRoutes,
+} from "./admin/payment-submissions.routes.js";
+
 export const router = Router();
 
 router.use(
@@ -42,7 +70,21 @@ router.use(
   adminIntegrationsRoutes,
 );
 
+router.use(
+  "/admin/whatsapp-business",
+  requireAuth,
+  adminWhatsappBusinessProfileRoutes,
+);
+
 router.use("/health", healthRoutes);
+router.use(
+  "/public/catalog",
+  publicCatalogRoutes,
+);
+router.use(
+  "/public/store-settings",
+  publicStoreSettingsRoutes,
+);
 router.use("/auth", authRoutes);
 router.use("/platform", platformPublicRoutes);
 router.use("/webhook/whatsapp", whatsappRoutes);
@@ -90,6 +132,35 @@ router.use(
   ),
 );
 
+router.use(
+  "/admin/payment-settings",
+
+  resolveAccessContext({
+    mode:
+      "company",
+
+    source:
+      "dashboard",
+  }),
+
+  adminPaymentSettingsRoutes,
+);
+
+router.use(
+  "/admin",
+
+  resolveAccessContext({
+    mode: "company",
+    source: "dashboard",
+  }),
+
+  adminPaymentSubmissionsRoutes,
+);
+
+router.use(
+  "/admin",
+  adminStoreHeroRoutes,
+);
 router.use("/admin", adminStatusRoutes);
 router.use("/admin", adminDataRoutes);
 router.use("/admin", adminRecoveryRoutes);
@@ -118,4 +189,10 @@ router.use(
   }),
 
   adminIntelligenceRoutes,
+);
+
+
+router.use(
+  "/admin/catalog-media",
+  adminCatalogMediaRoutes,
 );

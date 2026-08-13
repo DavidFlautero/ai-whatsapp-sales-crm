@@ -983,6 +983,8 @@ export default function ProductCreationWizard() {
       composition,
       origin: "Argentina",
       status,
+      price: wholesalePrice,
+      currency: "ARS",
       tags: [
         audience,
         category.toLowerCase(),

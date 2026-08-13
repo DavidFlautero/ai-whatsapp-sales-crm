@@ -37,6 +37,7 @@ const providerSchema =
     "groq",
     "supabase",
     "ninox",
+    "vision",
   ]);
 
 const valuesSchema =

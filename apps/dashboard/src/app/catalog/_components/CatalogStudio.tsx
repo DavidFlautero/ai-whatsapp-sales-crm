@@ -30,6 +30,9 @@ import "./catalog-studio.css";
 import {
   CatalogCommerceNav,
 } from "../_commerce/CatalogCommerceNav";
+import {
+  inferCatalogCategory,
+} from "./catalog-classification";
 
 
 const STORAGE_KEY =
@@ -75,9 +78,16 @@ const categories = [
   "Buzos",
   "Camperas",
   "Vestidos",
+  "Bikinis",
+  "Calzas",
+  "Camisas",
   "Conjuntos",
   "Shorts",
   "Faldas",
+  "Tops",
+  "Bodies",
+  "Enteritos",
+  "Sweaters",
   "Accesorios",
 ];
 
@@ -207,6 +217,8 @@ function createBlankProduct(): GarmentProduct {
     composition: "",
     origin: "Argentina",
     status: "draft",
+    price: 0,
+    currency: "ARS",
     tags: [],
     colorVariants: [
       createColorVariant(baseSku),
@@ -219,142 +231,579 @@ function createBlankProduct(): GarmentProduct {
 }
 
 function importApiProducts(
-  apiProducts: ApiCatalogProduct[],
+  apiProducts:
+    ApiCatalogProduct[],
 ): GarmentProduct[] {
-  if (apiProducts.length === 0) {
-    const product =
-      createBlankProduct();
-
-    product.name =
-      "Jean Baggy Tokio";
-    product.baseSku =
-      "JEAN-BAGGY-TOKIO";
-    product.shortDescription =
-      "Jean baggy urbano para venta mayorista.";
-    product.salesDescription =
-      "Modelo amplio de tiro alto, pensado para locales multimarca y revendedores.";
-    product.whatsappDescription =
-      "Jean Baggy Tokio disponible por talle y color. Consultanos stock mayorista.";
-    product.category = "Jeans";
-    product.subcategory = "Baggy";
-    product.collection =
-      "Urban Essentials";
-    product.season =
-      "Invierno 2026";
-    product.status = "active";
-    product.tags = [
-      "baggy",
-      "urbano",
-      "mayorista",
-    ];
-
-    product.colorVariants = [
-      createColorVariant(
-        product.baseSku,
-        colorPresets[0],
-      ),
-      createColorVariant(
-        product.baseSku,
-        colorPresets[1],
-      ),
-    ];
-
-    return [product];
+  if (
+    apiProducts.length === 0
+  ) {
+    return [];
   }
 
-  return apiProducts.map(
-    (source, index) => {
-      const baseSku =
-        source.sku ||
-        `IMPORTADO-${index + 1}`;
 
-      const colorName =
-        source.color || "Sin color";
+  /*
+   * Ninox puede entregar varias filas
+   * para un mismo artículo:
+   *
+   * artículo + color + talle.
+   *
+   * El panel NO debe mostrar cada fila
+   * como si fuera una prenda distinta.
+   */
+  const groups =
+    new Map<
+      string,
+      ApiCatalogProduct[]
+    >();
 
-      const preset =
-        colorPresets.find(
-          (item) =>
-            item.name.toLowerCase() ===
-            colorName.toLowerCase(),
-        ) || {
-          name: colorName,
-          code:
-            slug(colorName).slice(
-              0,
-              4,
-            ) || "COL",
-          family: colorName,
-          hex: "#787b82",
-        };
 
-      const variant =
-        createColorVariant(
-          baseSku,
-          preset,
-        );
+  for (
+    let index = 0;
+    index < apiProducts.length;
+    index++
+  ) {
+    const source =
+      apiProducts[index];
 
-      const importedSizes = String(
-        source.size || "Único",
+
+    const baseSku =
+      String(
+        source.baseSku
+        || source.sku
+        || `IMPORTADO-${index + 1}`,
       )
-        .split("/")
-        .map((size) => size.trim())
-        .filter(Boolean);
+        .trim()
+        .toUpperCase();
 
-      variant.sizes =
-        importedSizes.map(
-          (size, sizeIndex) =>
-            createSize(
-              size,
-              baseSku,
-              preset.code,
-              sizeIndex === 0
-                ? Number(
-                    source.stock || 0,
-                  )
-                : 0,
-            ),
-        );
 
-      return {
-        id:
-          source.id ||
-          id("product"),
+    const current =
+      groups.get(
         baseSku,
-        name:
-          source.name ||
-          "Producto importado",
-        shortDescription:
-          source.description || "",
-        salesDescription:
-          source.description || "",
-        whatsappDescription:
-          source.description || "",
-        category:
-          source.category ||
-          "Sin categoría",
-        subcategory: "",
-        collection:
-          "Catálogo importado",
-        season:
-          "Todo el año",
-        brand: "Fulanitas",
-        supplier: "",
-        composition: "",
-        origin: "Argentina",
-        status:
-          source.active === false
-            ? "draft"
-            : "active",
-        tags:
-          source.tags || [],
-        colorVariants: [variant],
-        createdAt:
-          new Date().toISOString(),
-        updatedAt:
-          new Date().toISOString(),
-      };
-    },
-  );
+      )
+      ?? [];
+
+
+    current.push(
+      source,
+    );
+
+
+    groups.set(
+      baseSku,
+      current,
+    );
+  }
+
+
+  return Array.from(
+    groups.entries(),
+  )
+    .map(
+      (
+        [
+          baseSku,
+          rows,
+        ],
+        productIndex,
+      ) => {
+        const first =
+          rows[0]!;
+
+
+        const name =
+          rows.find(
+            (row) =>
+              Boolean(
+                row.name?.trim(),
+              ),
+          )
+            ?.name
+          || first.name
+          || baseSku;
+
+
+        const explicitCategory =
+          rows.find(
+            (row) =>
+              Boolean(
+                row.category?.trim(),
+              ),
+          )
+            ?.category
+          ?? null;
+
+
+        const category =
+          inferCatalogCategory({
+            baseSku,
+
+            name,
+
+            explicitCategory,
+          });
+
+
+        /*
+         * Ahora agrupamos las filas
+         * del artículo por color.
+         */
+        const colorGroups =
+          new Map<
+            string,
+            ApiCatalogProduct[]
+          >();
+
+
+        for (
+          const row
+          of rows
+        ) {
+          const colorName =
+            String(
+              row.color
+              || "Sin color",
+            )
+              .trim()
+            || "Sin color";
+
+
+          const colorKey =
+            colorName
+              .toUpperCase();
+
+
+          const current =
+            colorGroups.get(
+              colorKey,
+            )
+            ?? [];
+
+
+          current.push(
+            row,
+          );
+
+
+          colorGroups.set(
+            colorKey,
+            current,
+          );
+        }
+
+
+        const colorVariants:
+          ColorVariant[] =
+          Array.from(
+            colorGroups.values(),
+          )
+            .map(
+              (
+                colorRows,
+                colorIndex,
+              ) => {
+                const firstColor =
+                  colorRows[0]!;
+
+
+                const colorName =
+                  String(
+                    firstColor.color
+                    || "Sin color",
+                  )
+                    .trim()
+                  || "Sin color";
+
+
+                const preset =
+                  colorPresets.find(
+                    (item) =>
+                      item.name
+                        .toLowerCase()
+                      === colorName
+                        .toLowerCase(),
+                  )
+                  || {
+                    name:
+                      colorName,
+
+                    code:
+                      slug(
+                        colorName,
+                      )
+                        .slice(
+                          0,
+                          4,
+                        )
+                      || "GEN",
+
+                    family:
+                      colorName,
+
+                    hex:
+                      "#787b82",
+                  };
+
+
+                const variant:
+                  ColorVariant = {
+                    id:
+                      [
+                        "color",
+                        slug(
+                          baseSku,
+                        ),
+                        slug(
+                          colorName,
+                        )
+                        || colorIndex,
+                      ].join("-"),
+
+                    name:
+                      colorName,
+
+                    code:
+                      preset.code,
+
+                    family:
+                      preset.family,
+
+                    hex:
+                      preset.hex,
+
+                    status:
+                      "active",
+
+                    images:
+                      [],
+
+                    sizes:
+                      [],
+                  };
+
+
+                /*
+                 * Un mismo asset puede venir repetido
+                 * en varias filas de talle.
+                 * Dedupe por URL.
+                 */
+                const imageUrls =
+                  new Set<string>();
+
+
+                for (
+                  const row
+                  of colorRows
+                ) {
+                  for (
+                    const image
+                    of row.images
+                    ?? []
+                  ) {
+                    if (
+                      !image?.url
+                      || imageUrls.has(
+                        image.url,
+                      )
+                    ) {
+                      continue;
+                    }
+
+
+                    imageUrls.add(
+                      image.url,
+                    );
+
+
+                    let role:
+                      ImageRole =
+                      "front";
+
+
+                    if (
+                      image.role === "cover"
+                      || image.role === "front"
+                      || image.role === "back"
+                      || image.role === "detail"
+                      || image.role === "model"
+                      || image.role === "packaging"
+                    ) {
+                      role =
+                        image.role;
+                    }
+
+
+                    variant.images.push({
+                      id:
+                        image.id
+                        || id(
+                          "image",
+                        ),
+
+                      url:
+                        image.url,
+
+                      name:
+                        image.name
+                        || `Imagen ${variant.images.length + 1}`,
+
+                      role,
+
+                      isCover:
+                        image.isCover
+                        ?? role
+                          === "cover",
+
+                      order:
+                        image.order
+                        ?? variant.images
+                          .length,
+
+                      createdAt:
+                        image.createdAt
+                        || new Date()
+                          .toISOString(),
+                    });
+                  }
+                }
+
+
+                /*
+                 * Finalmente talles/stock.
+                 */
+                const sizeMap =
+                  new Map<
+                    string,
+                    SizeStock
+                  >();
+
+
+                for (
+                  const row
+                  of colorRows
+                ) {
+                  const sizes =
+                    String(
+                      row.size
+                      || "Único",
+                    )
+                      .split(
+                        "/",
+                      )
+                      .map(
+                        (value) =>
+                          value.trim(),
+                      )
+                      .filter(
+                        Boolean,
+                      );
+
+
+                  const safeSizes =
+                    sizes.length
+                      ? sizes
+                      : [
+                          "Único",
+                        ];
+
+
+                  safeSizes.forEach(
+                    (
+                      sizeName,
+                      sizeIndex,
+                    ) => {
+                      const key =
+                        sizeName
+                          .toUpperCase();
+
+
+                      const physical =
+                        sizeIndex === 0
+                          ? Number(
+                              row.stock
+                              ?? 0,
+                            )
+                          : 0;
+
+
+                      const existing =
+                        sizeMap.get(
+                          key,
+                        );
+
+
+                      if (
+                        existing
+                      ) {
+                        existing.physical +=
+                          physical;
+
+                        return;
+                      }
+
+
+                      const created =
+                        createSize(
+                          sizeName,
+                          baseSku,
+                          preset.code,
+                          physical,
+                        );
+
+
+                      sizeMap.set(
+                        key,
+                        created,
+                      );
+                    },
+                  );
+                }
+
+
+                variant.sizes =
+                  Array.from(
+                    sizeMap.values(),
+                  );
+
+
+                return variant;
+              },
+            );
+
+
+        const priceRow =
+          rows.find(
+            (row) =>
+              Number(
+                row.price
+                ?? 0,
+              ) > 0,
+          )
+          ?? first;
+
+
+        const tags =
+          Array.from(
+            new Set(
+              rows.flatMap(
+                (row) =>
+                  row.tags
+                  ?? [],
+              ),
+            ),
+          );
+
+
+        return {
+          id:
+            first.productId
+            || `product-${slug(baseSku) || productIndex}`,
+
+          baseSku,
+
+          name,
+
+          shortDescription:
+            rows.find(
+              (row) =>
+                Boolean(
+                  row.description,
+                ),
+            )
+              ?.description
+            || "",
+
+          salesDescription:
+            rows.find(
+              (row) =>
+                Boolean(
+                  row.description,
+                ),
+            )
+              ?.description
+            || "",
+
+          whatsappDescription:
+            rows.find(
+              (row) =>
+                Boolean(
+                  row.description,
+                ),
+            )
+              ?.description
+            || "",
+
+          category,
+
+          subcategory:
+            "",
+
+          collection:
+            "Catálogo importado",
+
+          season:
+            "Todo el año",
+
+          brand:
+            "Fulanitas",
+
+          supplier:
+            "",
+
+          composition:
+            "",
+
+          origin:
+            "Argentina",
+
+          status:
+            rows.some(
+              (row) =>
+                row.active
+                !== false,
+            )
+              ? ("active" as GarmentStatus)
+              : ("draft" as GarmentStatus),
+
+          price:
+            Number(
+              priceRow.price
+              ?? 0,
+            ),
+
+          currency:
+            priceRow.currency
+            || "ARS",
+
+          tags,
+
+          colorVariants,
+
+          createdAt:
+            new Date()
+              .toISOString(),
+
+          updatedAt:
+            new Date()
+              .toISOString(),
+        };
+      },
+    )
+    .sort(
+      (
+        left,
+        right,
+      ) =>
+        left.category
+          .localeCompare(
+            right.category,
+            "es",
+          )
+        || left.name
+          .localeCompare(
+            right.name,
+            "es",
+          ),
+    );
 }
 
 function fileToDataUrl(
@@ -440,17 +889,27 @@ export function CatalogStudio({
 
   useEffect(() => {
     try {
-      const stored =
-        localStorage.getItem(
-          STORAGE_KEY,
-        );
+      let initial:
+        GarmentProduct[];
 
-      const initial =
-        stored
-          ? JSON.parse(stored)
-          : importApiProducts(
-              apiProducts,
-            );
+      if (apiProducts.length > 0) {
+        initial =
+          importApiProducts(
+            apiProducts,
+          );
+      } else {
+        const stored =
+          localStorage.getItem(
+            STORAGE_KEY,
+          );
+
+        initial =
+          stored
+            ? JSON.parse(stored)
+            : importApiProducts(
+                apiProducts,
+              );
+      }
 
       setProducts(initial);
 
@@ -981,7 +1440,26 @@ export function CatalogStudio({
   async function processFiles(
     files: FileList | File[],
   ) {
-    if (!selectedColor) return;
+    console.log(
+      "[CATALOG CLIENT PROCESS FILES]",
+      {
+        fileCount: files.length,
+        selectedProductId,
+        selectedColorId,
+        hasSelectedProduct: Boolean(selectedProduct),
+        hasSelectedColor: Boolean(selectedColor),
+      },
+    );
+
+    if (
+      !selectedColor ||
+      !selectedProduct
+    ) {
+      console.log(
+        "[CATALOG CLIENT PROCESS FILES BLOCKED]",
+      );
+      return;
+    }
 
     const accepted =
       Array.from(files).filter(
@@ -998,62 +1476,193 @@ export function CatalogStudio({
       return;
     }
 
+    const variantId =
+      selectedColor.id;
+
+    if (!variantId) {
+      showNotice(
+        "La variante no tiene identificador",
+      );
+      return;
+    }
+
+    showNotice(
+      `Subiendo imagen · variante ${variantId}`,
+    );
+
     const maxFiles =
       accepted.slice(0, 12);
 
-    const images =
-      await Promise.all(
-        maxFiles.map(
-          async (
-            file,
-            index,
-          ): Promise<ProductImage> => ({
-            id: id("image"),
-            url:
-              await fileToDataUrl(
-                file,
-              ),
-            name: file.name,
-            role:
-              selectedColor
-                .images.length ===
-                0 &&
-              index === 0
-                ? "cover"
-                : uploadRole,
-            isCover:
-              selectedColor
-                .images.length ===
-                0 &&
-              index === 0,
-            order:
-              selectedColor
-                .images.length +
-              index,
-            createdAt:
-              new Date().toISOString(),
-          }),
-        ),
+    try {
+      showNotice(
+        "Subiendo imágenes...",
       );
 
-    updateColor(
-      (color) => ({
-        ...color,
-        images: [
-          ...color.images,
-          ...images,
-        ],
-      }),
-    );
+      const uploadedImages:
+        ProductImage[] = [];
 
-    showNotice(
-      `${images.length} imagen(es) agregadas a ${selectedColor.name}`,
-    );
+      for (
+        let index = 0;
+        index < maxFiles.length;
+        index += 1
+      ) {
+        const file =
+          maxFiles[index];
+
+        const role:
+          ImageRole =
+            selectedColor
+              .images.length === 0 &&
+            index === 0
+              ? "cover"
+              : uploadRole;
+
+        const formData =
+          new FormData();
+
+        formData.append(
+          "file",
+          file,
+        );
+
+        formData.append(
+          "baseSku",
+          selectedProduct.baseSku,
+        );
+
+        formData.append(
+          "colorCode",
+          selectedColor.code,
+        );
+
+        formData.append(
+          "role",
+          role,
+        );
+
+        const uploadResponse =
+          await fetch(
+            "/dashboard-api/catalog/images/upload",
+            {
+              method: "POST",
+              body: formData,
+            },
+          );
+
+        const uploadPayload =
+          await uploadResponse
+            .json();
+
+        if (
+          !uploadResponse.ok ||
+          !uploadPayload?.ok ||
+          !uploadPayload?.image?.url
+        ) {
+          throw new Error(
+            uploadPayload?.error ||
+            `No se pudo subir ${file.name}`,
+          );
+        }
+
+        uploadedImages.push({
+          id:
+            uploadPayload.image.path ||
+            id("image"),
+
+          url:
+            uploadPayload.image.url,
+
+          name:
+            file.name,
+
+          role,
+
+          isCover:
+            selectedColor
+              .images.length === 0 &&
+            index === 0,
+
+          order:
+            selectedColor
+              .images.length +
+            index,
+
+          createdAt:
+            new Date().toISOString(),
+        });
+      }
+
+      const nextImages = [
+        ...selectedColor.images,
+        ...uploadedImages,
+      ];
+
+      const saveResponse =
+        await fetch(
+          `/dashboard-api/catalog/variants/${encodeURIComponent(variantId)}/images`,
+          {
+            method: "PUT",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                images:
+                  nextImages,
+              }),
+          },
+        );
+
+      const savePayload =
+        await saveResponse
+          .json();
+
+      if (
+        !saveResponse.ok ||
+        !savePayload?.ok
+      ) {
+        throw new Error(
+          savePayload?.error ||
+          "No se pudieron guardar las imágenes",
+        );
+      }
+
+      updateColor(
+        (color) => ({
+          ...color,
+          images:
+            nextImages,
+        }),
+      );
+
+      showNotice(
+        `${uploadedImages.length} imagen(es) guardadas en ${selectedColor.name}`,
+      );
+    } catch (error) {
+      console.error(
+        "[CATALOG IMAGE SAVE ERROR]",
+        error,
+      );
+
+      showNotice(
+        error instanceof Error
+          ? error.message
+          : "No se pudieron guardar las imágenes",
+      );
+    }
   }
 
   function handleFileInput(
     event: ChangeEvent<HTMLInputElement>,
   ) {
+    console.log(
+      "[CATALOG CLIENT FILE INPUT]",
+      event.target.files?.length ?? 0,
+    );
+
     const files =
       event.target.files;
 
@@ -3333,6 +3942,65 @@ export function CatalogStudio({
                             selectedProduct.shortDescription
                           }
                         </p>
+
+                        <div className="catalog-preview-commerce-head">
+                          <div className="catalog-preview-badges">
+                            <span className="wholesale">
+                              VENTA MAYORISTA
+                            </span>
+
+                            <span
+                              className={
+                                selectedColor &&
+                                variantAvailableStock(
+                                  selectedColor,
+                                ) > 0
+                                  ? "available"
+                                  : "consult"
+                              }
+                            >
+                              {selectedColor &&
+                              variantAvailableStock(
+                                selectedColor,
+                              ) > 0
+                                ? "Disponible ahora"
+                                : "Consultar disponibilidad"}
+                            </span>
+                          </div>
+
+                          <div className="catalog-preview-price">
+                            <span>
+                              Precio
+                            </span>
+
+                            {selectedProduct.price > 0 ? (
+                              <strong>
+                                {new Intl.NumberFormat(
+                                  "es-AR",
+                                  {
+                                    style:
+                                      "currency",
+                                    currency:
+                                      selectedProduct.currency ||
+                                      "ARS",
+                                    maximumFractionDigits:
+                                      0,
+                                  },
+                                ).format(
+                                  selectedProduct.price,
+                                )}
+                              </strong>
+                            ) : (
+                              <strong className="consult-price">
+                                Consultar precio
+                              </strong>
+                            )}
+
+                            <small>
+                              Precio de referencia del catálogo
+                            </small>
+                          </div>
+                        </div>
 
                         <div className="catalog-preview-meta">
                           <span>

@@ -21,7 +21,8 @@ export type IntegrationProvider =
   | "anthropic"
   | "groq"
   | "supabase"
-  | "ninox";
+  | "ninox"
+  | "vision";
 
 export type IntegrationSecrets = {
   whatsapp: {
@@ -51,6 +52,11 @@ export type IntegrationSecrets = {
     baseUrl: string;
     apiKey: string;
     webhookSecret: string;
+  };
+
+  vision: {
+    apiKey: string;
+    model: string;
   };
 };
 
@@ -150,6 +156,18 @@ function initialSecrets():
         ),
     },
 
+    vision: {
+      apiKey:
+        value(
+          "VISION_API_KEY",
+        ),
+
+      model:
+        value(
+          "VISION_MODEL",
+        ),
+    },
+
     supabase: {
       url:
         value(
@@ -224,6 +242,12 @@ function emptyProvider(
         url: "",
         serviceRoleKey: "",
         anonKey: "",
+      };
+
+    case "vision":
+      return {
+        apiKey: "",
+        model: "",
       };
 
     case "ninox":
@@ -781,6 +805,32 @@ export async function getPublicIntegrationConfig() {
         ),
     },
 
+    vision: {
+      configured:
+        Boolean(
+          current
+            .vision
+            ?.apiKey
+          && current
+            .vision
+            ?.model,
+        ),
+
+      apiKeyMasked:
+        mask(
+          current
+            .vision
+            ?.apiKey
+          ?? "",
+        ),
+
+      model:
+        current
+          .vision
+          ?.model
+        ?? "",
+    },
+
     supabase: {
       configured:
         Boolean(
@@ -981,6 +1031,39 @@ export async function saveIntegrationConfig(
               break;
             }
 
+            case "vision": {
+              const apiKey =
+                nonEmptyText(
+                  values,
+                  "apiKey",
+                );
+
+              const model =
+                nonEmptyText(
+                  values,
+                  "model",
+                );
+
+              integrations.vision ??= {
+                apiKey: "",
+                model: "",
+              };
+
+              if (apiKey) {
+                integrations
+                  .vision.apiKey =
+                  apiKey;
+              }
+
+              if (model) {
+                integrations
+                  .vision.model =
+                  model;
+              }
+
+              break;
+            }
+
             case "supabase": {
               const url =
                 nonEmptyText(
@@ -1069,6 +1152,17 @@ export async function saveIntegrationConfig(
                 integrations
                   .ninox.apiKey =
                   apiKey;
+
+                /*
+                 * Si el usuario guarda una API key válida,
+                 * Ninox queda conectado.
+                 *
+                 * Antes podía quedar:
+                 * apiKey presente + enabled false.
+                 */
+                integrations
+                  .ninox.enabled =
+                  true;
               }
 
               if (
