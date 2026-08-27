@@ -66,3 +66,17 @@ supabase/.branches/
 /docs/drafts/
 *.bak*
 /App runtime, multi-company data and Sonnet integration"
+
+# BEGIN VOICE LOCAL ARTIFACTS
+/apps/api/dist-hardened.backup-*/
+/apps/voice-worker/.venv*/
+/apps/voice-worker/models/*
+!/apps/voice-worker/models/README.md
+!/apps/voice-worker/models/.gitkeep
+/apps/voice-worker/voice_worker/pro/*.before-*
+/scripts/__pycache__/
+**/__pycache__/
+**/.pytest_cache/
+*.py[cod]
+/data/voice-tests/*.wav
+# END VOICE LOCAL ARTIFACTS

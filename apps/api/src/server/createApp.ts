@@ -41,7 +41,23 @@ export function createApp() {
   );
 
   app.use(cookieParser());
-  app.use(express.json({ limit: "5mb" }));
+  app.use(
+    express.json({
+      limit: "5mb",
+      verify: (
+        request,
+        _response,
+        buffer,
+      ) => {
+        (
+          request as typeof request & {
+            rawBody?: Buffer;
+          }
+        ).rawBody =
+          Buffer.from(buffer);
+      },
+    }),
+  );
 
   app.use(router);
   app.use(errorMiddleware);

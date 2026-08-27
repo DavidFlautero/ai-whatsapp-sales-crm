@@ -24,6 +24,10 @@ import {
   publicStoreSettingsRoutes,
 } from "./public/store-settings.routes.js";
 
+import {
+  voiceRoutes,
+} from "../modules/voice/voice.routes.js";
+
 import { whatsappRoutes } from "./whatsapp.routes.js";
 import { customersRoutes } from "./customers.routes.js";
 import { ordersRoutes } from "./orders.routes.js";
@@ -117,6 +121,19 @@ router.use(
   }),
 
   stockRoutes,
+);
+
+router.use(
+  "/voice",
+
+  requireAuth,
+
+  resolveAccessContext({
+    mode: "company",
+    source: "dashboard",
+  }),
+
+  voiceRoutes,
 );
 
 router.use("/platform", platformAdminRoutes);

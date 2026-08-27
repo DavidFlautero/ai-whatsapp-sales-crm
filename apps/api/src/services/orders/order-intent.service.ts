@@ -55,6 +55,96 @@ export type OrderIntent =
     typeof orderIntentSchema
   >;
 
+/*
+ * El checkout genera un formato controlado con SKU y cantidad.
+ * Lo interpretamos sin IA para evitar que "quiero confirmar"
+ * se confunda con la confirmación de un borrador inexistente.
+ */
+function extractStoreCheckoutIntent(
+  message:
+    string,
+): OrderIntent | null {
+  const checkoutMessage =
+    message.trim();
+
+  if (
+    !/^pedido\s+(?:mayorista|minorista)\b/i
+      .test(
+        checkoutMessage,
+      )
+    || !/\bquiero\s+confirmar\s+este\s+pedido\.?\s*$/i
+      .test(
+        checkoutMessage,
+      )
+  ) {
+    return null;
+  }
+
+  const lines:
+    OrderIntent["lines"] = [];
+
+  const linePattern =
+    /(?:^|[\r\n]|\s)\u2022\s*(\d+)\s*x\s+[^\u2022\r\n]*?\(([^()\r\n]+)\)(?:\s*\u00b7\s*([^\u00b7\r\n\u2014]+))?(?:\s*\u00b7\s*([^\u00b7\r\n\u2014]+))?\s*\u2014/gim;
+
+  for (
+    const match
+    of checkoutMessage.matchAll(
+      linePattern,
+    )
+  ) {
+    const quantity =
+      Number(
+        match[1],
+      );
+
+    const sku =
+      match[2]
+        ?.trim();
+
+    const color =
+      match[3]
+        ?.trim()
+      || null;
+
+    const size =
+      match[4]
+        ?.trim()
+      || null;
+
+    if (
+      !sku
+      || !Number.isInteger(
+        quantity,
+      )
+      || quantity <= 0
+    ) {
+      continue;
+    }
+
+    lines.push({
+      product:
+        sku,
+
+      color,
+
+      size,
+
+      quantity,
+    });
+  }
+
+  if (!lines.length) {
+    return null;
+  }
+
+  return {
+    intent:
+      "build_order_draft",
+
+    lines,
+  };
+}
+
 function extractJson(
   value: string,
 ): unknown {
@@ -86,6 +176,15 @@ export async function extractOrderIntent(
     conversationHistory: string;
   },
 ): Promise<OrderIntent> {
+  const storeCheckoutIntent =
+    extractStoreCheckoutIntent(
+      input.message,
+    );
+
+  if (storeCheckoutIntent) {
+    return storeCheckoutIntent;
+  }
+
   if (!env.ANTHROPIC_API_KEY) {
     return {
       intent:

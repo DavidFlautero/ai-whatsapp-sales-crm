@@ -4,7 +4,19 @@ export function isSupabaseConfigured() {
   return Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
-export async function supabaseRequest<T>(input: {
+
+export function isVoiceSupabaseConfigured() {
+  const driver =
+    process.env.VOICE_STORAGE_DRIVER?.trim().toLowerCase();
+
+  return (
+    driver !== "memory"
+    && isSupabaseConfigured()
+  );
+}
+
+export async function supabaseRequest<T>
+    (input: {
   table: string;
   method?: "GET" | "POST" | "PATCH";
   query?: string;

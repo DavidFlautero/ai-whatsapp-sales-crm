@@ -22,6 +22,11 @@ export const PERMISSIONS = [
   "conversations.assign",
   "conversations.close",
 
+  "voice.read",
+  "voice.manage",
+  "voice.call",
+  "voice.takeover",
+
   "crm.read",
   "crm.manage",
 

@@ -63,6 +63,10 @@ export const ROLE_PERMISSIONS:
     "conversations.assign",
     "conversations.close",
 
+    "voice.read",
+    "voice.call",
+    "voice.takeover",
+
     "crm.read",
     "crm.manage",
 
@@ -104,6 +108,10 @@ export const ROLE_PERMISSIONS:
     "conversations.reply",
     "conversations.takeover",
     "conversations.close",
+
+    "voice.read",
+    "voice.call",
+    "voice.takeover",
 
     "crm.read",
     "crm.manage",

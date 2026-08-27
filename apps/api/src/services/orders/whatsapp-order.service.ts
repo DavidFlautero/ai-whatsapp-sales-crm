@@ -795,6 +795,76 @@ async function resolveDraftLines(
         .trim()
         .toUpperCase();
 
+    /*
+     * El checkout ya entrega el SKU exacto de la variante.
+     * Se valida contra catálogo y stock actuales antes de
+     * recurrir a la resolución semántica o comercial.
+     */
+    const exactCatalogItem =
+      catalog.find(
+        (item) =>
+          Boolean(
+            item.variantId,
+          )
+          && item.sku
+            .trim()
+            .toUpperCase()
+            === externalCode,
+      );
+
+    if (
+      exactCatalogItem
+        ?.variantId
+    ) {
+      if (
+        exactCatalogItem.stock
+        < requested.quantity
+      ) {
+        errors.push(
+          `${exactCatalogItem.name}: hay `
+          + `${exactCatalogItem.stock} disponibles`
+          + ` y pediste ${requested.quantity}.`,
+        );
+
+        continue;
+      }
+
+      lines.push({
+        variantId:
+          exactCatalogItem.variantId,
+
+        productId:
+          exactCatalogItem.productId,
+
+        sku:
+          exactCatalogItem.sku,
+
+        name:
+          exactCatalogItem.name,
+
+        color:
+          exactCatalogItem.color,
+
+        size:
+          exactCatalogItem.size,
+
+        quantity:
+          requested.quantity,
+
+        unitPrice:
+          exactCatalogItem.price,
+
+        subtotal:
+          exactCatalogItem.price
+          * requested.quantity,
+
+        stock:
+          exactCatalogItem.stock,
+      });
+
+      continue;
+    }
+
     const commercial =
       await getNinoxCommercialProduct({
         companyId,
@@ -1387,8 +1457,28 @@ export async function handleWhatsappOrder(
       conversation?.metadata,
     );
 
+  const normalizedCheckoutMessage =
+    normalize(
+      input.message,
+    );
+
+  const checkoutSaleMode:
+    CustomerSaleMode | null =
+    /^pedido mayorista\b/
+      .test(
+        normalizedCheckoutMessage,
+      )
+      ? "wholesale"
+      : /^pedido minorista\b/
+          .test(
+            normalizedCheckoutMessage,
+          )
+        ? "retail"
+        : null;
+
   const saleMode =
-    currentWorkflow?.saleMode
+    checkoutSaleMode
+    ?? currentWorkflow?.saleMode
     ?? saleModeFromMetadata(
       conversation?.metadata,
     );

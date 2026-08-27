@@ -523,6 +523,24 @@ function isCatalogRequest(
   category:
     string | null,
 ) {
+  /*
+   * Los pedidos enviados desde el checkout contienen nombres
+   * de categorías y productos. No deben interpretarse como
+   * una solicitud para volver a abrir el catálogo.
+   */
+  if (
+    /^pedido\s+(?:mayorista|minorista)\b/
+      .test(
+        message,
+      )
+    || /\bquiero\s+confirmar\s+este\s+pedido\b/
+      .test(
+        message,
+      )
+  ) {
+    return false;
+  }
+
   if (category) {
     return true;
   }
