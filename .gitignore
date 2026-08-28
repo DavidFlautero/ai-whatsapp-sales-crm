@@ -6,3 +6,77 @@ dist
 .DS_Store
 storage/logs/*
 storage/conversations/*
+
+# Generated files
+**/node_modules/
+**/.next/
+**/dist/
+**/*.tsbuildinfo
+
+# Temporary media
+apps/api/temp/
+
+# Private environments
+.env
+.env.local
+apps/api/.env
+apps/dashboard/.env.local
+
+# Secretos locales
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+dist/
+**/dist/
+temp/
+**/temp/
+*.tsbuildinfo
+.env
+.env.local
+.env.*
+!.env.example
+**/.env
+**/.env.local
+**/.env.*
+!**/.env.example
+
+# Runtime SaaS configuration
+data/platform-config.json
+data/platform-config.json.tmp
+apps/dashboard/.next-before-recovery-*
+
+# Runtime data and local Supabase state
+apps/api/data/
+supabase/.temp/
+supabase/.branches/
+/apps/api/dist-hardened/
+/apps/api/dist-test/
+/apps/dashboard/apps/
+/backups/
+/data/
+/logs/
+/docs/drafts/
+*.bak*
+/App runtime, multi-company data and Sonnet integration"
+
+# BEGIN VOICE LOCAL ARTIFACTS
+/apps/api/dist-hardened.backup-*/
+/apps/voice-worker/.venv*/
+/apps/voice-worker/models/*
+!/apps/voice-worker/models/README.md
+!/apps/voice-worker/models/.gitkeep
+/apps/voice-worker/voice_worker/pro/*.before-*
+/scripts/__pycache__/
+**/__pycache__/
+**/.pytest_cache/
+*.py[cod]
+/data/voice-tests/*.wav
+# END VOICE LOCAL ARTIFACTS

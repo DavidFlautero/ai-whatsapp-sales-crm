@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Neuromind Voice Pro</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #07111f; color: #eef6ff; }
+    main { width: min(760px, 92vw); padding: 28px; border: 1px solid #26364a; border-radius: 20px; background: #0e1b2c; box-shadow: 0 20px 70px #0008; }
+    h1 { margin: 0 0 8px; } p { color: #9eb0c7; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
+    button, input { border: 1px solid #344962; border-radius: 10px; padding: 11px 14px; background: #12243a; color: inherit; }
+    button.primary { background: #16a085; border-color: #37c9ad; } button:disabled { opacity: .45; }
+    #state { padding: 8px 12px; border-radius: 999px; background: #172a42; display: inline-block; }
+    pre { height: 260px; overflow: auto; padding: 14px; border-radius: 12px; background: #050b13; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Voice Pro · Canary</h1>
+  <p>Audio PCM16 a 16 kHz, detección multilingüe, barge-in y telemetría por evento.</p>
+  <span id="state">desconectado</span>
+  <div class="row">
+    <input id="company" value="demo" aria-label="Empresa">
+    <input id="token" placeholder="Token WebSocket (si aplica)" aria-label="Token">
+  </div>
+  <div class="row">
+    <button id="connect" class="primary">Conectar micrófono</button>
+    <button id="stop" disabled>Desconectar</button>
+    <button id="interrupt" disabled>Interrumpir voz</button>
+  </div>
+  <pre id="log"></pre>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let ws, context, source, processor, stream, playback = [];
+const log = (value) => { $('log').textContent += `${new Date().toLocaleTimeString()} ${value}\n`; $('log').scrollTop = $('log').scrollHeight; };
+const state = (value) => { $('state').textContent = value; };
+function pcm16(input, inputRate, outputRate = 16000) {
+  const ratio = inputRate / outputRate, size = Math.round(input.length / ratio), result = new Int16Array(size);
+  for (let i = 0; i < size; i++) {
+    const start = Math.round(i * ratio), end = Math.min(input.length, Math.round((i + 1) * ratio));
+    let sum = 0; for (let j = start; j < end; j++) sum += input[j];
+    const sample = Math.max(-1, Math.min(1, sum / Math.max(1, end - start)));
+    result[i] = sample < 0 ? sample * 32768 : sample * 32767;
+  }
+  return result.buffer;
+}
+function stopPlayback() { playback.forEach((audio) => { audio.pause(); URL.revokeObjectURL(audio.src); }); playback = []; }
+async function play(base64, mime) {
+  const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type: mime || 'audio/wav' }));
+  const audio = new Audio(url); playback.push(audio); audio.onended = () => { URL.revokeObjectURL(url); playback = playback.filter((item) => item !== audio); }; await audio.play();
+}
+$('connect').onclick = async () => {
+  const session = crypto.randomUUID(), company = encodeURIComponent($('company').value.trim() || 'demo'), token = encodeURIComponent($('token').value);
+  const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${scheme}://${location.host}/ws/${session}?company_id=${company}&token=${token}`);
+  ws.binaryType = 'arraybuffer';
+  ws.onopen = async () => {
+    state('conectado'); $('connect').disabled = true; $('stop').disabled = false; $('interrupt').disabled = false;
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
+    context = new AudioContext(); source = context.createMediaStreamSource(stream); processor = context.createScriptProcessor(2048, 1, 1);
+    processor.onaudioprocess = (event) => { if (ws.readyState === WebSocket.OPEN) ws.send(pcm16(event.inputBuffer.getChannelData(0), context.sampleRate)); };
+    source.connect(processor); processor.connect(context.destination); log(`sesión ${session}`);
+  };
+  ws.onmessage = async ({ data }) => { const event = JSON.parse(data); if (event.type === 'state') state(event.payload.current); if (event.type === 'audio_chunk' && event.payload.audio_base64) await play(event.payload.audio_base64, event.payload.mime_type); if (event.type === 'audio_stop') stopPlayback(); if (event.type !== 'audio_chunk') log(JSON.stringify(event)); };
+  ws.onerror = () => log('error WebSocket'); ws.onclose = () => disconnect();
+};
+function disconnect() { processor?.disconnect(); source?.disconnect(); stream?.getTracks().forEach((track) => track.stop()); context?.close(); stopPlayback(); ws = null; state('desconectado'); $('connect').disabled = false; $('stop').disabled = true; $('interrupt').disabled = true; }
+$('stop').onclick = () => { ws?.close(1000, 'demo_end'); disconnect(); };
+$('interrupt').onclick = () => { stopPlayback(); ws?.send(JSON.stringify({ type: 'interrupt' })); };
+</script>
+</body>
+</html>

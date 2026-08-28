@@ -1,7 +1,27 @@
-import { Router } from "express";
-import { getOperatorDashboard, updateOperatorMode } from "../../controllers/admin/operator.controller.js";
+import {
+  Router,
+} from "express";
 
-export const adminOperatorRoutes = Router();
+import {
+  getOperatorDashboard,
+  sendOperatorMessage,
+  updateOperatorMode,
+} from "../../controllers/admin/operator.controller.js";
 
-adminOperatorRoutes.get("/operator", getOperatorDashboard);
-adminOperatorRoutes.post("/operator/mode", updateOperatorMode);
+export const adminOperatorRoutes =
+  Router();
+
+adminOperatorRoutes.get(
+  "/operator",
+  getOperatorDashboard,
+);
+
+adminOperatorRoutes.post(
+  "/operator/mode",
+  updateOperatorMode,
+);
+
+adminOperatorRoutes.post(
+  "/operator/message",
+  sendOperatorMessage,
+);

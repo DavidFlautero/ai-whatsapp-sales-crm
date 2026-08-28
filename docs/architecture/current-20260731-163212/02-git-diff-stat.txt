@@ -1,0 +1,11 @@
+ .gitignore                                         |    1 +
+ apps/api/src/index.ts                              |   42 +-
+ apps/api/src/routes/index.ts                       |   10 +
+ .../src/app/api/integrations/status/route.ts       |   24 -
+ apps/dashboard/src/app/business.css                |  975 ++++++++++++-
+ .../src/app/integrations/ConnectionsPanel.tsx      | 1531 ++++++++++++++++++--
+ apps/dashboard/src/app/integrations/page.tsx       |   57 +-
+ .../dashboard/src/app/orders/new/order-builder.css |  181 ++-
+ .../dashboard/src/app/settings/Settings.module.css |  948 ++++++++++++
+ .../src/components/app-shell/AppShell.tsx          |    1 +
+ 10 files changed, 3600 insertions(+), 170 deletions(-)

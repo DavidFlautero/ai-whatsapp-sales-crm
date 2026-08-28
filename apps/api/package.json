@@ -10,17 +10,24 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",
     "axios": "^1.16.1",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^5.1.0",
     "form-data": "^4.0.5",
     "groq-sdk": "^1.2.0",
+    "jose": "^6.2.4",
+    "multer": "^2.2.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
+    "@types/multer": "^2.2.0",
     "@types/node": "^24.10.1",
+    "terser": "^5.49.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

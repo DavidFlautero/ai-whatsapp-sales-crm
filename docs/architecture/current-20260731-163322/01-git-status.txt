@@ -1,0 +1,16 @@
+ M .gitignore
+ M apps/api/src/index.ts
+ M apps/api/src/routes/index.ts
+ D apps/dashboard/src/app/api/integrations/status/route.ts
+ M apps/dashboard/src/app/business.css
+ M apps/dashboard/src/app/integrations/ConnectionsPanel.tsx
+ M apps/dashboard/src/app/integrations/page.tsx
+ M apps/dashboard/src/app/orders/new/order-builder.css
+ M apps/dashboard/src/app/settings/Settings.module.css
+ M apps/dashboard/src/components/app-shell/AppShell.tsx
+?? apps/api/data/
+?? apps/api/src/routes/admin/integrations.routes.ts
+?? apps/api/src/services/integrations/
+?? apps/dashboard/src/app/integrations/integrations.module.css
+?? docs/architecture/
+?? supabase/

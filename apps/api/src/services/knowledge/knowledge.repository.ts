@@ -1,72 +1,257 @@
-import { isSupabaseConfigured, supabaseRequest } from "../db/supabase-rest.client.js";
+import {
+  env,
+} from "../../config/env.js";
 
-type KnowledgeItem = {
+import {
+  isSupabaseConfigured,
+  supabaseRequest,
+} from "../db/supabase-rest.client.js";
+
+export type KnowledgeItem = {
   id?: string;
+
+  company_id?: string;
+
   type?: string;
   title: string;
   content: string;
+
   tags?: string[];
+
+  source?: string;
+  version?: number;
+
   active?: boolean;
+
+  metadata?:
+    Record<string, unknown>;
 };
 
-const memoryKnowledge: KnowledgeItem[] = [
-  {
-    type: "catalog",
-    title: "Catálogo base",
-    content: "Fulanitas vende ropa urbana, pantalones, jeans, oversize, prendas mayoristas y novedades por temporada.",
-    tags: ["catalogo", "ropa", "mayorista"],
-    active: true
+const memoryKnowledge:
+  KnowledgeItem[] = [
+    {
+      company_id:
+        env.DEFAULT_COMPANY_ID,
+
+      type:
+        "business",
+
+      title:
+        "Información general de Fulanitas",
+
+      content:
+        "Fulanitas comercializa prendas de moda y ropa mayorista. Antes de confirmar precio, color, talle o disponibilidad debe consultarse el catálogo y stock real.",
+
+      tags: [
+        "fulanitas",
+        "ropa",
+        "mayorista",
+      ],
+
+      source:
+        "system",
+
+      version:
+        1,
+
+      active:
+        true,
+    },
+  ];
+
+export async function listKnowledgeItems(
+  companyId =
+    env.DEFAULT_COMPANY_ID,
+) {
+  if (
+    !isSupabaseConfigured()
+  ) {
+    return memoryKnowledge
+      .filter(
+        (item) =>
+          item.company_id
+          === companyId,
+      );
   }
-];
 
-export async function listKnowledgeItems() {
-  if (!isSupabaseConfigured()) return memoryKnowledge;
+  try {
+    return await supabaseRequest<
+      KnowledgeItem[]
+    >({
+      table:
+        "knowledge_items",
 
-  return supabaseRequest<KnowledgeItem[]>({
-    table: "knowledge_items",
-    query: "?select=*&active=eq.true&order=created_at.desc"
-  });
+      query:
+        `?company_id=eq.${encodeURIComponent(companyId)}`
+        + "&active=eq.true"
+        + "&select=*"
+        + "&order=updated_at.desc",
+    });
+  } catch (error) {
+    console.error(
+      "[KNOWLEDGE DEGRADED]",
+      error,
+    );
+
+    return memoryKnowledge
+      .filter(
+        (item) =>
+          item.company_id
+          === companyId,
+      );
+  }
 }
 
-export async function createKnowledgeItem(input: KnowledgeItem) {
-  const item = {
-    type: input.type ?? "catalog",
-    title: input.title,
-    content: input.content,
-    tags: input.tags ?? [],
-    active: input.active ?? true
-  };
+export async function createKnowledgeItem(
+  input: KnowledgeItem,
+  companyId =
+    env.DEFAULT_COMPANY_ID,
+) {
+  const item:
+    KnowledgeItem = {
+      ...input,
 
-  if (!isSupabaseConfigured()) {
-    memoryKnowledge.unshift(item);
+      company_id:
+        companyId,
+
+      type:
+        input.type
+        ?? "business",
+
+      tags:
+        input.tags
+        ?? [],
+
+      source:
+        input.source
+        ?? "manual",
+
+      version:
+        input.version
+        ?? 1,
+
+      active:
+        input.active
+        ?? true,
+
+      metadata:
+        input.metadata
+        ?? {},
+    };
+
+  if (
+    !isSupabaseConfigured()
+  ) {
+    memoryKnowledge.unshift(
+      item,
+    );
+
     return item;
   }
 
-  const rows = await supabaseRequest<KnowledgeItem[]>({
-    table: "knowledge_items",
-    method: "POST",
-    body: [item]
-  });
+  const rows =
+    await supabaseRequest<
+      KnowledgeItem[]
+    >({
+      table:
+        "knowledge_items",
 
-  return rows[0];
+      method:
+        "POST",
+
+      prefer:
+        "return=representation",
+
+      body: [
+        item,
+      ],
+    });
+
+  const stored =
+    rows[0];
+
+  if (!stored?.id) {
+    throw new Error(
+      "KNOWLEDGE_ITEM_CREATE_FAILED",
+    );
+  }
+
+  return stored;
 }
 
-export async function buildKnowledgeContext(message: string) {
-  const items = await listKnowledgeItems();
-  const query = message.toLowerCase();
+export async function buildKnowledgeContext(
+  message: string,
+  companyId =
+    env.DEFAULT_COMPANY_ID,
+) {
+  const items =
+    await listKnowledgeItems(
+      companyId,
+    );
 
-  const relevant = items
-    .filter((item) => {
-      const haystack = `${item.title} ${item.content} ${(item.tags ?? []).join(" ")}`.toLowerCase();
-      return query.split(/\s+/).some((word) => word.length > 3 && haystack.includes(word));
-    })
-    .slice(0, 6);
+  const query =
+    message
+      .toLowerCase()
+      .trim();
 
-  const selected = relevant.length ? relevant : items.slice(0, 3);
+  const words =
+    query
+      .split(/\s+/)
+      .filter(
+        (word) =>
+          word.length > 3,
+      );
 
-  if (!selected.length) return "Sin base de conocimiento cargada.";
+  const relevant =
+    items
+      .filter(
+        (item) => {
+          const haystack =
+            `${item.title} `
+            + `${item.content} `
+            + `${(
+              item.tags
+              ?? []
+            ).join(" ")}`
+              .toLowerCase();
+
+          return words.some(
+            (word) =>
+              haystack.includes(
+                word,
+              ),
+          );
+        },
+      )
+      .slice(
+        0,
+        6,
+      );
+
+  const selected =
+    relevant.length
+      ? relevant
+      : items.slice(
+          0,
+          3,
+        );
+
+  if (
+    !selected.length
+  ) {
+    return (
+      "Sin base de conocimiento "
+      + "específica disponible."
+    );
+  }
 
   return selected
-    .map((item) => `### ${item.title}\n${item.content}`)
-    .join("\n\n");
+    .map(
+      (item) =>
+        `### ${item.title}\n`
+        + item.content,
+    )
+    .join(
+      "\n\n",
+    );
 }

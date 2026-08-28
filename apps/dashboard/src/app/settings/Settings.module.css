@@ -357,3 +357,1304 @@
     gap: 6px;
   }
 }
+
+/* SETTINGS_LIGHT_V6_START */
+
+/* ==========================================================
+   PÁGINA
+   ========================================================== */
+
+.page {
+  --settings-navy: #17364d;
+  --settings-navy-deep: #102a3d;
+  --settings-blue: #39769b;
+  --settings-blue-soft: #edf4f8;
+
+  --settings-text: #17212b;
+  --settings-text-2: #465865;
+  --settings-muted: #75828c;
+
+  --settings-border: #dce4e9;
+  --settings-border-strong: #cbd6dd;
+
+  --settings-bg: #f5f7f9;
+  --settings-surface: #ffffff;
+  --settings-surface-soft: #f7fafb;
+
+  width: 100%;
+  min-width: 0;
+
+  display: grid;
+  gap: 22px;
+
+  color:
+    var(--settings-text) !important;
+
+  background:
+    transparent !important;
+}
+
+/* El título anterior quedaba casi blanco. */
+
+.page :global(h1) {
+  color:
+    var(--settings-navy-deep) !important;
+
+  -webkit-text-fill-color:
+    var(--settings-navy-deep) !important;
+
+  text-shadow:
+    none !important;
+
+  font-weight:
+    820 !important;
+
+  letter-spacing:
+    -0.05em !important;
+}
+
+.page :global(h2),
+.page :global(h3),
+.page :global(h4) {
+  color:
+    var(--settings-text) !important;
+
+  -webkit-text-fill-color:
+    var(--settings-text) !important;
+
+  text-shadow:
+    none !important;
+}
+
+.page :global(p),
+.page :global(small) {
+  color:
+    var(--settings-text-2) !important;
+}
+
+/* ==========================================================
+   RESUMEN SUPERIOR
+   ========================================================== */
+
+.summaryGrid {
+  width: 100%;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      4,
+      minmax(0, 1fr)
+    );
+
+  gap: 14px;
+}
+
+.summaryCard {
+  position: relative;
+  overflow: hidden;
+
+  min-width: 0;
+  min-height: 130px;
+
+  display: flex;
+  flex-direction: column;
+
+  padding: 20px;
+
+  border:
+    1px solid
+    var(--settings-border) !important;
+
+  border-radius:
+    15px !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #fbfdfe 100%
+    ) !important;
+
+  background-color:
+    #ffffff !important;
+
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(57, 118, 155, 0.025),
+      transparent 90px
+    ) !important;
+
+  color:
+    var(--settings-text) !important;
+
+  box-shadow:
+    0 10px 28px
+    rgba(28, 47, 61, 0.055) !important;
+}
+
+.summaryCard::before {
+  position: absolute;
+
+  inset:
+    0 0 auto 0;
+
+  height:
+    3px;
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--settings-blue),
+      #9bc1d7,
+      transparent
+    );
+
+  content: "";
+}
+
+.summaryLabel {
+  color:
+    #637481 !important;
+
+  font-size:
+    11px !important;
+
+  font-weight:
+    850 !important;
+
+  letter-spacing:
+    0.1em !important;
+
+  text-transform:
+    uppercase;
+}
+
+.summaryValue {
+  margin-top: 16px;
+
+  color:
+    var(--settings-navy-deep) !important;
+
+  -webkit-text-fill-color:
+    var(--settings-navy-deep) !important;
+
+  font-size:
+    clamp(
+      17px,
+      1.4vw,
+      21px
+    ) !important;
+
+  font-weight:
+    820 !important;
+
+  letter-spacing:
+    -0.035em !important;
+}
+
+.summaryMeta {
+  margin-top: auto;
+  padding-top: 9px;
+
+  color:
+    var(--settings-muted) !important;
+
+  font-size:
+    12px !important;
+
+  line-height:
+    1.45 !important;
+}
+
+/* ==========================================================
+   SECCIONES PRINCIPALES
+   ========================================================== */
+
+.sectionCard {
+  position: relative;
+  overflow: hidden;
+
+  padding:
+    clamp(
+      22px,
+      2.5vw,
+      30px
+    ) !important;
+
+  border:
+    1px solid
+    var(--settings-border) !important;
+
+  border-radius:
+    17px !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #fbfdfe 100%
+    ) !important;
+
+  background-color:
+    #ffffff !important;
+
+  background-image:
+    none !important;
+
+  color:
+    var(--settings-text) !important;
+
+  box-shadow:
+    0 14px 36px
+    rgba(28, 47, 61, 0.06) !important;
+}
+
+.sectionCard::before {
+  position: absolute;
+
+  inset:
+    0 0 auto 0;
+
+  height:
+    2px;
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--settings-blue),
+      #91b9d0,
+      transparent 72%
+    );
+
+  content: "";
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 22px;
+
+  margin-bottom: 23px;
+  padding-bottom: 19px;
+
+  border-bottom:
+    1px solid
+    var(--settings-border) !important;
+}
+
+.eyebrow {
+  color:
+    var(--settings-blue) !important;
+
+  -webkit-text-fill-color:
+    var(--settings-blue) !important;
+
+  font-size:
+    10px !important;
+
+  font-weight:
+    900 !important;
+
+  letter-spacing:
+    0.14em !important;
+
+  text-transform:
+    uppercase;
+}
+
+.sectionTitle {
+  margin:
+    7px 0 6px !important;
+
+  color:
+    var(--settings-navy-deep) !important;
+
+  -webkit-text-fill-color:
+    var(--settings-navy-deep) !important;
+
+  font-size:
+    clamp(
+      20px,
+      2vw,
+      26px
+    ) !important;
+
+  font-weight:
+    810 !important;
+
+  letter-spacing:
+    -0.04em !important;
+}
+
+.sectionDescription {
+  max-width: 780px;
+
+  margin:
+    0 !important;
+
+  color:
+    var(--settings-text-2) !important;
+
+  font-size:
+    13px !important;
+
+  line-height:
+    1.65 !important;
+}
+
+.statusBadge {
+  flex: 0 0 auto;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  min-height: 31px;
+
+  padding:
+    0 11px;
+
+  border:
+    1px solid
+    #bce0cc !important;
+
+  border-radius:
+    999px !important;
+
+  background:
+    #edf8f2 !important;
+
+  color:
+    #176f49 !important;
+
+  -webkit-text-fill-color:
+    #176f49 !important;
+
+  box-shadow:
+    none !important;
+
+  font-size:
+    11px !important;
+
+  font-weight:
+    850 !important;
+}
+
+.statusBadge::before {
+  width: 7px;
+  height: 7px;
+
+  border-radius:
+    50%;
+
+  background:
+    #2d9a67;
+
+  content: "";
+}
+
+/* ==========================================================
+   PERFIL OPERATIVO
+   ========================================================== */
+
+.profileText {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1.35fr)
+    minmax(300px, 0.65fr);
+
+  align-items: start;
+
+  gap: 24px;
+}
+
+.profileCopy {
+  color:
+    var(--settings-text-2) !important;
+
+  -webkit-text-fill-color:
+    var(--settings-text-2) !important;
+
+  font-size:
+    13px !important;
+
+  line-height:
+    1.85 !important;
+}
+
+.profileCopy strong {
+  color:
+    var(--settings-navy-deep) !important;
+
+  -webkit-text-fill-color:
+    var(--settings-navy-deep) !important;
+}
+
+.principles {
+  display: grid;
+  gap: 4px;
+
+  padding: 16px;
+
+  border:
+    1px solid
+    var(--settings-border) !important;
+
+  border-radius:
+    13px !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      #f7fafc,
+      #f2f7f9
+    ) !important;
+
+  color:
+    var(--settings-text) !important;
+
+  box-shadow:
+    inset 0 1px 0
+    rgba(255, 255, 255, 0.8) !important;
+}
+
+.principle {
+  position: relative;
+
+  padding:
+    11px 10px 11px 24px;
+
+  border-bottom:
+    1px solid
+    #e3eaee !important;
+
+  color:
+    var(--settings-text-2) !important;
+
+  font-size:
+    12px !important;
+
+  line-height:
+    1.55 !important;
+}
+
+.principle:last-child {
+  border-bottom:
+    0 !important;
+}
+
+.principle::before {
+  position: absolute;
+
+  top: 17px;
+  left: 8px;
+
+  width: 6px;
+  height: 6px;
+
+  border-radius:
+    50%;
+
+  background:
+    var(--settings-blue);
+
+  box-shadow:
+    0 0 0 4px
+    rgba(57, 118, 155, 0.09);
+
+  content: "";
+}
+
+/* ==========================================================
+   GARANTÍA: NINGUNA TARJETA NEGRA
+   ========================================================== */
+
+.page :global(article) {
+  border-color:
+    var(--settings-border) !important;
+
+  background-color:
+    #ffffff !important;
+
+  color:
+    var(--settings-text) !important;
+}
+
+/*
+  CSS Modules conserva parte del nombre local dentro
+  de la clase generada. Esto neutraliza cualquier tarjeta
+  adicional que siga utilizando el tema oscuro antiguo.
+*/
+
+.page :global([class*="Card"]),
+.page :global([class*="card"]),
+.page :global([class*="Panel"]),
+.page :global([class*="panel"]) {
+  border-color:
+    var(--settings-border) !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff,
+      #fbfdfe
+    ) !important;
+
+  background-color:
+    #ffffff !important;
+
+  background-image:
+    none !important;
+
+  color:
+    var(--settings-text) !important;
+
+  text-shadow:
+    none !important;
+}
+
+/* ==========================================================
+   TABLA DE AGENTES
+   ========================================================== */
+
+.tableWrap,
+.page :global([class*="tableWrap"]),
+.page :global([class*="TableWrap"]) {
+  overflow-x: auto;
+
+  border:
+    1px solid
+    var(--settings-border) !important;
+
+  border-radius:
+    13px !important;
+
+  background:
+    #ffffff !important;
+
+  box-shadow:
+    0 5px 16px
+    rgba(28, 47, 61, 0.035) !important;
+}
+
+.page :global(table) {
+  width: 100%;
+
+  min-width: 900px;
+
+  border:
+    0 !important;
+
+  background:
+    #ffffff !important;
+
+  color:
+    var(--settings-text) !important;
+
+  border-collapse:
+    separate !important;
+
+  border-spacing:
+    0 !important;
+
+  box-shadow:
+    none !important;
+}
+
+.page :global(thead),
+.page :global(thead tr),
+.page :global(th) {
+  background:
+    #f1f5f7 !important;
+
+  background-image:
+    none !important;
+
+  color:
+    #536675 !important;
+
+  -webkit-text-fill-color:
+    #536675 !important;
+}
+
+.page :global(th) {
+  padding:
+    13px 14px !important;
+
+  border-bottom:
+    1px solid
+    var(--settings-border) !important;
+
+  font-size:
+    10px !important;
+
+  font-weight:
+    900 !important;
+
+  letter-spacing:
+    0.09em !important;
+
+  text-align:
+    left !important;
+
+  text-transform:
+    uppercase;
+}
+
+.page :global(tbody),
+.page :global(tbody tr),
+.page :global(td) {
+  background:
+    #ffffff !important;
+
+  background-image:
+    none !important;
+
+  color:
+    var(--settings-text-2) !important;
+
+  -webkit-text-fill-color:
+    var(--settings-text-2) !important;
+}
+
+.page :global(td) {
+  padding:
+    14px !important;
+
+  border-bottom:
+    1px solid
+    #e8edf0 !important;
+
+  font-size:
+    12px !important;
+
+  line-height:
+    1.6 !important;
+
+  vertical-align:
+    top !important;
+}
+
+.page :global(tbody tr:hover td) {
+  background:
+    #f4f8fa !important;
+}
+
+.page :global(td strong) {
+  color:
+    var(--settings-navy-deep) !important;
+
+  -webkit-text-fill-color:
+    var(--settings-navy-deep) !important;
+}
+
+/* Categorías, rutas y pequeñas etiquetas. */
+
+.page :global(code),
+.page :global(pre),
+.page :global([class*="location"]),
+.page :global([class*="Location"]) {
+  border:
+    1px solid
+    #d8e2e8 !important;
+
+  background:
+    #f1f5f7 !important;
+
+  color:
+    #31556c !important;
+
+  -webkit-text-fill-color:
+    #31556c !important;
+
+  box-shadow:
+    none !important;
+}
+
+.page :global([class*="Badge"]),
+.page :global([class*="badge"]) {
+  text-shadow:
+    none !important;
+
+  box-shadow:
+    none !important;
+}
+
+/* ==========================================================
+   RESULTADOS Y LISTADOS INFERIORES
+   ========================================================== */
+
+.page :global(ul),
+.page :global(ol) {
+  color:
+    var(--settings-text-2) !important;
+}
+
+.page :global(li) {
+  color:
+    var(--settings-text-2) !important;
+
+  border-color:
+    var(--settings-border) !important;
+}
+
+.page :global([class*="outcome"]),
+.page :global([class*="Outcome"]) {
+  border-color:
+    var(--settings-border) !important;
+
+  background:
+    var(--settings-surface-soft) !important;
+
+  color:
+    var(--settings-text-2) !important;
+}
+
+/* ==========================================================
+   LINKS Y BOTONES
+   ========================================================== */
+
+.page :global(a) {
+  color:
+    var(--settings-blue) !important;
+
+  text-decoration:
+    none !important;
+}
+
+.page :global(button) {
+  border:
+    1px solid
+    var(--settings-navy) !important;
+
+  border-radius:
+    9px !important;
+
+  background:
+    var(--settings-navy) !important;
+
+  color:
+    #ffffff !important;
+
+  -webkit-text-fill-color:
+    #ffffff !important;
+
+  box-shadow:
+    0 7px 17px
+    rgba(23, 54, 77, 0.15) !important;
+}
+
+/* ==========================================================
+   RESPONSIVE
+   ========================================================== */
+
+@media (max-width: 1150px) {
+  .summaryGrid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+  .profileText {
+    grid-template-columns:
+      1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .page {
+    gap: 16px;
+  }
+
+  .summaryGrid {
+    grid-template-columns:
+      1fr;
+  }
+
+  .sectionCard {
+    padding:
+      19px !important;
+  }
+
+  .sectionHeader {
+    flex-direction:
+      column;
+
+    align-items:
+      flex-start;
+  }
+
+  .summaryCard {
+    min-height:
+      115px;
+  }
+}
+
+/* SETTINGS_LIGHT_V6_END */
+
+/* SETTINGS_IMPLEMENTATION_PILLS_START */
+
+/*
+  Etiquetas técnicas de la columna IMPLEMENTACIÓN.
+  Elimina definitivamente el fondo negro anterior.
+*/
+
+.page :global(tbody td:nth-child(2) code),
+.page :global(tbody td:nth-child(2) > span),
+.page :global(tbody td:nth-child(2) [class*="path"]),
+.page :global(tbody td:nth-child(2) [class*="Path"]),
+.page :global(tbody td:nth-child(2) [class*="location"]),
+.page :global(tbody td:nth-child(2) [class*="Location"]),
+.page :global([class*="implementation"] code),
+.page :global([class*="Implementation"] code) {
+  width: fit-content !important;
+  max-width: 100% !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+
+  min-height: 30px !important;
+
+  padding:
+    5px 10px !important;
+
+  border:
+    1px solid #cbdbe5 !important;
+
+  border-radius:
+    8px !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      #f5f9fb 0%,
+      #eaf2f7 100%
+    ) !important;
+
+  background-color:
+    #edf4f8 !important;
+
+  background-image:
+    linear-gradient(
+      180deg,
+      #f5f9fb,
+      #eaf2f7
+    ) !important;
+
+  color:
+    #315b76 !important;
+
+  -webkit-text-fill-color:
+    #315b76 !important;
+
+  box-shadow:
+    inset 0 1px 0
+    rgba(255, 255, 255, 0.85) !important;
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    monospace !important;
+
+  font-size:
+    11px !important;
+
+  font-weight:
+    650 !important;
+
+  line-height:
+    1.25 !important;
+
+  letter-spacing:
+    0 !important;
+
+  text-shadow:
+    none !important;
+
+  white-space:
+    nowrap !important;
+}
+
+/* Evita que estilos oscuros heredados reaparezcan. */
+
+.page :global(tbody td:nth-child(2) code::before),
+.page :global(tbody td:nth-child(2) code::after),
+.page :global(tbody td:nth-child(2) > span::before),
+.page :global(tbody td:nth-child(2) > span::after) {
+  display:
+    none !important;
+}
+
+/* Mejor alineación de la columna técnica. */
+
+.page :global(tbody td:nth-child(2)) {
+  vertical-align:
+    middle !important;
+}
+
+/* SETTINGS_IMPLEMENTATION_PILLS_END */
+
+
+
+/* PAYMENT_SETTINGS_PANEL_START */
+
+.paymentSettingsSection {
+  display: grid;
+  gap: 18px;
+  padding: 26px;
+  border: 1px solid var(--settings-border, #dce4e9);
+  border-radius: 18px;
+  background: var(--settings-surface, #ffffff);
+  box-shadow: 0 10px 28px rgba(28, 47, 61, 0.055);
+}
+
+.paymentSettingsHeader,
+.paymentPanelHeader,
+.paymentAccountTop,
+.paymentAccountActions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.paymentSettingsHeader {
+  align-items: center;
+}
+
+.paymentSummary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.paymentSummary span,
+.paymentDefaultBadge {
+  padding: 7px 10px;
+  border: 1px solid #cbdde8;
+  border-radius: 999px;
+  color: #285c7d;
+  background: #edf6fb;
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.paymentSettingsGrid {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.05fr)
+    minmax(360px, 0.95fr);
+  gap: 18px;
+}
+
+.paymentPanel,
+.paymentOwnerPanel {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--settings-border, #dce4e9);
+  border-radius: 15px;
+  background: var(--settings-surface-soft, #f7fafb);
+}
+
+.paymentPanelHeader {
+  margin-bottom: 17px;
+}
+
+.paymentPanelHeader h3,
+.paymentOwnerPanel h3 {
+  margin: 0;
+  color: #17212b;
+  font-size: 18px;
+}
+
+.paymentPanelHeader p,
+.paymentOwnerPanel p {
+  margin: 7px 0 0;
+  color: #647683;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.paymentAccountList {
+  display: grid;
+  gap: 12px;
+}
+
+.paymentAccountCard {
+  display: grid;
+  gap: 15px;
+  padding: 17px;
+  border: 1px solid #dce5ea;
+  border-radius: 13px;
+  background: #ffffff;
+}
+
+.paymentAccountTop strong {
+  display: block;
+  color: #17212b;
+  font-size: 15px;
+}
+
+.paymentAccountTop span:not(.paymentDefaultBadge) {
+  display: block;
+  margin-top: 4px;
+  color: #71808b;
+  font-size: 12px;
+}
+
+.paymentAccountDetails {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.paymentAccountDetails div {
+  min-width: 0;
+}
+
+.paymentAccountDetails dt {
+  color: #7a8994;
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.paymentAccountDetails dd {
+  overflow-wrap: anywhere;
+  margin: 4px 0 0;
+  color: #20313e;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.paymentFormGrid {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.paymentFormGrid label,
+.paymentOwnerForm label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.paymentFormGrid label > span,
+.paymentOwnerForm label > span {
+  color: #526570;
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.paymentFormGrid input,
+.paymentFormGrid select,
+.paymentFormGrid textarea,
+.paymentOwnerForm input[type="tel"] {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid #ccd8df;
+  border-radius: 9px;
+  color: #17212b;
+  background: #ffffff;
+  font: inherit;
+  outline: none;
+}
+
+.paymentFormGrid input:focus,
+.paymentFormGrid select:focus,
+.paymentFormGrid textarea:focus,
+.paymentOwnerForm input[type="tel"]:focus {
+  border-color: #39769b;
+  box-shadow: 0 0 0 3px rgba(57, 118, 155, 0.12);
+}
+
+.paymentFullField {
+  grid-column: 1 / -1;
+}
+
+.paymentPrimaryButton,
+.paymentSecondaryButton,
+.paymentDangerButton,
+.paymentDangerPrimaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 39px;
+  padding: 0 14px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 780;
+  cursor: pointer;
+}
+
+.paymentPrimaryButton {
+  border: 1px solid #17364d;
+  color: #ffffff;
+  background: #17364d;
+}
+
+.paymentSecondaryButton {
+  border: 1px solid #cbd8df;
+  color: #304958;
+  background: #ffffff;
+}
+
+.paymentDangerButton {
+  border: 1px solid #e3c7c7;
+  color: #8b4040;
+  background: #fff8f8;
+}
+
+.paymentDangerPrimaryButton {
+  border: 1px solid #8c3737;
+  color: #ffffff;
+  background: #8c3737;
+}
+
+.paymentPrimaryButton:disabled,
+.paymentSecondaryButton:disabled,
+.paymentDangerButton:disabled,
+.paymentDangerPrimaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.paymentOwnerPanel {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 0.9fr)
+    minmax(360px, 1.1fr);
+  gap: 28px;
+  align-items: center;
+}
+
+.paymentOwnerForm {
+  display: grid;
+  gap: 14px;
+}
+
+.paymentConfirmation {
+  display: grid !important;
+  grid-template-columns: auto 1fr;
+  align-items: flex-start;
+  gap: 10px !important;
+  padding: 12px;
+  border: 1px solid #ead6bd;
+  border-radius: 10px;
+  background: #fffaf3;
+}
+
+.paymentConfirmation input {
+  margin-top: 2px;
+}
+
+.paymentConfirmation span {
+  color: #6e583d !important;
+  font-size: 12px !important;
+  line-height: 1.5;
+}
+
+.paymentOwnerLocked {
+  display: grid;
+  gap: 5px;
+  padding: 18px;
+  border: 1px solid #c8dfd3;
+  border-radius: 13px;
+  background: #f2faf6;
+}
+
+.paymentOwnerLocked span {
+  color: #557367;
+  font-size: 12px;
+}
+
+.paymentOwnerLocked strong {
+  color: #24513e;
+  font-size: 24px;
+}
+
+.paymentOwnerLocked small {
+  color: #6a7f76;
+  font-size: 12px;
+}
+
+.paymentError,
+.paymentSuccess,
+.paymentEmpty {
+  padding: 13px 15px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.paymentError {
+  color: #7b3030;
+  background: #fff2f2;
+  border: 1px solid #eccdcd;
+}
+
+.paymentSuccess {
+  color: #285b44;
+  background: #eff9f3;
+  border: 1px solid #cbe4d5;
+}
+
+.paymentEmpty {
+  color: #687a86;
+  background: #ffffff;
+  border: 1px dashed #ccd8df;
+}
+
+@media (max-width: 1080px) {
+  .paymentSettingsGrid,
+  .paymentOwnerPanel {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .paymentSettingsSection {
+    padding: 18px;
+  }
+
+  .paymentSettingsHeader,
+  .paymentPanelHeader,
+  .paymentAccountTop,
+  .paymentAccountActions {
+    flex-direction: column;
+  }
+
+  .paymentSummary {
+    justify-content: flex-start;
+  }
+
+  .paymentFormGrid,
+  .paymentAccountDetails {
+    grid-template-columns: 1fr;
+  }
+
+  .paymentFullField {
+    grid-column: auto;
+  }
+}
+
+/* PAYMENT_SETTINGS_PANEL_END */

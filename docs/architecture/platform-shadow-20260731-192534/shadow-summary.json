@@ -1,0 +1,11 @@
+{
+  "mode": "shadow",
+  "totalDecisions": 0,
+  "allowed": 0,
+  "denied": 0,
+  "roles": {},
+  "permissions": {},
+  "decisionCodes": {},
+  "paths": {},
+  "readyForEnforce": false
+}

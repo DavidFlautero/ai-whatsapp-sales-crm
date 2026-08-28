@@ -1,4 +1,5 @@
 import "./globals.css";
+import "./business.css";
 
 export const metadata = {
   title: "Fulanitas AI Sales CRM",

@@ -15,6 +15,11 @@ const schema = z.object({
   APP_BASE_URL: z.string().default("http://localhost:4000"),
 
   ANTHROPIC_API_KEY: z.string().optional(),
+  ANTHROPIC_MODEL: z
+    .string()
+    .trim()
+    .min(1)
+    .default("claude-sonnet-5"),
   OPENAI_API_KEY: z.string().optional(),
   GROQ_API_KEY: z.string().optional(),
 
@@ -32,7 +37,13 @@ const schema = z.object({
 
   SUPABASE_URL: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
-  SUPABASE_ANON_KEY: z.string().optional()
+  SUPABASE_ANON_KEY: z.string().optional(),
+
+  DEFAULT_COMPANY_ID: z
+    .string()
+    .trim()
+    .min(1)
+    .default("fulanitas")
 });
 
 export const env = schema.parse(process.env);

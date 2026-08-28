@@ -1,3 +1,5 @@
+import { env } from "../../config/env.js";
+
 export async function generateAgentResponse(prompt: string) {
   if (!process.env.ANTHROPIC_API_KEY) {
     return "Hola 👋 Te ayudo. ¿Buscás catálogo, stock o querés armar un pedido?";
@@ -12,9 +14,8 @@ export async function generateAgentResponse(prompt: string) {
         "content-type": "application/json"
       },
       body: JSON.stringify({
-        model: "claude-3-5-haiku-latest",
+        model: env.ANTHROPIC_MODEL,
         max_tokens: 360,
-        temperature: 0.82,
         messages: [
           {
             role: "user",

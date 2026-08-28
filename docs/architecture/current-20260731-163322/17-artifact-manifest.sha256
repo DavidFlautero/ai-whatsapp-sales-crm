@@ -1,0 +1,17 @@
+064a98ceac3d7ef294d8aac157ef7cf857e12b6b6199c16a1233e572598f2dd6  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/00-build-identity.env
+05cb2e811dec03c652ec37df977e0f40679a1c20a519bef9e5d58d4543611bba  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/01-git-status.txt
+d0418b78df157395bca8c2e849cfa795f6739fb9ce19b64275b059b05fa0b28a  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/02-git-diff-stat.txt
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/03-git-staged-stat.txt
+545641ea50020977121d456dd9f310f33e2c5e218a027396db59638b1fa586e4  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/04-route-map.tsv
+a6ce982855371828b4d44169765c860118b840f751f982a19b1ff35525ee1960  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/05-persistence-map.tsv
+5c9a7ee5af1cb03f7653f8cec662d1c5653d534947b0a191782618899d22c78d  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/06-risk-signals.tsv
+46afe08ea80d45bcb181c7ed707db9a6db68ef430610b07763132d3f6d6b7545  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/07-environment-contract.txt
+8493d5b01101b3971941fda0521cb6dc78c039f5ab275046bf8fd0593e4f4f3f  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/08-source-integrity.sha256
+96c3bfec842063290d367dd76d486357b465c076a8a8a8c50457ceefbb22422c  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/09-inventory-summary.json
+d19da7760feeb691ea4cf146a885e4bc3aee88952f319683a3ddc59cea433c6a  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/10-risk-register.md
+137123c3e0515fc37ed0baded2bc29cc64d49d8929f8568f164dfe2f3b588f8e  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/11-architecture-decisions.md
+7a605b7a68d6487878ecedbcadd09d08dc534ab41b7586b8e56a5ca0ff269d10  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/12-pm2-runtime.json
+1834b7434f18aab9c13c5d8ca2e4bcaf09d7df9e096d6314b4e0effb323b903c  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/13-http-contract.env
+38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/14-api-typecheck.txt
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/15-dashboard-typecheck.txt
+f0977517b75cdc933e379ba11c858dc3264a55211357a136f1758338a58f0d11  /opt/ventas-ia-mayorista/docs/architecture/current-20260731-163322/16-critical-routes.txt
