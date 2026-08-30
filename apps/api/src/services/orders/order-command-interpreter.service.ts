@@ -1228,28 +1228,14 @@ export async function interpretOrderCommand(
     console.log(
       "[ORDER SEMANTIC INTERPRETER]",
       {
-        companyId:
-          context.companyId,
-
-        phone:
-          context.phone,
-
-        domain:
-          command.domain,
-
-        action:
-          command.action,
-
-        confidence:
-          command.confidence,
-
-        requiresClarification:
-          command.requiresClarification,
-
-        elapsedMs:
-          Date.now()
-          - startedAt,
-      },
+    companyId: context.companyId,
+    domain: command.domain,
+    action: command.action,
+    confidence: command.confidence,
+    requiresClarification: command.requiresClarification,
+    elapsedMs: Date.now()
+        - startedAt
+},
     );
 
     return command;
@@ -1257,18 +1243,10 @@ export async function interpretOrderCommand(
     console.error(
       "[ORDER SEMANTIC INTERPRETER ERROR]",
       {
-        companyId:
-          context.companyId,
-
-        phone:
-          context.phone,
-
-        elapsedMs:
-          Date.now()
-          - startedAt,
-
-        error,
-      },
+    companyId: context.companyId,
+    elapsedMs: Date.now()
+        - startedAt
+},
     );
 
     throw error;

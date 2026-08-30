@@ -13,6 +13,18 @@ export const PERMISSIONS = [
   "company.users.manage",
   "company.billing.read",
 
+  "privacy.requests.read",
+  "privacy.requests.manage",
+  "privacy.requests.verify",
+  "privacy.requests.approve",
+  "privacy.exports.create",
+  "privacy.erasure.execute",
+  "privacy.consents.read",
+  "privacy.consents.manage",
+  "privacy.policies.read",
+  "privacy.policies.manage",
+  "privacy.audit.read",
+
   "integrations.read",
   "integrations.manage",
 

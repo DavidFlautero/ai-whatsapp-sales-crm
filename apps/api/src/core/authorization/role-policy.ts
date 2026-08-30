@@ -47,13 +47,24 @@ export const ROLE_PERMISSIONS:
     companyPermissions.filter(
       (permission) =>
         permission
-        !== "payments.refund",
+        !== "payments.refund"
+        && permission
+        !== "privacy.requests.approve"
+        && permission
+        !== "privacy.erasure.execute",
     ),
 
   supervisor: definePermissions(
     "company.read",
     "company.settings.read",
     "company.users.read",
+
+    "privacy.requests.read",
+    "privacy.requests.manage",
+    "privacy.requests.verify",
+    "privacy.consents.read",
+    "privacy.policies.read",
+    "privacy.audit.read",
 
     "integrations.read",
 

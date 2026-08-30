@@ -455,12 +455,8 @@ export async function updateWhatsappProfilePicture(
     console.error(
       "[WHATSAPP PROFILE PICTURE SESSION ERROR]",
       {
-        status:
-          createSessionResponse.status,
-
-        payload:
-          createSessionPayload,
-      },
+    status: createSessionResponse.status
+},
     );
 
     throw new Error(
@@ -512,12 +508,8 @@ export async function updateWhatsappProfilePicture(
     console.error(
       "[WHATSAPP PROFILE PICTURE UPLOAD ERROR]",
       {
-        status:
-          uploadResponse.status,
-
-        payload:
-          uploadPayload,
-      },
+    status: uploadResponse.status
+},
     );
 
     throw new Error(
@@ -570,12 +562,8 @@ export async function updateWhatsappProfilePicture(
     console.error(
       "[WHATSAPP PROFILE PICTURE SET ERROR]",
       {
-        status:
-          profileResponse.status,
-
-        payload:
-          profilePayload,
-      },
+    status: profileResponse.status
+},
     );
 
     throw new Error(

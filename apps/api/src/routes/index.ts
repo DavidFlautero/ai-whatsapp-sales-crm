@@ -66,6 +66,10 @@ import {
   adminPaymentSubmissionsRoutes,
 } from "./admin/payment-submissions.routes.js";
 
+import {
+  privacyRoutes,
+} from "../modules/privacy/privacy.routes.js";
+
 export const router = Router();
 
 router.use(
@@ -134,6 +138,19 @@ router.use(
   }),
 
   voiceRoutes,
+);
+
+router.use(
+  "/admin/privacy",
+
+  requireAuth,
+
+  resolveAccessContext({
+    mode: "company",
+    source: "dashboard",
+  }),
+
+  privacyRoutes,
 );
 
 router.use("/platform", platformAdminRoutes);

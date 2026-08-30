@@ -79,7 +79,13 @@ export async function transcribeAudio(input: AudioInput): Promise<string> {
 
   const transcription = await transcribeWithGroq(filePath);
 
-  console.log("[AUDIO TRANSCRIPTION]", transcription);
+  console.log(
+    "[AUDIO TRANSCRIPTION]",
+    {
+      characters:
+        transcription.length,
+    },
+  );
 
   return transcription;
 }

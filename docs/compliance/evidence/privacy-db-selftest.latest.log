@@ -1,0 +1,116 @@
+PRIVACY_DB_SELFTEST_EVIDENCE
+SCOPE=LOCAL_ISOLATED_DATABASE
+GENERATED_AT=2026-08-30T18:42:54Z
+SOURCE_HEAD=f7ba30eb3117b6b53ceb7df79e836a9a833a9a7a
+MIGRATION_SHA256=f241c4f2eddaae59bc9d9643c97310ef6dd06d0c8b2309235e3f502c16b9dde2
+REMOTE_DATABASE_MODIFIED=NO
+EXPECTED_TESTS=12
+BEGIN
+SET
+SET
+INSERT 0 2
+INSERT 0 3
+INSERT 0 4
+INSERT 0 1
+INSERT 0 2
+NOTICE:  EXPECTED_CROSS_TENANT_FAILURE=PRIVACY_REQUEST_NOT_FOUND
+DO
+          ?column?
+----------------------------
+ TEST_CROSS_TENANT_RPC=PASS
+(1 row)
+
+NOTICE:  EXPECTED_VERSION_FAILURE=PRIVACY_VERSION_CONFLICT
+DO
+           ?column?
+------------------------------
+ TEST_OPTIMISTIC_VERSION=PASS
+(1 row)
+
+DO
+        ?column?
+------------------------
+ TEST_DUAL_CONTROL=PASS
+(1 row)
+
+SET
+NOTICE:  EXPECTED_DUAL_CONTROL_FAILURE=PRIVACY_ERASURE_APPROVER_CANNOT_EXECUTE
+DO
+RESET
+DO
+                ?column?
+-----------------------------------------
+ TEST_VALID_SERVICE_ROLE_TRANSITION=PASS
+(1 row)
+
+NOTICE:  EXPECTED_PROTECTED_PATCH_FAILURE=PRIVACY_PROTECTED_FIELD_PATCH
+DO
+         ?column?
+---------------------------
+ TEST_PROTECTED_PATCH=PASS
+(1 row)
+
+NOTICE:  EXPECTED_LEGAL_HOLD_FAILURE=PRIVACY_ACTIVE_LEGAL_HOLD
+DO
+       ?column?
+----------------------
+ TEST_LEGAL_HOLD=PASS
+(1 row)
+
+SET
+DO
+RESET
+DO
+           ?column?
+------------------------------
+ TEST_EVENT_SHA256_CHAIN=PASS
+(1 row)
+
+NOTICE:  EXPECTED_POLICY_TENANT_FAILURE=PRIVACY_POLICY_NOT_FOUND
+DO
+           ?column?
+-------------------------------
+ TEST_POLICY_CROSS_TENANT=PASS
+(1 row)
+
+SET
+DO
+RESET
+DO
+              ?column?
+------------------------------------
+ TEST_ATOMIC_POLICY_ACTIVATION=PASS
+(1 row)
+
+GRANT
+SET
+DO
+RESET
+             ?column?
+-----------------------------------
+ TEST_RLS_DENY_WITHOUT_POLICY=PASS
+(1 row)
+
+SET
+DO
+RESET
+           ?column?
+-------------------------------
+ TEST_SERVICE_ROLE_BYPASS=PASS
+(1 row)
+
+DO
+             ?column?
+-----------------------------------
+ TEST_EXPLICIT_TENANT_FILTERS=PASS
+(1 row)
+
+ROLLBACK
+DYNAMIC_TEST_STATUS=0
+DYNAMIC_TESTS_PASS=12
+DUAL_CONTROL_PASS=1
+ROWS_BEFORE=0
+ROWS_AFTER=0
+RESULTADO_DB_SELFTEST=OK
+PRUEBAS_DINAMICAS=12_DE_12
+TRANSACCION_REVERTIDA=SI

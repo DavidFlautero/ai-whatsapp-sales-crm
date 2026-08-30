@@ -36,6 +36,8 @@ export function createApp() {
         "Content-Type",
         "Authorization",
         "X-Requested-With",
+        "X-Company-Id",
+        "X-Request-Id",
       ],
     }),
   );

@@ -1297,30 +1297,15 @@ export async function handleWhatsappIncoming(
               console.log(
                 "[PAYMENT CUSTOMER NOTIFIED]",
                 {
-                  companyId,
-
-                  phone:
-                    ownerPaymentReview
-                      .notifyCustomer
-                      .phone,
-                },
+    companyId
+},
               );
             } catch (error) {
               console.error(
                 "[PAYMENT CUSTOMER NOTIFY ERROR]",
                 {
-                  companyId,
-
-                  phone:
-                    ownerPaymentReview
-                      .notifyCustomer
-                      .phone,
-
-                  error:
-                    error instanceof Error
-                      ? error.message
-                      : String(error),
-                },
+    companyId
+},
               );
             }
           }

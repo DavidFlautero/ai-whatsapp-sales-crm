@@ -1,0 +1,26 @@
+PRIVACY_STATIC_SELFTEST_EVIDENCE
+SCOPE=SOURCE_AND_CONTRACT_CONTROLS
+GENERATED_AT=2026-08-30T18:44:54Z
+SOURCE_HEAD=f7ba30eb3117b6b53ceb7df79e836a9a833a9a7a
+MIGRATION_SHA256=f241c4f2eddaae59bc9d9643c97310ef6dd06d0c8b2309235e3f502c16b9dde2
+EXPECTED_CHECKS=17
+REMOTE_DATABASE_MODIFIED=NO
+PASS nine_privacy_tables
+PASS rls_enabled_nine
+PASS rls_forced_nine
+PASS atomic_transition_rpc
+PASS atomic_policy_rpc
+PASS dual_control_db
+PASS legal_hold_db
+PASS optimistic_version_db
+PASS atomic_repository
+PASS eleven_permissions
+PASS admin_cannot_approve
+PASS admin_cannot_erase
+PASS eleven_routes
+PASS tenant_filter_required
+PASS direct_delete_absent
+PASS supabase_payload_not_logged
+PASS transcript_not_logged
+CHECKS_TOTAL=17
+CHECKS_FAILED=0

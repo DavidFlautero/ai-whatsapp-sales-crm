@@ -1552,22 +1552,12 @@ export async function handleWhatsappOrder(
   console.log(
     "[ORDER INTENT]",
     {
-      companyId:
-        input.companyId,
-
-      phone:
-        input.phone,
-
-      intent:
-        intent.intent,
-
-      lineCount:
-        intent.lines.length,
-
-      currentStatus:
-        currentWorkflow?.status
-        ?? null,
-    },
+    companyId: input.companyId,
+    intent: intent.intent,
+    lineCount: intent.lines.length,
+    currentStatus: currentWorkflow?.status
+        ?? null
+},
   );
 
   const normalizedMessage =
@@ -1671,15 +1661,9 @@ export async function handleWhatsappOrder(
     console.log(
       "[ORDER DRAFT CANCELLED DURING SHIPPING]",
       {
-        companyId:
-          input.companyId,
-
-        phone:
-          input.phone,
-
-        previousStatus:
-          currentWorkflow?.status,
-      },
+    companyId: input.companyId,
+    previousStatus: currentWorkflow?.status
+},
     );
 
     return {
@@ -2591,21 +2575,11 @@ if (
       console.log(
         "[ORDER DRAFT UPDATED BEFORE FINAL CONFIRMATION]",
         {
-          companyId:
-            input.companyId,
-
-          phone:
-            input.phone,
-
-          lineCount:
-            updated.lines.length,
-
-          total:
-            updated.total,
-
-          fingerprint:
-            updated.fingerprint,
-        },
+    companyId: input.companyId,
+    lineCount: updated.lines.length,
+    total: updated.total,
+    fingerprint: updated.fingerprint
+},
       );
 
       return {
@@ -2711,21 +2685,11 @@ if (
     console.log(
       "[ORDER DRAFT SAVED]",
       {
-        companyId:
-          input.companyId,
-
-        phone:
-          input.phone,
-
-        fingerprint:
-          draft.fingerprint,
-
-        lineCount:
-          draft.lines.length,
-
-        total:
-          draft.total,
-      },
+    companyId: input.companyId,
+    fingerprint: draft.fingerprint,
+    lineCount: draft.lines.length,
+    total: draft.total
+},
     );
 
     return {
@@ -2809,22 +2773,12 @@ if (
     console.log(
       "[PAYMENT ACCOUNT SENT]",
       {
-        companyId:
-          input.companyId,
-
-        phone:
-          input.phone,
-
-        paymentAccountId:
-          account.id,
-
-        orderId:
-          currentWorkflow?.orderId
-          ?? null,
-
-        expiresAt:
-          expiresAt.toISOString(),
-      },
+    companyId: input.companyId,
+    paymentAccountId: account.id,
+    orderId: currentWorkflow?.orderId
+        ?? null,
+    expiresAt: expiresAt.toISOString()
+},
     );
 
     return {
@@ -3225,23 +3179,13 @@ if (
       console.log(
         "[WHATSAPP ORDER CREATED]",
         {
-          companyId:
-            input.companyId,
-
-          phone:
-            input.phone,
-
-          orderId,
-
-          orderNumber,
-
-          total:
-            completed.total,
-
-          paymentAccountId:
-            paymentAccount?.id
-            ?? null,
-        },
+    companyId: input.companyId,
+    orderId,
+    orderNumber,
+    total: completed.total,
+    paymentAccountId: paymentAccount?.id
+        ?? null
+},
       );
 
       const orderReply =
@@ -3294,14 +3238,8 @@ if (
       console.error(
         "[WHATSAPP ORDER CREATE ERROR]",
         {
-          companyId:
-            input.companyId,
-
-          phone:
-            input.phone,
-
-          error,
-        },
+    companyId: input.companyId
+},
       );
 
       return {

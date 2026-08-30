@@ -361,13 +361,8 @@ export async function salesAgentReply(
         console.error(
           "[PRODUCT VISION SEARCH ERROR]",
           {
-            companyId,
-
-            phone:
-              input.phone,
-
-            message,
-          },
+    companyId
+},
         );
       }
     }
@@ -432,20 +427,11 @@ export async function salesAgentReply(
     console.log(
       "[SALES AGENT STORE LINK]",
       {
-        companyId,
-
-        phone:
-          input.phone,
-
-        mode:
-          storeLinkReply.mode,
-
-        category:
-          storeLinkReply.category,
-
-        url:
-          storeLinkReply.url,
-      },
+    companyId,
+    mode: storeLinkReply.mode,
+    category: storeLinkReply.category,
+    url: storeLinkReply.url
+},
     );
 
     return {
@@ -480,18 +466,11 @@ export async function salesAgentReply(
     console.log(
       "[SALES AGENT ORDER MUTATION]",
       {
-        companyId,
-
-        phone:
-          input.phone,
-
-        currentMessageId:
-          input.currentMessageId
-          ?? null,
-
-        responseLength:
-          mutationWorkflow.text.length,
-      },
+    companyId,
+    currentMessageId: input.currentMessageId
+        ?? null,
+    responseLength: mutationWorkflow.text.length
+},
     );
 
     return {
@@ -523,13 +502,9 @@ export async function salesAgentReply(
     console.log(
       "[SALES AGENT ORDER WORKFLOW]",
       {
-        companyId,
-        phone:
-          input.phone,
-
-        responseLength:
-          orderWorkflow.text.length,
-      },
+    companyId,
+    responseLength: orderWorkflow.text.length
+},
     );
 
     return {
@@ -763,16 +738,8 @@ let catalogLookupMessage =
           console.error(
             "[CATALOG DIRECT SEARCH ERROR]",
             {
-              companyId,
-
-              phone:
-                input.phone,
-
-              error:
-                error instanceof Error
-                  ? error.message
-                  : String(error),
-            },
+    companyId
+},
           );
 
           return [];
@@ -858,24 +825,11 @@ let catalogLookupMessage =
             console.log(
               "[CATALOG SEMANTIC REFERENCE RESOLVED]",
               {
-                companyId,
-
-                phone:
-                  input.phone,
-
-                originalMessage:
-                  input.message,
-
-                resolvedReference:
-                  resolvedCatalogReference,
-
-                matches:
-                  resolvedMatches.length,
-
-                firstCode:
-                  resolvedMatches[0]?.code
-                  ?? null,
-              },
+    companyId,
+    matches: resolvedMatches.length,
+    firstCode: resolvedMatches[0]?.code
+        ?? null
+},
             );
           }
         }
@@ -886,16 +840,8 @@ let catalogLookupMessage =
       console.error(
         "[CATALOG SEMANTIC REFERENCE ERROR]",
         {
-          companyId,
-
-          phone:
-            input.phone,
-
-          error:
-            error instanceof Error
-              ? error.message
-              : String(error),
-        },
+    companyId
+},
       );
     }
   }
@@ -1094,15 +1040,10 @@ let catalogLookupMessage =
   console.log(
     "[SALES AGENT RESPONSE]",
     {
-      companyId,
-      phone:
-        input.phone,
-
-      degradedSources,
-
-      responseLength:
-        response.length,
-    },
+    companyId,
+    degradedSources,
+    responseLength: response.length
+},
   );
 
   return {

@@ -2307,20 +2307,10 @@ async function executePendingMutation(
     console.error(
       "[WHATSAPP ORDER MUTATION ERROR]",
       {
-        companyId:
-          workflow.companyId,
-
-        phone:
-          workflow.phone,
-
-        orderId:
-          workflow.orderId,
-
-        fingerprint:
-          workflow.fingerprint,
-
-        error,
-      },
+    companyId: workflow.companyId,
+    orderId: workflow.orderId,
+    fingerprint: workflow.fingerprint
+},
     );
 
     return {
@@ -2358,37 +2348,18 @@ export async function handleWhatsappOrderMutation(
   console.log(
     "[WHATSAPP ORDER MUTATION STATE]",
     {
-      companyId:
-        input.companyId,
-
-      phone:
-        input.phone,
-
-      hasConversation:
-        Boolean(conversation),
-
-      hasMetadata:
-        Boolean(conversation?.metadata),
-
-      workflowStatus:
-        currentWorkflow?.status
+    companyId: input.companyId,
+    hasConversation: Boolean(conversation),
+    hasMetadata: Boolean(conversation?.metadata),
+    workflowStatus: currentWorkflow?.status
         ?? null,
-
-      workflowOrderNumber:
-        currentWorkflow?.orderNumber
+    workflowOrderNumber: currentWorkflow?.orderNumber
         ?? null,
-
-      workflowSourceMessageId:
-        currentWorkflow?.sourceMessageId
+    workflowSourceMessageId: currentWorkflow?.sourceMessageId
         ?? null,
-
-      currentMessageId:
-        input.currentMessageId
-        ?? null,
-
-      normalizedMessage:
-        normalize(input.message),
-    },
+    currentMessageId: input.currentMessageId
+        ?? null
+},
   );
 
   const confirmation =
@@ -2594,14 +2565,8 @@ export async function handleWhatsappOrderMutation(
     console.error(
       "[ORDER SEMANTIC FALLBACK]",
       {
-        companyId:
-          input.companyId,
-
-        phone:
-          input.phone,
-
-        error,
-      },
+    companyId: input.companyId
+},
     );
   }
 
@@ -2630,25 +2595,13 @@ if (
   console.log(
     "[ORDER MUTATION DOMAIN BYPASS]",
     {
-      companyId:
-        input.companyId,
-
-      phone:
-        input.phone,
-
-      workflowStatus:
-        currentWorkflow?.status
+    companyId: input.companyId,
+    workflowStatus: currentWorkflow?.status
         ?? null,
-
-      domain:
-        semanticCommand.domain,
-
-      action:
-        semanticCommand.action,
-
-      requiresClarification:
-        semanticCommand.requiresClarification,
-    },
+    domain: semanticCommand.domain,
+    action: semanticCommand.action,
+    requiresClarification: semanticCommand.requiresClarification
+},
   );
 
   return {
@@ -2713,27 +2666,13 @@ const semanticMutationActions =
       console.log(
         "[ORDER MUTATION SUPERSEDED]",
         {
-          companyId:
-            input.companyId,
-
-          phone:
-            input.phone,
-
-          previousOrderNumber:
-            currentWorkflow.orderNumber,
-
-          previousFingerprint:
-            currentWorkflow.fingerprint,
-
-          semanticAction:
-            semanticCommand.action,
-
-          correction:
-            semanticCommand.correctsPendingAction,
-
-          confidence:
-            semanticCommand.confidence,
-        },
+    companyId: input.companyId,
+    previousOrderNumber: currentWorkflow.orderNumber,
+    previousFingerprint: currentWorkflow.fingerprint,
+    semanticAction: semanticCommand.action,
+    correction: semanticCommand.correctsPendingAction,
+    confidence: semanticCommand.confidence
+},
       );
     } else if (
       semanticCommand.requiresClarification

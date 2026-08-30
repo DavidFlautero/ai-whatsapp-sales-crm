@@ -90,9 +90,8 @@ export async function uploadCatalogImage(input: {
     console.error(
       "[CATALOG IMAGE UPLOAD ERROR]",
       {
-        status: response.status,
-        body: responseText,
-      },
+    status: response.status
+},
     );
 
     throw new Error(
@@ -218,12 +217,8 @@ export async function deleteCatalogImage(
     console.error(
       "[CATALOG IMAGE DELETE ERROR]",
       {
-        status:
-          response.status,
-
-        body:
-          responseText,
-      },
+    status: response.status
+},
     );
 
 

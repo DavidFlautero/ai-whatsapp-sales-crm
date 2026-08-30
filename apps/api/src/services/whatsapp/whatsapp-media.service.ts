@@ -258,11 +258,8 @@ export async function uploadWhatsappMedia(
     console.error(
       "[WHATSAPP MEDIA UPLOAD ERROR]",
       {
-        status:
-          response.status,
-
-        payload,
-      },
+    status: response.status
+},
     );
 
     throw new Error(
