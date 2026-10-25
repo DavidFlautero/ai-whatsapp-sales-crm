@@ -1,0 +1,327 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 18px;
+}
+
+.header span,
+.cardHeader span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+
+.header h1 {
+  margin: 6px 0 0;
+  color: #111827;
+  font-size: 30px;
+  letter-spacing: -.03em;
+}
+
+.header p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.primary {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 9px;
+  background: #111827;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns:
+    repeat(4,minmax(0,1fr));
+  gap: 12px;
+}
+
+.metrics article {
+  padding: 17px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.metrics span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.metrics strong {
+  display: block;
+  margin-top: 6px;
+  color: #111827;
+  font-size: 24px;
+}
+
+.metrics small {
+  display: block;
+  margin-top: 4px;
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns:
+    minmax(0,1fr)
+    330px;
+  gap: 14px;
+}
+
+.card {
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.cardHeader h2 {
+  margin: 5px 0 0;
+  color: #111827;
+  font-size: 17px;
+}
+
+.eventList {
+  display: flex;
+  flex-direction: column;
+  margin-top: 16px;
+}
+
+.event {
+  display: grid;
+  grid-template-columns:
+    72px minmax(0,1fr) auto;
+  gap: 13px;
+  align-items: center;
+  padding: 14px 0;
+  border-top: 1px solid #eef2f7;
+}
+
+.event:first-child {
+  border-top: 0;
+}
+
+.dateBox {
+  padding: 9px 7px;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475569;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.eventMain strong {
+  display: block;
+  color: #111827;
+  font-size: 13px;
+}
+
+.eventMain small {
+  display: block;
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 10px;
+}
+
+.eventMain p {
+  margin: 6px 0 0;
+  color: #475569;
+  font-size: 11px;
+}
+
+.eventRight {
+  text-align: right;
+}
+
+.eventRight strong {
+  display: block;
+  color: #111827;
+  font-size: 13px;
+}
+
+.eventRight span {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 9px;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.risks {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 15px;
+}
+
+.risks > div {
+  display: grid;
+  grid-template-columns:
+    8px minmax(0,1fr);
+  gap: 10px;
+}
+
+.risks i {
+  width: 8px;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: #111827;
+}
+
+.risks strong {
+  display: block;
+  color: #111827;
+  font-size: 12px;
+}
+
+.risks small {
+  display: block;
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 10px;
+}
+
+.tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.tasks label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #334155;
+  font-size: 12px;
+}
+
+.empty {
+  padding: 30px 0;
+  text-align: center;
+}
+
+.empty strong {
+  color: #111827;
+}
+
+.empty p {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+@media (max-width: 1000px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .metrics {
+    grid-template-columns:
+      repeat(2,minmax(0,1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .event {
+    grid-template-columns:
+      60px minmax(0,1fr);
+  }
+
+  .eventRight {
+    grid-column: 2;
+    text-align: left;
+  }
+}
+
+/* =========================================================
+   OPERATIONAL DASHBOARD V1
+   ========================================================= */
+
+.event [data-severity] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 3px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .06em;
+}
+
+.event [data-severity="critical"] {
+  font-weight: 900;
+}
+
+.event [data-priority="high"] strong {
+  font-weight: 800;
+}
+
+.tasks a {
+  display: block;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(120, 120, 120, .16);
+  color: inherit;
+  text-decoration: none;
+}
+
+.tasks a:last-child {
+  border-bottom: 0;
+}
+
+.tasks a:hover {
+  text-decoration: underline;
+}
+
+.eventMain p {
+  margin: 4px 0 0;
+}
+
+.eventMain p + p {
+  margin-top: 3px;
+}
+
+.eventRight small {
+  display: block;
+  margin-top: 3px;
+}

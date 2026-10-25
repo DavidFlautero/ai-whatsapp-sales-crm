@@ -1,0 +1,372 @@
+.root{
+  grid-column:1/-1;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+}
+
+.header>div:first-child{
+  min-width:0;
+}
+
+.header span{
+  display:block;
+  color:#64748b;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.12em;
+}
+
+.header h2{
+  margin:4px 0;
+  color:#0f172a;
+  font-size:18px;
+  letter-spacing:-.02em;
+}
+
+.header p{
+  margin:0;
+  color:#64748b;
+  font-size:10px;
+  line-height:1.5;
+}
+
+.message{
+  max-width:360px;
+  padding:8px 10px;
+  border:1px solid #dbe3ea;
+  border-radius:7px;
+  background:#f8fafc;
+  color:#334155;
+  font-size:9px;
+}
+
+.layout{
+  display:grid;
+  grid-template-columns:minmax(430px,.95fr) minmax(0,1.05fr);
+  gap:14px;
+  align-items:start;
+}
+
+.formCard,
+.usersCard{
+  border:1px solid #e3e8ee;
+  border-radius:10px;
+  background:#fff;
+}
+
+.formCard{
+  display:flex;
+  flex-direction:column;
+  gap:15px;
+  padding:16px;
+}
+
+.usersCard{
+  padding:14px;
+}
+
+.cardHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.cardHeader strong{
+  display:block;
+  color:#111827;
+  font-size:12px;
+}
+
+.cardHeader small{
+  display:block;
+  margin-top:3px;
+  color:#7c8aa0;
+  font-size:9px;
+}
+
+.textButton{
+  border:0;
+  background:transparent;
+  color:#64748b;
+  font-size:9px;
+  cursor:pointer;
+}
+
+.fields{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+}
+
+.fields label,
+.passwordRow label{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  color:#475569;
+  font-size:9px;
+  font-weight:700;
+}
+
+.fields input,
+.fields select,
+.passwordRow input,
+.search{
+  box-sizing:border-box;
+  width:100%;
+  min-height:35px;
+  padding:7px 9px;
+  border:1px solid #dbe1e8;
+  border-radius:7px;
+  outline:none;
+  background:#fff;
+  color:#111827;
+  font:inherit;
+}
+
+.fields input:focus,
+.fields select:focus,
+.passwordRow input:focus,
+.search:focus{
+  border-color:#94a3b8;
+}
+
+.passwordRow{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+  align-items:end;
+}
+
+.passwordRow button{
+  min-height:35px;
+  padding:0 12px;
+  border:1px solid #dbe1e8;
+  border-radius:7px;
+  background:#fff;
+  color:#334155;
+  font-size:9px;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.permissionBlock{
+  display:flex;
+  flex-direction:column;
+  gap:9px;
+  padding-top:2px;
+}
+
+.permissionBlock>div:first-child strong{
+  display:block;
+  color:#111827;
+  font-size:10px;
+}
+
+.permissionBlock>div:first-child small{
+  display:block;
+  margin-top:2px;
+  color:#7c8aa0;
+  font-size:8px;
+}
+
+.checkGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+}
+
+.check{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-height:32px;
+  padding:0 8px;
+  border:1px solid #e7ebef;
+  border-radius:7px;
+  background:#fafbfc;
+  color:#334155;
+  font-size:9px;
+  cursor:pointer;
+}
+
+.check:hover{
+  border-color:#cbd5e1;
+}
+
+.check input{
+  width:13px;
+  height:13px;
+  margin:0;
+}
+
+.saveButton{
+  min-height:37px;
+  border:0;
+  border-radius:7px;
+  background:#10243a;
+  color:#fff;
+  font-size:9px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.saveButton:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+.search{
+  max-width:190px;
+  min-height:32px;
+  font-size:9px;
+}
+
+.userList{
+  display:flex;
+  flex-direction:column;
+  margin-top:8px;
+}
+
+.userRow{
+  display:grid;
+  grid-template-columns:36px minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+  padding:11px 0;
+  border-bottom:1px solid #edf0f3;
+}
+
+.userRow:last-child{
+  border-bottom:0;
+}
+
+.avatar{
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border-radius:8px;
+  background:#10243a;
+  color:#fff;
+  font-size:9px;
+  font-weight:800;
+}
+
+.userInfo{
+  min-width:0;
+}
+
+.userTitle{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:6px;
+}
+
+.userTitle strong{
+  color:#111827;
+  font-size:10px;
+}
+
+.userTitle span{
+  padding:3px 5px;
+  border-radius:5px;
+  background:#f1f5f9;
+  color:#64748b;
+  font-size:7px;
+  font-weight:700;
+}
+
+.userInfo small{
+  display:block;
+  margin-top:3px;
+  overflow:hidden;
+  color:#64748b;
+  font-size:8px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.tags{
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  margin-top:6px;
+}
+
+.tags span{
+  padding:3px 5px;
+  border-radius:4px;
+  background:#f8fafc;
+  color:#64748b;
+  font-size:7px;
+}
+
+.rowActions{
+  display:flex;
+  gap:5px;
+}
+
+.rowActions button{
+  padding:6px 8px;
+  border:1px solid #dbe1e8;
+  border-radius:6px;
+  background:#fff;
+  color:#334155;
+  font-size:8px;
+  cursor:pointer;
+}
+
+.rowActions .dangerButton{
+  color:#991b1b;
+}
+
+.empty{
+  padding:26px 10px;
+  color:#94a3b8;
+  text-align:center;
+  font-size:9px;
+}
+
+@media(max-width:1100px){
+  .layout{
+    grid-template-columns:1fr;
+  }
+}
+
+@media(max-width:700px){
+  .header,
+  .cardHeader{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .fields,
+  .checkGrid,
+  .passwordRow{
+    grid-template-columns:1fr;
+  }
+
+  .search{
+    max-width:none;
+  }
+
+  .userRow{
+    grid-template-columns:34px minmax(0,1fr);
+  }
+
+  .rowActions{
+    grid-column:1/-1;
+    padding-left:44px;
+  }
+}

@@ -1,3 +1,4 @@
+import { EventIntakeSettingsPanel } from "../../components/settings/event-intake-settings-panel";
 import {
   StoreHeroSettings,
 } from "./_components/StoreHeroSettings";
@@ -70,7 +71,7 @@ const agents = [
 ];
 
 const summary = [
-  ["Empresa", "Fulanitas", "Operación comercial principal"],
+  ["Empresa", "Eventos Mediterráneo", "Operación comercial principal"],
   ["Canal", "WhatsApp Cloud API", "Recepción y respuesta de mensajes"],
   ["Motor", "Claude", "Razonamiento y generación de respuestas"],
   ["Datos", "Supabase PostgreSQL", "Persistencia pendiente de credenciales"]
@@ -96,6 +97,7 @@ export default function SettingsPage() {
         />
 
         <PaymentSettingsPanel />
+        <EventIntakeSettingsPanel />
 
         <section className={styles.summaryGrid} aria-label="Resumen del sistema">
           {summary.map(([label, value, meta]) => (
@@ -187,7 +189,7 @@ export default function SettingsPage() {
             <div className={styles.configList}>
               <div className={styles.configRow}>
                 <span className={styles.configKey}>Empresa</span>
-                <span className={styles.configValue}>Fulanitas</span>
+                <span className={styles.configValue}>Eventos Mediterráneo</span>
                 <span className={styles.configState}>Definida</span>
               </div>
               <div className={styles.configRow}>

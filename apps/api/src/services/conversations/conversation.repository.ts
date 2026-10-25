@@ -12,6 +12,8 @@ import {
   type Contact,
 } from "../crm/crm.repository.js";
 
+import { normalizeWhapiMessageType } from "../whapi/whapi-message-normalizer.js";
+
 export type Conversation = {
   id?: string;
 
@@ -238,7 +240,10 @@ export async function getOrCreateConversation(
     };
   }
 
-  const rows =
+  let rows: Conversation[];
+
+  try {
+    rows =
     await supabaseRequest<
       Conversation[]
     >({
@@ -278,6 +283,33 @@ export async function getOrCreateConversation(
         },
       ],
     });
+
+  } catch (error) {
+    // Otra solicitud pudo crear la conversacion
+    // entre el SELECT inicial y este INSERT.
+
+    console.warn(
+      "[CRM CONVERSATION CREATE RETRY]",
+      { companyId, channel }
+    );
+
+    const concurrentRows =
+      await supabaseRequest<Conversation[]>({
+        table: "conversations",
+        query:
+          `?company_id=eq.${encodeURIComponent(companyId)}`
+          + `&contact_id=eq.${encodeURIComponent(contact.id)}`
+          + `&channel=eq.${encodeURIComponent(channel)}`
+          + "&select=*"
+          + "&limit=1",
+      });
+
+    if (!concurrentRows[0]) {
+      throw error;
+    }
+
+    rows = concurrentRows;
+  }
 
   const conversation =
     rows[0];
@@ -336,6 +368,9 @@ export async function saveMessage(
   input: Message,
   companyId =
     env.DEFAULT_COMPANY_ID,
+  options?: {
+    trustedSource?: "ai" | "human_operator";
+  },
 ) {
   if (
     input.external_message_id
@@ -347,12 +382,74 @@ export async function saveMessage(
       );
 
     if (duplicate) {
-      return {
-        message:
-          duplicate,
+      const trustedSource = options?.trustedSource;
+      const existingSource = duplicate.media?.source;
 
-        duplicate:
-          true,
+      const sameContact =
+        duplicate.contact_phone.replace(/\D/g, "") ===
+        input.contact_phone.replace(/\D/g, "");
+
+      if (
+        trustedSource &&
+        duplicate.id &&
+        sameContact &&
+        duplicate.direction === "outbound" &&
+        input.direction === "outbound" &&
+        (existingSource == null || existingSource === "")
+      ) {
+        const media = {
+          ...(duplicate.media ?? {}),
+          ...(input.media ?? {}),
+          source: trustedSource,
+        };
+
+        if (!isSupabaseConfigured()) {
+          duplicate.media = media;
+
+          return {
+            message: duplicate,
+            duplicate: true,
+          };
+        }
+
+        const rows = await supabaseRequest<Message[]>({
+          table: "messages",
+          method: "PATCH",
+          query:
+            `?company_id=eq.${encodeURIComponent(companyId)}` +
+            `&id=eq.${encodeURIComponent(duplicate.id)}` +
+            "&direction=eq.outbound",
+          prefer: "return=representation",
+          body: { media },
+        });
+
+        if (!rows[0]?.id) {
+          throw new Error(
+            "MESSAGE_SOURCE_RECONCILIATION_FAILED"
+          );
+        }
+
+        return {
+          message: rows[0],
+          duplicate: true,
+        };
+      }
+
+      if (
+        trustedSource &&
+        existingSource &&
+        existingSource !== trustedSource
+      ) {
+        console.warn("[MESSAGE SOURCE CONFLICT]", {
+          messageId: duplicate.id,
+          existingSource,
+          requestedSource: trustedSource,
+        });
+      }
+
+      return {
+        message: duplicate,
+        duplicate: true,
       };
     }
   }
@@ -399,12 +496,17 @@ export async function saveMessage(
         ?? "whatsapp",
 
       message_type:
-        input.message_type
-        ?? "text",
+        normalizeWhapiMessageType(
+          input.message_type ?? "text",
+        ),
 
       media:
-        input.media
-        ?? {},
+        options?.trustedSource
+          ? {
+              ...(input.media ?? {}),
+              source: options.trustedSource,
+            }
+          : input.media ?? {},
 
       delivery_status:
         input.delivery_status

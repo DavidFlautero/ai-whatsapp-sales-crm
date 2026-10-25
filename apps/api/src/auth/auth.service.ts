@@ -10,6 +10,10 @@ import {
   readPasswordOverride,
 } from "./password-reset.service.js";
 
+import {
+  findManagedUserByEmail,
+} from "./managed-users.service.js";
+
 const jwtSecret = new TextEncoder().encode(
   authConfig.secret,
 );
@@ -26,17 +30,47 @@ export async function authenticateUser(
   email: string,
   password: string,
 ): Promise<SessionUser | null> {
-  const normalizedEmail = email
-    .trim()
-    .toLowerCase();
+  const normalizedEmail =
+    email
+      .trim()
+      .toLowerCase();
 
-  const record = authConfig.users.find(
-    (user) =>
-      user.active &&
-      user.email.toLowerCase() === normalizedEmail,
-  );
+  /*
+   * 1. Usuarios históricos configurados
+   *    por AUTH_USERS_JSON.
+   */
+  let record =
+    authConfig.users.find(
+      (user) =>
+        user.active
+        && user.email
+          .toLowerCase()
+          === normalizedEmail,
+    )
+    ?? null;
 
+  /*
+   * 2. Usuarios creados desde
+   *    Equipo / Administración.
+   */
   if (!record) {
+    try {
+      record =
+        await findManagedUserByEmail(
+          normalizedEmail,
+        );
+    } catch (error) {
+      console.error(
+        "[MANAGED AUTH USER]",
+        error,
+      );
+    }
+  }
+
+  if (
+    !record
+    || !record.active
+  ) {
     await bcrypt.compare(
       password,
       "$2b$12$C6UzMDM.H6dfI/f/IKcEe.3QXeEaoFfQwK3HOFM9TFsQY9N9Kd7yW",
@@ -50,23 +84,27 @@ export async function authenticateUser(
       record.id,
     );
 
-  const valid = await bcrypt.compare(
-    password,
-    passwordOverride?.passwordHash
-    ?? record.passwordHash,
-  );
+  const valid =
+    await bcrypt.compare(
+      password,
+      passwordOverride
+        ?.passwordHash
+      ?? record.passwordHash,
+    );
 
   if (!valid) {
     return null;
   }
 
   const {
-    passwordHash: _passwordHash,
+    passwordHash:
+      _passwordHash,
     ...user
   } = record;
 
   return user;
 }
+
 
 export async function createSessionToken(
   user: SessionUser,
@@ -77,6 +115,14 @@ export async function createSessionToken(
     role: user.role,
     companyId: user.companyId,
     active: user.active,
+
+    views:
+      user.views
+      ?? [],
+
+    actions:
+      user.actions
+      ?? [],
   })
     .setProtectedHeader({
       alg: "HS256",
@@ -167,7 +213,24 @@ export async function verifySessionToken(
       email: payload.email,
       role,
       companyId,
-      active: payload.active === true,
+      active:
+        payload.active === true,
+
+      views:
+        Array.isArray(
+          payload.views,
+        )
+          ? payload.views
+              .map(String)
+          : [],
+
+      actions:
+        Array.isArray(
+          payload.actions,
+        )
+          ? payload.actions
+              .map(String)
+          : [],
     };
   } catch {
     return null;

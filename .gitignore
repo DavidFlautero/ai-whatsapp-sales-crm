@@ -80,3 +80,22 @@ supabase/.branches/
 *.py[cod]
 /data/voice-tests/*.wav
 # END VOICE LOCAL ARTIFACTS
+
+# BEGIN VPS GITHUB BACKUP
+.env*
+!.env.example
+.next*/
+.deploy-snapshots/
+*.backup*
+*.before-*
+*.broken*
+/reports/
+/cancelled
+*.pem
+*.key
+*.p12
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+# END VPS GITHUB BACKUP

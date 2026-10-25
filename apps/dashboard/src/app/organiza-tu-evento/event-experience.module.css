@@ -1,0 +1,200 @@
+
+/* ============================================================
+   RESPONSIVE HARDENING V1
+   EXPERIENCIAS DINÁMICAS
+   ============================================================ */
+
+.experience,
+.experience * {
+  box-sizing: border-box;
+}
+
+.experience {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (max-width: 900px) {
+  .media {
+    min-height: 410px;
+  }
+
+  .mediaCopy {
+    max-width: 680px;
+
+    padding:
+      48px 36px 58px;
+  }
+
+  .services {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+}
+
+@media (max-width: 680px) {
+  .experience {
+    margin-top: 22px;
+
+    border-radius: 17px;
+  }
+
+  .media {
+    min-height: 440px;
+  }
+
+  .video {
+    width: 100%;
+    height: 100%;
+
+    object-position:
+      center center;
+  }
+
+  .mediaOverlay {
+    background:
+      linear-gradient(
+        0deg,
+        rgba(8, 15, 21, .94) 0%,
+        rgba(8, 15, 21, .76) 40%,
+        rgba(8, 15, 21, .18) 78%
+      );
+  }
+
+  .mediaCopy {
+    position: absolute;
+
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    max-width: none;
+
+    padding:
+      30px 20px 80px;
+  }
+
+  .mediaCopy > span {
+    font-size: 8px;
+  }
+
+  .mediaCopy h3 {
+    max-width: 100%;
+
+    font-size:
+      clamp(
+        2.05rem,
+        10vw,
+        2.75rem
+      );
+
+    line-height: .98;
+  }
+
+  .mediaCopy p {
+    max-width: 100%;
+
+    margin-top: 14px;
+
+    font-size: 11px;
+
+    line-height: 1.6;
+  }
+
+  .brandSeal {
+    left: 16px;
+    right: auto;
+    bottom: 14px;
+
+    max-width:
+      calc(100% - 32px);
+  }
+
+  .brandSeal img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .servicesArea {
+    padding:
+      24px 16px;
+  }
+
+  .servicesHeading {
+    display: grid;
+
+    gap: 8px;
+
+    margin-bottom: 17px;
+  }
+
+  .servicesHeading strong {
+    max-width: none;
+
+    text-align: left;
+
+    font-size: 14px;
+  }
+
+  .services {
+    grid-template-columns:
+      1fr;
+
+    gap: 8px;
+  }
+
+  .service {
+    min-height: 0;
+
+    padding: 13px;
+  }
+
+  .service p {
+    font-size: 9px;
+  }
+
+  .note {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 430px) {
+  .media {
+    min-height: 420px;
+  }
+
+  .mediaCopy {
+    padding:
+      26px 17px 76px;
+  }
+
+  .mediaCopy h3 {
+    font-size: 2.15rem;
+  }
+
+  .servicesArea {
+    padding:
+      21px 13px;
+  }
+}
+
+@media (max-width: 390px) {
+  .media {
+    min-height: 400px;
+  }
+
+  .mediaCopy h3 {
+    font-size: 2rem;
+  }
+
+  .mediaCopy p {
+    font-size: 10px;
+  }
+
+  .brandSeal span {
+    font-size: 8px;
+  }
+}

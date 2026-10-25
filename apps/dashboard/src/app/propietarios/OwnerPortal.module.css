@@ -1,0 +1,275 @@
+
+.portal, .access {
+  min-height:100vh;
+  font-family:Inter,system-ui,sans-serif;
+  color:#202b3a;
+  background:radial-gradient(circle at top right,#e7e0d7,transparent 44%),#f7f5f2;
+}
+
+.portal *, .access * {box-sizing:border-box;}
+.portal button,.access button {font:inherit;cursor:pointer;}
+
+.portal > header {
+  background:#16283b;
+  color:#fff;
+  border-bottom:1px solid #ffffff24;
+  box-shadow:0 12px 32px #17233124;
+}
+
+.portal > header > div {
+  max-width:1180px;
+  margin:auto;
+  padding:32px 26px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+}
+
+.portal > header p,
+.access > div > div:first-child > span {
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.2em;
+  color:#c9a477;
+  font-weight:800;
+}
+
+.portal h1 {
+  font-size:clamp(32px,5vw,48px);
+  letter-spacing:-.05em;
+  line-height:1.06;
+  margin:10px 0 0;
+}
+
+.portal header button {
+  border:1px solid #ffffff55;
+  border-radius:11px;
+  background:#ffffff14;
+  color:#fff;
+  padding:11px 17px;
+}
+
+.portal header button:hover {background:#ffffff27;}
+
+.portal > div {
+  max-width:1180px;
+  margin:0 auto;
+  padding:38px 26px 70px;
+}
+
+.portal > div > div:has(> button) {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(245px,1fr));
+  gap:20px;
+}
+
+.portal > div > div > button {
+  border:1px solid #e2ddd7;
+  border-radius:20px;
+  text-align:left;
+  background:#fff;
+  color:#26344a;
+  padding:27px;
+  box-shadow:0 8px 25px #1c2b3b12;
+  transition:transform .15s,border-color .15s;
+}
+
+.portal > div > div > button:hover {
+  transform:translateY(-3px);
+  border-color:#b28a5d;
+}
+
+.portal > div > div > button:focus-visible {
+  outline:3px solid #ae8652;
+  outline-offset:2px;
+}
+
+.portal > div > div > button[class*="border-amber-400"] {
+  border-color:#b28a5d;
+  box-shadow:0 0 0 2px #b28a5d55;
+}
+
+.portal > div > div > button > span {
+  display:inline-block;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  border-radius:30px;
+  background:#f8ecdd;
+  color:#8e5f35;
+  padding:7px 10px;
+}
+
+.portal > div > div > button h2 {
+  font-size:23px;
+  letter-spacing:-.03em;
+  margin:17px 0 12px;
+  line-height:1.15;
+}
+
+.portal > div > div > button p {
+  font-size:14px;
+  color:#687588;
+  margin:8px 0;
+}
+
+.portal > div > section {
+  margin-top:30px;
+  background:#fff;
+  border:1px solid #e5e0d9;
+  border-radius:24px;
+  padding:clamp(20px,4vw,36px);
+  box-shadow:0 18px 40px #1c2b3b0d;
+}
+
+.portal section > div:first-child > p:first-child {
+  color:#a67a4c;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  font-weight:800;
+  font-size:12px;
+}
+
+.portal section h2 {
+  font-size:27px;
+  letter-spacing:-.035em;
+  margin:10px 0;
+}
+
+.portal section p {
+  line-height:1.6;
+  color:#657180;
+}
+
+.portal section > p,
+.portal section > div:nth-child(2) > p {
+  background:#f5f6f8;
+  border:1px dashed #d4d9dd;
+  padding:19px;
+  border-radius:13px;
+}
+
+.portal section > div:nth-child(2) > div {
+  display:flex;
+  justify-content:space-between;
+  gap:15px;
+  align-items:center;
+  background:#f6f7f9;
+  border:1px solid #e7e9eb;
+  border-radius:12px;
+  padding:15px;
+  margin:10px 0;
+}
+
+.portal section span {
+  display:inline-block;
+  border-radius:24px;
+  background:#f3e6d4;
+  color:#8d5d29;
+  padding:8px 12px;
+  font-size:12px;
+  font-weight:750;
+}
+
+.access {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:44px 22px;
+}
+
+.access > div {width:min(100%,530px);}
+.access > div > div:first-child {margin-bottom:34px;}
+
+.access h1 {
+  font-size:clamp(38px,6vw,56px);
+  line-height:1.08;
+  letter-spacing:-.05em;
+  margin:18px 0;
+}
+
+.access > div > div:first-child p {
+  font-size:16px;
+  line-height:1.7;
+  color:#6b7581;
+}
+
+.access section {
+  background:#fff;
+  border:1px solid #e7e0da;
+  border-radius:24px;
+  padding:34px;
+  box-shadow:0 23px 70px #17233117;
+}
+
+.access section > div:first-child {
+  width:54px;
+  height:54px;
+  display:grid;
+  place-items:center;
+  border-radius:15px;
+  background:#f5ebde;
+  color:#987243;
+  font-size:24px;
+}
+
+.access section h2 {
+  font-size:24px;
+  margin:25px 0 8px;
+  letter-spacing:-.035em;
+}
+
+.access section p {
+  color:#667380;
+  font-size:14px;
+  line-height:1.7;
+}
+
+.access section button {
+  background:#172b41;
+  color:#fff;
+  border:0;
+  border-radius:13px;
+  padding:17px 20px;
+  width:100%;
+  margin-top:24px;
+  font-weight:750;
+}
+
+.access section button:hover {background:#2d4762;}
+.access section button:disabled {opacity:.6;cursor:wait;}
+
+.access section > div:not(:first-child) {
+  background:#f5f6f8;
+  border:1px solid #e2e5e9;
+  padding:17px;
+  border-radius:12px;
+  margin-top:23px;
+  color:#5e6a78;
+}
+
+.access > div > p:last-child {
+  text-align:center;
+  color:#82909e;
+  font-size:12px;
+  margin-top:23px;
+}
+
+@media(max-width:640px) {
+  .portal > header > div {
+    padding:24px 18px;
+    flex-wrap:wrap;
+  }
+
+  .portal > div {padding:26px 16px 48px;}
+  .portal > div > section {margin-top:20px;}
+
+  .portal section > div:nth-child(2) > div {
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .access section {padding:25px;}
+}

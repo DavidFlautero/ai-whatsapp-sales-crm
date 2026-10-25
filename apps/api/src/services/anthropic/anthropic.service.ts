@@ -1,7 +1,8 @@
 import { env } from "../../config/env.js";
 
-export async function generateAgentResponse(prompt: string) {
+export async function generateAgentResponse(prompt: string, strict = false) {
   if (!process.env.ANTHROPIC_API_KEY) {
+    if (strict) throw new Error("ANTHROPIC_API_KEY_MISSING");
     return "Hola 👋 Te ayudo. ¿Buscás catálogo, stock o querés armar un pedido?";
   }
 
@@ -28,15 +29,19 @@ export async function generateAgentResponse(prompt: string) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("[CLAUDE ERROR]", data);
+      console.error("[CLAUDE ERROR]", { status: response.status, type: data?.error?.type, message: data?.error?.message });
+      if (strict) throw new Error(`ANTHROPIC_HTTP_${response.status}`);
       return "Perfecto 👌 Contame qué modelo, talle o color estás buscando y te ayudo con opciones.";
     }
 
     const text = data.content?.find((item: any) => item.type === "text")?.text;
 
-    return String(text ?? "").trim() || "Perfecto 👌 ¿Qué estás buscando?";
+    const result = String(text ?? "").trim();
+    if (!result && strict) throw new Error("ANTHROPIC_EMPTY_RESPONSE");
+    return result || "Perfecto 👌 ¿Qué estás buscando?";
   } catch (error) {
     console.error("[CLAUDE REQUEST ERROR]", error);
+    if (strict) throw error;
     return "Perfecto 👌 Te ayudo. ¿Qué producto estás buscando?";
   }
 }

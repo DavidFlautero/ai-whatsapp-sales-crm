@@ -1,0 +1,209 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.top {
+  width: 100%;
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 0;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.top:hover {
+  background: #fafafa;
+}
+
+.top > div:first-child {
+  min-width: 0;
+}
+
+.top strong {
+  display: block;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.top > div:first-child span {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.right {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.status,
+.critical {
+  padding: 5px 8px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.status {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.critical {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.body {
+  padding: 18px;
+  border-top: 1px solid #e5e7eb;
+  background: #fbfcfd;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 15px;
+}
+
+.grid label,
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.grid label > span,
+.metric > span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.grid input,
+.grid select,
+.grid textarea {
+  width: 100%;
+  border: 1px solid #dbe1e8;
+  border-radius: 9px;
+  background: #fff;
+  color: #111827;
+  font: inherit;
+}
+
+.grid input,
+.grid select {
+  min-height: 41px;
+  padding: 0 11px;
+}
+
+.grid textarea {
+  min-height: 90px;
+  padding: 10px 11px;
+  resize: vertical;
+}
+
+.grid input:focus,
+.grid select:focus,
+.grid textarea:focus {
+  outline: none;
+  border-color: #94a3b8;
+  box-shadow:
+    0 0 0 3px
+    rgba(148, 163, 184, .13);
+}
+
+.metric {
+  justify-content: center;
+  min-height: 65px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.metric strong {
+  color: #111827;
+  font-size: 15px;
+}
+
+.check {
+  justify-content: center;
+}
+
+.check input {
+  width: 17px;
+  min-height: auto;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+.empty {
+  padding: 32px 20px;
+  border: 1px dashed #dbe1e8;
+  border-radius: 12px;
+  color: #64748b;
+  font-size: 13px;
+  text-align: center;
+}
+
+.error {
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 9px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .top {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .right {
+    justify-content:
+      space-between;
+  }
+
+  .grid {
+    grid-template-columns:
+      1fr;
+  }
+
+  .full {
+    grid-column: auto;
+  }
+}

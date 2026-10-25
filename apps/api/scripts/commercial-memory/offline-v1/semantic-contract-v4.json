@@ -1,0 +1,55 @@
+{
+  "schema_version": 4,
+  "description": "Contrato de propuestas comerciales sujetas a revision humana",
+  "allowed_roles": [
+    "client",
+    "owner",
+    "provider",
+    "mixed",
+    "unknown"
+  ],
+  "allowed_fact_kinds": [
+    "event_type",
+    "event_date",
+    "guest_count",
+    "venue_location",
+    "requested_service",
+    "offered_service",
+    "budget",
+    "venue_capacity",
+    "venue_feature",
+    "commercial_condition",
+    "other"
+  ],
+  "required_output_fields": [
+    "contact_fingerprint",
+    "proposed_role",
+    "role_evidence_message_ids",
+    "summary",
+    "facts",
+    "opt_out_candidate",
+    "opt_out_evidence_message_ids",
+    "followup_review_candidate",
+    "followup_evidence_message_ids",
+    "requires_human_review",
+    "automatically_applied"
+  ],
+  "fact_format": {
+    "kind": "allowed_fact_kind",
+    "value": "string",
+    "certainty": "explicit_or_inferred",
+    "message_ids": ["source_message_id"]
+  },
+  "policies": {
+    "all_facts_require_message_evidence": true,
+    "all_message_ids_must_belong_to_same_contact": true,
+    "inferences_are_not_confirmed_facts": true,
+    "never_invent_year_or_reservation_availability": true,
+    "never_confirm_reservation_or_payment": true,
+    "never_override_opt_out": true,
+    "followup_is_a_proposal_not_authorization": true,
+    "human_review_required": true,
+    "automatic_contact_updates": false,
+    "automatic_message_sending": false
+  }
+}

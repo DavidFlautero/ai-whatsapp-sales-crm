@@ -97,6 +97,7 @@ export type RuntimeIntegrityStatus = {
 
 
 const EXPECTED_CUSTOMER =
+  process.env.LICENSE_CUSTOMER?.trim() ||
   "fulanitas";
 
 
@@ -118,6 +119,7 @@ const REQUIRED_FEATURES:
  * en esta VPS.
  */
 const PUBLIC_KEY_B64 =
+  process.env.LICENSE_PUBLIC_KEY_B64?.trim() ||
   "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUNvd0JRWURLMlZ3QXlFQXZuK3JqTGZGdDdrU0liVGpRcTF1MnYrbGFaanQ5eXFtUndtSTQ5REw2bEE9Ci0tLS0tRU5EIFBVQkxJQyBLRVktLS0tLQo=";
 
 

@@ -19,9 +19,11 @@ import {
 export type IntegrationProvider =
   | "whatsapp"
   | "anthropic"
+  | "openai"
   | "groq"
   | "supabase"
   | "ninox"
+  | "google_calendar"
   | "vision";
 
 export type IntegrationSecrets = {
@@ -35,6 +37,11 @@ export type IntegrationSecrets = {
 
   anthropic: {
     apiKey: string;
+  };
+
+  openai: {
+    apiKey: string;
+    model: string;
   };
 
   groq: {
@@ -52,6 +59,16 @@ export type IntegrationSecrets = {
     baseUrl: string;
     apiKey: string;
     webhookSecret: string;
+  };
+
+  google_calendar: {
+    clientId: string;
+    clientSecret: string;
+    refreshToken: string;
+    calendarId: string;
+    calendarName: string;
+    timeZone: string;
+    connectedEmail: string;
   };
 
   vision: {
@@ -149,10 +166,62 @@ function initialSecrets():
         ),
     },
 
+    openai: {
+      apiKey:
+        value(
+          "OPENAI_API_KEY",
+        ),
+
+      model:
+        value(
+          "OPENAI_MODEL",
+          "gpt-5.6-luna",
+        ),
+    },
+
     groq: {
       apiKey:
         value(
           "GROQ_API_KEY",
+        ),
+    },
+
+    google_calendar: {
+      clientId:
+        value(
+          "GOOGLE_CALENDAR_CLIENT_ID",
+        ),
+
+      clientSecret:
+        value(
+          "GOOGLE_CALENDAR_CLIENT_SECRET",
+        ),
+
+      refreshToken:
+        value(
+          "GOOGLE_CALENDAR_REFRESH_TOKEN",
+        ),
+
+      calendarId:
+        value(
+          "GOOGLE_CALENDAR_ID",
+          "primary",
+        ),
+
+      calendarName:
+        value(
+          "GOOGLE_CALENDAR_NAME",
+        ),
+
+      timeZone:
+        value(
+          "GOOGLE_CALENDAR_TIME_ZONE",
+          "Europe/Madrid",
+        ),
+
+      connectedEmail:
+        value(
+          "GOOGLE_CALENDAR_CONNECTED_EMAIL",
         ),
     },
 
@@ -232,6 +301,13 @@ function emptyProvider(
         apiKey: "",
       };
 
+    case "openai":
+      return {
+        apiKey: "",
+        model:
+          "gpt-5.6-luna",
+      };
+
     case "groq":
       return {
         apiKey: "",
@@ -242,6 +318,17 @@ function emptyProvider(
         url: "",
         serviceRoleKey: "",
         anonKey: "",
+      };
+
+    case "google_calendar":
+      return {
+        clientId: "",
+        clientSecret: "",
+        refreshToken: "",
+        calendarId: "primary",
+        calendarName: "",
+        timeZone: "Europe/Madrid",
+        connectedEmail: "",
       };
 
     case "vision":
@@ -260,6 +347,61 @@ function emptyProvider(
       };
   }
 }
+
+function normalizeIntegrationSecrets(
+  input: IntegrationSecrets,
+): IntegrationSecrets {
+  const defaults =
+    initialSecrets();
+
+  const candidate =
+    input as Partial<
+      IntegrationSecrets
+    >;
+
+  return {
+    whatsapp: {
+      ...defaults.whatsapp,
+      ...(candidate.whatsapp ?? {}),
+    },
+
+    anthropic: {
+      ...defaults.anthropic,
+      ...(candidate.anthropic ?? {}),
+    },
+
+    openai: {
+      ...defaults.openai,
+      ...(candidate.openai ?? {}),
+    },
+
+    groq: {
+      ...defaults.groq,
+      ...(candidate.groq ?? {}),
+    },
+
+    supabase: {
+      ...defaults.supabase,
+      ...(candidate.supabase ?? {}),
+    },
+
+    ninox: {
+      ...defaults.ninox,
+      ...(candidate.ninox ?? {}),
+    },
+
+    google_calendar: {
+      ...defaults.google_calendar,
+      ...(candidate.google_calendar ?? {}),
+    },
+
+    vision: {
+      ...defaults.vision,
+      ...(candidate.vision ?? {}),
+    },
+  };
+}
+
 
 function masterKey(): Buffer {
   const raw =
@@ -458,11 +600,21 @@ async function readStore():
         "utf8",
       );
 
-    return decryptStore(
-      JSON.parse(
-        raw,
-      ) as EncryptedEnvelope,
-    );
+    const decrypted =
+      decryptStore(
+        JSON.parse(
+          raw,
+        ) as EncryptedEnvelope,
+      );
+
+    return {
+      ...decrypted,
+
+      integrations:
+        normalizeIntegrationSecrets(
+          decrypted.integrations,
+        ),
+    };
   } catch (
     error: unknown
   ) {
@@ -565,6 +717,18 @@ function applyRuntime(
     "ANTHROPIC_API_KEY",
     integrations
       .anthropic.apiKey,
+  );
+
+  runtimeSet(
+    "OPENAI_API_KEY",
+    integrations
+      .openai.apiKey,
+  );
+
+  runtimeSet(
+    "OPENAI_MODEL",
+    integrations
+      .openai.model,
   );
 
   runtimeSet(
@@ -791,6 +955,24 @@ export async function getPublicIntegrationConfig() {
         ),
     },
 
+    openai: {
+      configured:
+        Boolean(
+          current
+            .openai.apiKey,
+        ),
+
+      apiKeyMasked:
+        mask(
+          current
+            .openai.apiKey,
+        ),
+
+      model:
+        current
+          .openai.model,
+    },
+
     groq: {
       configured:
         Boolean(
@@ -803,6 +985,57 @@ export async function getPublicIntegrationConfig() {
           current
             .groq.apiKey,
         ),
+    },
+
+    google_calendar: {
+      configured:
+        Boolean(
+          current
+            .google_calendar
+            .clientId
+          && current
+            .google_calendar
+            .clientSecret,
+        ),
+
+      connected:
+        Boolean(
+          current
+            .google_calendar
+            .refreshToken,
+        ),
+
+      clientId:
+        current
+          .google_calendar
+          .clientId,
+
+      clientSecretMasked:
+        mask(
+          current
+            .google_calendar
+            .clientSecret,
+        ),
+
+      calendarId:
+        current
+          .google_calendar
+          .calendarId,
+
+      calendarName:
+        current
+          .google_calendar
+          .calendarName,
+
+      timeZone:
+        current
+          .google_calendar
+          .timeZone,
+
+      connectedEmail:
+        current
+          .google_calendar
+          .connectedEmail,
     },
 
     vision: {
@@ -1015,6 +1248,34 @@ export async function saveIntegrationConfig(
               break;
             }
 
+            case "openai": {
+              const apiKey =
+                nonEmptyText(
+                  values,
+                  "apiKey",
+                );
+
+              const model =
+                nonEmptyText(
+                  values,
+                  "model",
+                );
+
+              if (apiKey) {
+                integrations
+                  .openai.apiKey =
+                  apiKey;
+              }
+
+              if (model) {
+                integrations
+                  .openai.model =
+                  model;
+              }
+
+              break;
+            }
+
             case "groq": {
               const apiKey =
                 nonEmptyText(
@@ -1026,6 +1287,101 @@ export async function saveIntegrationConfig(
                 integrations
                   .groq.apiKey =
                   apiKey;
+              }
+
+              break;
+            }
+
+            case "google_calendar": {
+              const clientId =
+                nonEmptyText(
+                  values,
+                  "clientId",
+                );
+
+              const clientSecret =
+                nonEmptyText(
+                  values,
+                  "clientSecret",
+                );
+
+              const refreshToken =
+                nonEmptyText(
+                  values,
+                  "refreshToken",
+                );
+
+              const calendarId =
+                nonEmptyText(
+                  values,
+                  "calendarId",
+                );
+
+              const calendarName =
+                nonEmptyText(
+                  values,
+                  "calendarName",
+                );
+
+              const timeZone =
+                nonEmptyText(
+                  values,
+                  "timeZone",
+                );
+
+              const connectedEmail =
+                nonEmptyText(
+                  values,
+                  "connectedEmail",
+                );
+
+              if (clientId) {
+                integrations
+                  .google_calendar
+                  .clientId =
+                  clientId;
+              }
+
+              if (clientSecret) {
+                integrations
+                  .google_calendar
+                  .clientSecret =
+                  clientSecret;
+              }
+
+              if (refreshToken) {
+                integrations
+                  .google_calendar
+                  .refreshToken =
+                  refreshToken;
+              }
+
+              if (calendarId) {
+                integrations
+                  .google_calendar
+                  .calendarId =
+                  calendarId;
+              }
+
+              if (calendarName) {
+                integrations
+                  .google_calendar
+                  .calendarName =
+                  calendarName;
+              }
+
+              if (timeZone) {
+                integrations
+                  .google_calendar
+                  .timeZone =
+                  timeZone;
+              }
+
+              if (connectedEmail) {
+                integrations
+                  .google_calendar
+                  .connectedEmail =
+                  connectedEmail;
               }
 
               break;

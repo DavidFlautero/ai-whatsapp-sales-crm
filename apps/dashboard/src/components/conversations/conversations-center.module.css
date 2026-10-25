@@ -326,6 +326,13 @@
   border-bottom-right-radius: 5px;
 }
 
+.bubbleExternal {
+  color: #334155;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-bottom-right-radius: 5px;
+}
+
 .messageSource {
   margin-bottom: 5px;
   color: #64748b;

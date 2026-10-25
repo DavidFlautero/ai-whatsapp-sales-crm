@@ -557,6 +557,74 @@ export async function testIntegration(
         };
       }
 
+      case "openai": {
+        const apiKey =
+          text(
+            candidate,
+            "apiKey",
+            current
+              .openai.apiKey,
+          );
+
+        const model =
+          text(
+            candidate,
+            "model",
+            current
+              .openai.model
+            || "gpt-5.6-luna",
+          );
+
+        if (!apiKey) {
+          return missing(
+            provider,
+            "Falta la API key de OpenAI.",
+          );
+        }
+
+        const {
+          response,
+          latencyMs,
+        } = await timedFetch(
+          `https://api.openai.com/v1/models/${encodeURIComponent(
+            model,
+          )}`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${apiKey}`,
+            },
+          },
+        );
+
+        if (!response.ok) {
+          return httpFailure(
+            provider,
+            response,
+            latencyMs,
+          );
+        }
+
+        return {
+          provider,
+          status: "online",
+          configured: true,
+
+          checkedAt:
+            new Date()
+              .toISOString(),
+
+          latencyMs,
+
+          message:
+            "OpenAI validó la credencial y el modelo.",
+
+          details: {
+            model,
+          },
+        };
+      }
+
       case "vision": {
         const apiKey =
           text(
@@ -832,6 +900,187 @@ export async function testIntegration(
               serviceRoleKey
                 ? "service_role"
                 : "anon",
+          },
+        };
+      }
+
+      case "google_calendar": {
+        const clientId =
+          text(
+            candidate,
+            "clientId",
+            current
+              .google_calendar
+              .clientId,
+          );
+
+        const clientSecret =
+          text(
+            candidate,
+            "clientSecret",
+            current
+              .google_calendar
+              .clientSecret,
+          );
+
+        const refreshToken =
+          current
+            .google_calendar
+            .refreshToken;
+
+        if (
+          !clientId ||
+          !clientSecret
+        ) {
+          return missing(
+            provider,
+            "Faltan Client ID o Client Secret de Google.",
+          );
+        }
+
+        if (!refreshToken) {
+          return {
+            provider,
+            status:
+              "missing_config",
+
+            configured: true,
+
+            checkedAt:
+              new Date()
+                .toISOString(),
+
+            latencyMs: null,
+
+            message:
+              "Credenciales guardadas. Falta autorizar la cuenta de Google.",
+          };
+        }
+
+        const params =
+          new URLSearchParams({
+            client_id:
+              clientId,
+
+            client_secret:
+              clientSecret,
+
+            refresh_token:
+              refreshToken,
+
+            grant_type:
+              "refresh_token",
+          });
+
+        const {
+          response,
+          latencyMs,
+        } =
+          await timedFetch(
+            "https://oauth2.googleapis.com/token",
+            {
+              method:
+                "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/x-www-form-urlencoded",
+              },
+
+              body:
+                params.toString(),
+            },
+          );
+
+        if (!response.ok) {
+          return {
+            provider,
+
+            status:
+              response.status === 400
+              || response.status === 401
+                ? "invalid_credentials"
+                : "degraded",
+
+            configured: true,
+
+            checkedAt:
+              new Date()
+                .toISOString(),
+
+            latencyMs,
+
+            message:
+              `Google rechazó la autorización (HTTP ${response.status}).`,
+          };
+        }
+
+        const body =
+          await response
+            .json()
+            .catch(
+              () => ({}),
+            ) as Record<
+              string,
+              unknown
+            >;
+
+        if (
+          typeof body.access_token !==
+            "string"
+          || !body.access_token
+        ) {
+          return {
+            provider,
+            status:
+              "invalid_credentials",
+            configured: true,
+
+            checkedAt:
+              new Date()
+                .toISOString(),
+
+            latencyMs,
+
+            message:
+              "Google no devolvió un access token válido.",
+          };
+        }
+
+        return {
+          provider,
+          status:
+            "online",
+
+          configured: true,
+
+          checkedAt:
+            new Date()
+              .toISOString(),
+
+          latencyMs,
+
+          message:
+            "Google Calendar conectado correctamente.",
+
+          details: {
+            calendarId:
+              current
+                .google_calendar
+                .calendarId
+              || "primary",
+
+            calendarName:
+              current
+                .google_calendar
+                .calendarName
+              || null,
+
+            connectedEmail:
+              current
+                .google_calendar
+                .connectedEmail
+              || null,
           },
         };
       }

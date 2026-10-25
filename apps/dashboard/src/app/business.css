@@ -972,3 +972,693 @@ body {
 }
 
 /* INTERNATIONAL_LIGHT_UI_V5_END */
+
+
+/* ============================================================
+   EVENTOS MEDITERRÁNEO — SIDEBAR FINAL
+   ============================================================ */
+
+.shell.company-shell > aside.sidebar.company-sidebar {
+  background:
+    radial-gradient(
+      circle at 20% 0%,
+      rgba(208, 174, 99, .13),
+      transparent 27%
+    ),
+    linear-gradient(
+      180deg,
+      #071321 0%,
+      #0a1929 48%,
+      #07121f 100%
+    ) !important;
+
+  border-right:
+    1px solid rgba(255,255,255,.07) !important;
+
+  box-shadow:
+    18px 0 55px rgba(7,18,31,.10) !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-brand-lockup {
+  padding: 4px 4px 0;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-brand-mark {
+  background:
+    linear-gradient(
+      145deg,
+      #dfc37d,
+      #ab7e31
+    ) !important;
+
+  color: #071321 !important;
+
+  box-shadow:
+    0 12px 28px rgba(190,145,57,.28);
+}
+
+.shell.company-shell
+.company-sidebar
+.brand-kicker {
+  color: #d7b76e !important;
+  opacity: 1 !important;
+
+  font-size: 9px !important;
+  font-weight: 900 !important;
+  letter-spacing: .16em !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.brand-title {
+  color: #fff !important;
+  opacity: 1 !important;
+
+  font-size: 20px !important;
+  font-weight: 850 !important;
+  line-height: 1.05 !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-context-card {
+  background:
+    rgba(255,255,255,.055) !important;
+
+  border:
+    1px solid rgba(255,255,255,.09) !important;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.025) !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-context-card strong {
+  color: #fff !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-context-card small {
+  color:
+    rgba(255,255,255,.48) !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-nav-section summary {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-nav-section-title {
+  color:
+    rgba(220,185,106,.78) !important;
+
+  opacity: 1 !important;
+
+  font-size: 9px !important;
+  font-weight: 900 !important;
+  letter-spacing: .15em !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-nav-section-arrow {
+  opacity: .7 !important;
+  border-color: #c8a45d !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-nav-items {
+  gap: 3px;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-nav-items a {
+  color:
+    rgba(235,241,247,.69) !important;
+
+  opacity: 1 !important;
+
+  border:
+    1px solid transparent !important;
+
+  border-radius: 10px !important;
+
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-nav-items a:hover {
+  color: #fff !important;
+
+  background:
+    rgba(255,255,255,.055) !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-nav-items a.is-active {
+  color: #f3d791 !important;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(210,174,94,.18),
+      rgba(210,174,94,.045)
+    ) !important;
+
+  border-color:
+    rgba(210,174,94,.20) !important;
+
+  box-shadow:
+    inset 3px 0 0 #d4b264 !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.nav-icon {
+  background:
+    rgba(255,255,255,.25) !important;
+}
+
+.shell.company-shell
+.company-sidebar
+a.is-active
+.nav-icon {
+  background: #d6b568 !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-service-card {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255,255,255,.065),
+      rgba(255,255,255,.025)
+    ) !important;
+
+  border:
+    1px solid rgba(255,255,255,.08) !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-service-card strong {
+  color: #fff !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-service-card .muted {
+  color:
+    rgba(255,255,255,.43) !important;
+}
+
+
+/* ============================================================
+   EVENTOS MEDITERRÁNEO — SIDEBAR FINAL
+   ============================================================ */
+
+.shell.company-shell > aside.sidebar.company-sidebar {
+  background:
+    radial-gradient(
+      circle at 20% 0%,
+      rgba(208, 174, 99, .13),
+      transparent 27%
+    ),
+    linear-gradient(
+      180deg,
+      #071321 0%,
+      #0a1929 48%,
+      #07121f 100%
+    ) !important;
+
+  border-right:
+    1px solid rgba(255,255,255,.07) !important;
+
+  box-shadow:
+    18px 0 55px rgba(7,18,31,.10) !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-brand-lockup {
+  padding: 4px 4px 0;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-brand-mark {
+  background:
+    linear-gradient(
+      145deg,
+      #dfc37d,
+      #ab7e31
+    ) !important;
+
+  color: #071321 !important;
+
+  box-shadow:
+    0 12px 28px rgba(190,145,57,.28);
+}
+
+.shell.company-shell
+.company-sidebar
+.brand-kicker {
+  color: #d7b76e !important;
+  opacity: 1 !important;
+
+  font-size: 9px !important;
+  font-weight: 900 !important;
+  letter-spacing: .16em !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.brand-title {
+  color: #fff !important;
+  opacity: 1 !important;
+
+  font-size: 20px !important;
+  font-weight: 850 !important;
+  line-height: 1.05 !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-context-card {
+  background:
+    rgba(255,255,255,.055) !important;
+
+  border:
+    1px solid rgba(255,255,255,.09) !important;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.025) !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-context-card strong {
+  color: #fff !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-context-card small {
+  color:
+    rgba(255,255,255,.48) !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-nav-section summary {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-nav-section-title {
+  color:
+    rgba(220,185,106,.78) !important;
+
+  opacity: 1 !important;
+
+  font-size: 9px !important;
+  font-weight: 900 !important;
+  letter-spacing: .15em !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-nav-section-arrow {
+  opacity: .7 !important;
+  border-color: #c8a45d !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-nav-items {
+  gap: 3px;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-nav-items a {
+  color:
+    rgba(235,241,247,.69) !important;
+
+  opacity: 1 !important;
+
+  border:
+    1px solid transparent !important;
+
+  border-radius: 10px !important;
+
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-nav-items a:hover {
+  color: #fff !important;
+
+  background:
+    rgba(255,255,255,.055) !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-nav-items a.is-active {
+  color: #f3d791 !important;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(210,174,94,.18),
+      rgba(210,174,94,.045)
+    ) !important;
+
+  border-color:
+    rgba(210,174,94,.20) !important;
+
+  box-shadow:
+    inset 3px 0 0 #d4b264 !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.nav-icon {
+  background:
+    rgba(255,255,255,.25) !important;
+}
+
+.shell.company-shell
+.company-sidebar
+a.is-active
+.nav-icon {
+  background: #d6b568 !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-service-card {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255,255,255,.065),
+      rgba(255,255,255,.025)
+    ) !important;
+
+  border:
+    1px solid rgba(255,255,255,.08) !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-service-card strong {
+  color: #fff !important;
+}
+
+.shell.company-shell
+.company-sidebar
+.company-service-card .muted {
+  color:
+    rgba(255,255,255,.43) !important;
+}
+
+/* ============================================================
+   EVENTOS MEDITERRÁNEO — HOME MINIMAL
+   ============================================================ */
+
+.company-hero {
+  display: none !important;
+}
+
+.company-dashboard-main {
+  padding-top: 22px !important;
+}
+
+
+/* ============================================================
+   EVENTOS MEDITERRÁNEO — QUICK ACCESS MINIMAL
+   ============================================================ */
+
+.company-quick-section--compact {
+  margin-top: 34px !important;
+}
+
+.company-quick-compact-header {
+  margin-bottom: 16px !important;
+}
+
+.company-quick-compact-header h2 {
+  margin: 5px 0 3px !important;
+
+  color: #132234 !important;
+
+  font-size: 20px !important;
+  letter-spacing: -.03em !important;
+}
+
+.company-quick-compact-header p {
+  margin: 0 !important;
+
+  color: #7a8795 !important;
+
+  font-size: 11px !important;
+}
+
+
+.company-quick-compact-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+
+  gap: 10px;
+}
+
+
+.company-quick-compact-card {
+  position: relative;
+
+  display: grid;
+
+  grid-template-columns:
+    42px
+    minmax(0, 1fr)
+    28px;
+
+  align-items: center;
+
+  gap: 13px;
+
+  min-height: 104px;
+
+  padding: 15px 16px;
+
+  border:
+    1px solid #dfe6ed;
+
+  border-radius: 14px;
+
+  background:
+    rgba(255,255,255,.88);
+
+  box-shadow:
+    0 8px 26px
+    rgba(19,34,52,.045);
+
+  text-decoration: none !important;
+
+  transition:
+    border-color .18s ease,
+    box-shadow .18s ease,
+    transform .18s ease,
+    background .18s ease;
+}
+
+
+.company-quick-compact-card:hover {
+  transform:
+    translateY(-2px);
+
+  border-color:
+    rgba(188,145,58,.45);
+
+  background: #fff;
+
+  box-shadow:
+    0 14px 34px
+    rgba(19,34,52,.085);
+}
+
+
+.company-quick-compact-card.is-featured {
+  border-color:
+    rgba(199,158,71,.38);
+
+  background:
+    linear-gradient(
+      135deg,
+      #fffdf8,
+      #f8f1e3
+    );
+}
+
+
+.company-quick-compact-icon {
+  display: grid;
+
+  place-items: center;
+
+  width: 42px;
+  height: 42px;
+
+  border-radius: 11px;
+
+  background:
+    #102337;
+
+  color:
+    #d8b86d;
+
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: -.02em;
+}
+
+
+.company-quick-compact-card.is-featured
+.company-quick-compact-icon {
+  background:
+    linear-gradient(
+      145deg,
+      #dcb866,
+      #b78632
+    );
+
+  color:
+    #0c1825;
+}
+
+
+.company-quick-compact-copy {
+  display: grid;
+
+  gap: 3px;
+
+  min-width: 0;
+}
+
+
+.company-quick-compact-copy strong {
+  color:
+    #172638;
+
+  font-size: 12px;
+  font-weight: 850;
+}
+
+
+.company-quick-compact-copy small {
+  overflow: hidden;
+
+  color:
+    #748190;
+
+  font-size: 9.5px;
+  line-height: 1.35;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+.company-quick-compact-copy em {
+  margin-top: 2px;
+
+  color:
+    #a2772d;
+
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+
+.company-quick-compact-arrow {
+  display: grid;
+
+  place-items: center;
+
+  width: 28px;
+  height: 28px;
+
+  border:
+    1px solid #e4e8ed;
+
+  border-radius: 8px;
+
+  color:
+    #9a742f;
+
+  font-size: 13px;
+
+  transition:
+    background .18s ease,
+    transform .18s ease;
+}
+
+
+.company-quick-compact-card:hover
+.company-quick-compact-arrow {
+  transform:
+    translateX(2px);
+
+  background:
+    #f5efe3;
+}
+
+
+@media (max-width: 1100px) {
+  .company-quick-compact-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0,1fr)
+      );
+  }
+}
+
+
+@media (max-width: 700px) {
+  .company-quick-compact-grid {
+    grid-template-columns:
+      1fr;
+  }
+
+  .company-quick-compact-card {
+    min-height: 92px;
+  }
+}

@@ -42,6 +42,12 @@ type Message = {
   occurred_at?: string;
   created_at?: string;
   media?: Record<string, unknown>;
+  raw_payload?: {
+    message?: {
+      source?: string;
+      from_me?: boolean;
+    };
+  };
   delivery_status?: string;
 };
 
@@ -174,22 +180,28 @@ function shortTime(
 function messageSource(
   message: Message,
 ) {
-  if (
-    message.direction
-      === "inbound"
-  ) {
+  if (message.direction === "inbound") {
     return "Cliente";
   }
 
-  if (
-    message.media
-      ?.source
-      === "human_operator"
-  ) {
+  const source = message.media?.source;
+
+  if (source === "human_operator") {
     return "Operador";
   }
 
-  return "IA";
+  if (source === "ai") {
+    return "IA";
+  }
+
+  if (
+    message.raw_payload?.message?.source === "mobile" &&
+    message.raw_payload?.message?.from_me === true
+  ) {
+    return "WhatsApp móvil";
+  }
+
+  return "Empresa (origen no identificado)";
 }
 
 function messageBubbleClass(
@@ -210,7 +222,11 @@ function messageBubbleClass(
     return styles.bubbleOperator;
   }
 
-  return styles.bubbleAi;
+  if (message.media?.source === "ai") {
+    return styles.bubbleAi;
+  }
+
+  return styles.bubbleExternal;
 }
 
 export function ConversationsCenter({

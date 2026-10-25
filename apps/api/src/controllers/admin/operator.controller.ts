@@ -17,6 +17,15 @@ import {
   sendWhatsappText,
 } from "../../services/whatsapp/whatsapp.service.js";
 
+import {
+  env,
+} from "../../config/env.js";
+
+import {
+  sendWhapiText,
+} from "../../services/whapi/whapi.client.js";
+
+
 function effectiveCompanyId(
   req: Request,
 ): string {
@@ -199,13 +208,61 @@ export async function sendOperatorMessage(
     });
   }
 
-  const sent =
-    await sendWhatsappText({
-      to:
-        contactPhone,
+  const useWhapi =
+    companyId === env.DEFAULT_COMPANY_ID;
 
-      text,
-    });
+  const sent = useWhapi
+    ? await (async () => {
+        const result =
+          await sendWhapiText(contactPhone, text);
+
+        const raw =
+          result && typeof result === "object"
+            ? result as Record<string, unknown>
+            : {};
+
+        const nested =
+          raw.message &&
+          typeof raw.message === "object"
+            ? raw.message as Record<string, unknown>
+            : {};
+
+        const externalMessageId =
+          [raw.id, nested.id, raw.message_id]
+            .find(
+              (value): value is string =>
+                typeof value === "string" &&
+                value.length > 0
+            );
+
+        if (
+          raw.sent === false ||
+          raw.success === false ||
+          !externalMessageId
+        ) {
+          throw new Error(
+            "WHAPI_OPERATOR_SEND_NOT_CONFIRMED"
+          );
+        }
+
+        console.log("[WHAPI OPERATOR SENT]", {
+          companyId,
+          messageId: externalMessageId,
+        });
+
+        return {
+          externalMessageId,
+          status: "accepted" as const,
+          raw: {
+            provider: "whapi",
+            response: raw,
+          },
+        };
+      })()
+    : await sendWhatsappText({
+        to: contactPhone,
+        text,
+      });
 
   const stored =
     await saveMessage(
@@ -250,6 +307,9 @@ export async function sendOperatorMessage(
         },
       },
       companyId,
+      {
+        trustedSource: "human_operator",
+      },
     );
 
   return res.status(201).json({

@@ -1,7 +1,26 @@
 import { env } from "../../config/env.js";
 
+function supabaseUrl() {
+  return (
+    process.env.SUPABASE_URL?.trim()
+    || env.SUPABASE_URL?.trim()
+    || ""
+  );
+}
+
+function supabaseServiceRoleKey() {
+  return (
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+    || env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+    || ""
+  );
+}
+
 export function isSupabaseConfigured() {
-  return Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
+  return Boolean(
+    supabaseUrl()
+    && supabaseServiceRoleKey()
+  );
 }
 
 
@@ -18,22 +37,25 @@ export function isVoiceSupabaseConfigured() {
 export async function supabaseRequest<T>
     (input: {
   table: string;
-  method?: "GET" | "POST" | "PATCH";
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
   query?: string;
   body?: unknown;
   prefer?: string;
 }): Promise<T> {
-  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+  const baseUrl = supabaseUrl();
+  const serviceRoleKey = supabaseServiceRoleKey();
+
+  if (!baseUrl || !serviceRoleKey) {
     throw new Error("Supabase is not configured");
   }
 
-  const url = `${env.SUPABASE_URL}/rest/v1/${input.table}${input.query ?? ""}`;
+  const url = `${baseUrl.replace(/\/+$/, "")}/rest/v1/${input.table}${input.query ?? ""}`;
 
   const res = await fetch(url, {
     method: input.method ?? "GET",
     headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
       "Content-Type": "application/json",
       Prefer: input.prefer ?? "return=representation"
     },
@@ -56,6 +78,16 @@ export async function supabaseRequest<T>
         method:
           input.method
           ?? "GET",
+
+          error:
+            data &&
+            typeof data === "object" &&
+            "code" in data
+              ? String(
+                  (data as { code?: unknown }).code
+                  ?? "UNKNOWN"
+                )
+              : "UNKNOWN",
       },
     );
     throw new Error("Supabase request failed");
@@ -97,9 +129,15 @@ export async function supabaseRpc<T>(
   functionName: string,
   body: Record<string, unknown>,
 ): Promise<T> {
+  const runtimeUrl =
+    supabaseUrl();
+
+  const serviceRoleKey =
+    supabaseServiceRoleKey();
+
   if (
-    !env.SUPABASE_URL
-    || !env.SUPABASE_SERVICE_ROLE_KEY
+    !runtimeUrl
+    || !serviceRoleKey
   ) {
     throw new Error(
       "Supabase is not configured",
@@ -107,7 +145,7 @@ export async function supabaseRpc<T>(
   }
 
   const baseUrl =
-    env.SUPABASE_URL.replace(
+    runtimeUrl.replace(
       /\/+$/,
       "",
     );
@@ -125,10 +163,10 @@ export async function supabaseRpc<T>(
 
         headers: {
           apikey:
-            env.SUPABASE_SERVICE_ROLE_KEY,
+            serviceRoleKey,
 
           Authorization:
-            `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+            `Bearer ${serviceRoleKey}`,
 
           "Content-Type":
             "application/json",

@@ -1,0 +1,69 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.main {
+  display: grid;
+  grid-template-columns:
+    repeat(4,minmax(0,1fr));
+  gap: 10px;
+}
+
+.main > div,
+.paymentGrid article {
+  padding: 15px;
+  border: 1px solid #e5e7eb;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.main span,
+.paymentGrid span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.main strong,
+.paymentGrid strong {
+  display: block;
+  margin-top: 5px;
+  color: #111827;
+  font-size: 18px;
+}
+
+.main small,
+.paymentGrid small {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 10px;
+}
+
+.margin {
+  background: #fafafa !important;
+}
+
+.paymentGrid {
+  display: grid;
+  grid-template-columns:
+    repeat(3,minmax(0,1fr));
+  gap: 10px;
+}
+
+@media (max-width: 800px) {
+  .main,
+  .paymentGrid {
+    grid-template-columns:
+      repeat(2,minmax(0,1fr));
+  }
+}
+
+@media (max-width: 550px) {
+  .main,
+  .paymentGrid {
+    grid-template-columns: 1fr;
+  }
+}

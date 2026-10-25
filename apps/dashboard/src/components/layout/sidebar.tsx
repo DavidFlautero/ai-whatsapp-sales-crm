@@ -26,7 +26,7 @@ export function Sidebar() {
             textTransform:"uppercase"
           }}
         >
-          AI SALES OS
+          EVENTOS MEDITERRÁNEO
         </div>
 
         <div
@@ -36,7 +36,7 @@ export function Sidebar() {
             marginTop:10
           }}
         >
-          Fulanitas
+          Control de Eventos
         </div>
       </div>
 
@@ -68,7 +68,7 @@ export function Sidebar() {
         }}
       >
         <div style={{fontSize:13,color:"#94a3b8"}}>
-          Sistema operativo comercial IA
+          Gestión comercial y operativa de eventos
         </div>
 
         <div

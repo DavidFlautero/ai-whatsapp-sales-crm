@@ -1,0 +1,84 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
+}
+
+.header span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.header h3 {
+  margin: 5px 0 0;
+  color: #111827;
+  font-size: 18px;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.item {
+  display: grid;
+  grid-template-columns:
+    60px 18px minmax(0,1fr) auto;
+  gap: 10px;
+  min-height: 62px;
+}
+
+.time {
+  padding-top: 2px;
+  color: #111827;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.line {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.line span {
+  position: relative;
+  z-index: 2;
+  width: 9px;
+  height: 9px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: #111827;
+}
+
+.line i {
+  position: absolute;
+  top: 13px;
+  bottom: -5px;
+  width: 1px;
+  background: #e5e7eb;
+}
+
+.content strong {
+  display: block;
+  color: #111827;
+  font-size: 13px;
+}
+
+.content small {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.status {
+  align-self: start;
+  padding: 5px 7px;
+  border-radius: 7px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 650;
+}

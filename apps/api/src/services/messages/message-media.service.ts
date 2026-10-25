@@ -12,6 +12,8 @@ import {
 } from "../whatsapp/whatsapp-media.service.js";
 
 type MediaMetadata = {
+  provider?: unknown;
+  link?: unknown;
   id?: unknown;
   url?: unknown;
   mime_type?: unknown;
@@ -249,6 +251,99 @@ async function downloadRemoteMedia(
   };
 }
 
+
+async function downloadWhapiMedia(
+  mediaId: string,
+): Promise<{ buffer: Buffer; contentType: string }> {
+  const token = process.env.WHAPI_TOKEN?.trim();
+
+  if (!token) {
+    throw new Error("WHAPI_TOKEN_NOT_CONFIGURED");
+  }
+
+  const baseUrl = (
+    process.env.WHAPI_API_URL ||
+    "https://gate.whapi.cloud"
+  ).replace(/\/+$/, "");
+
+  const response = await fetch(
+    `${baseUrl}/media/${encodeURIComponent(mediaId)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "*/*",
+      },
+      redirect: "error",
+      signal: AbortSignal.timeout(20000),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `WHAPI_MEDIA_DOWNLOAD_FAILED_${response.status}`,
+    );
+  }
+
+  const contentType =
+    response.headers.get("content-type")
+      ?.split(";")[0]
+      ?.trim()
+      .toLowerCase() || "";
+
+  if (
+    contentType === "application/json" ||
+    contentType === "text/html"
+  ) {
+    throw new Error("WHAPI_MEDIA_INVALID_RESPONSE");
+  }
+
+  const maxBytes = 30 * 1024 * 1024;
+
+  const length = Number(
+    response.headers.get("content-length") || "0"
+  );
+
+  if (Number.isFinite(length) && length > maxBytes) {
+    throw new Error("MESSAGE_MEDIA_TOO_LARGE");
+  }
+
+  if (!response.body) {
+    throw new Error("WHAPI_MEDIA_EMPTY_RESPONSE");
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Buffer[] = [];
+  let total = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) break;
+      if (!value) continue;
+
+      total += value.byteLength;
+
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new Error("MESSAGE_MEDIA_TOO_LARGE");
+      }
+
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return {
+    buffer: Buffer.concat(chunks, total),
+    contentType:
+      contentType === "application/octet-stream"
+        ? ""
+        : contentType,
+  };
+}
+
 export async function resolveMessageMedia(
   input: {
     messageId: string;
@@ -311,15 +406,25 @@ export async function resolveMessageMedia(
     );
 
   const directUrl =
-    stringValue(
-      media.url,
-    );
+    stringValue(media.url)
+    || stringValue(media.link);
+
+  const provider =
+    stringValue(media.provider)
+      .toLowerCase();
 
   let buffer: Buffer;
   let detectedMimeType =
     "";
 
-  if (mediaId) {
+  if (provider === "whapi" && mediaId) {
+    const downloaded =
+      await downloadWhapiMedia(mediaId);
+
+    buffer = downloaded.buffer;
+    detectedMimeType = downloaded.contentType;
+
+  } else if (mediaId) {
     const temporaryUrl =
       await getWhatsappMediaUrl(
         mediaId,

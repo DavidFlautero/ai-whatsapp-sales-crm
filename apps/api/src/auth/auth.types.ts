@@ -23,4 +23,9 @@ export type AuthUserRecord = {
   active: boolean;
 };
 
-export type SessionUser = Omit<AuthUserRecord, "passwordHash">;
+export type SessionUser =
+  Omit<AuthUserRecord, "passwordHash">
+  & {
+    views?: string[];
+    actions?: string[];
+  };

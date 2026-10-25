@@ -34,9 +34,11 @@ const providerSchema =
   z.enum([
     "whatsapp",
     "anthropic",
+    "openai",
     "groq",
     "supabase",
     "ninox",
+    "google_calendar",
     "vision",
   ]);
 

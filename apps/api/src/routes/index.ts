@@ -1,3 +1,8 @@
+
+import {
+  whapiRoutes,
+} from "./whapi.routes.js";
+
 import {
   adminIntegrationsRoutes,
 } from "./admin/integrations.routes.js";
@@ -6,7 +11,25 @@ import {
   adminWhatsappBusinessProfileRoutes,
 } from "./admin/whatsapp-business-profile.routes.js";
 
+import {
+  adminWhatsappEmbeddedSignupRoutes,
+} from "./admin/whatsapp-embedded-signup.routes.js";
+
+import {
+  adminGoogleCalendarRoutes,
+} from "./admin/google-calendar.routes.js";
+
+
+import {
+  commercialMemoryDashboardRoutes,
+} from "../modules/commercial-memory/dashboard-read.routes.js";
+
 import { Router } from "express";
+import {
+  ownerInvitationRoutes,
+  ownerPortalRoutes,
+} from "./owner-portal.routes.js";
+
 import {
   adminCatalogMediaRoutes,
 } from "./admin/catalog-media.routes.js";
@@ -25,11 +48,20 @@ import {
 } from "./public/store-settings.routes.js";
 
 import {
+  publicVenueRoutes,
+} from "./public/venues.routes.js";
+
+import {
+  publicLeadRequestRoutes,
+} from "./public/lead-requests.routes.js";
+
+import {
   voiceRoutes,
 } from "../modules/voice/voice.routes.js";
 
 import { whatsappRoutes } from "./whatsapp.routes.js";
 import { customersRoutes } from "./customers.routes.js";
+import { crmRoutes } from "./crm.routes.js";
 import { ordersRoutes } from "./orders.routes.js";
 import { stockRoutes } from "./stock.routes.js";
 import { adminStatusRoutes } from "./admin/status.routes.js";
@@ -73,6 +105,12 @@ import {
 export const router = Router();
 
 router.use(
+  "/whapi",
+  whapiRoutes,
+);
+
+
+router.use(
   "/admin/integrations",
   requireAuth,
   adminIntegrationsRoutes,
@@ -84,6 +122,19 @@ router.use(
   adminWhatsappBusinessProfileRoutes,
 );
 
+router.use(
+  "/admin/whatsapp-embedded",
+  requireAuth,
+  adminWhatsappEmbeddedSignupRoutes,
+);
+
+router.use(
+  "/admin/google-calendar",
+  requireAuth,
+  adminGoogleCalendarRoutes,
+);
+
+
 router.use("/health", healthRoutes);
 router.use(
   "/public/catalog",
@@ -93,7 +144,32 @@ router.use(
   "/public/store-settings",
   publicStoreSettingsRoutes,
 );
+
+
+router.use(
+  "/public/venues",
+  publicVenueRoutes,
+);
+
+
+router.use(
+  "/public/lead-requests",
+  publicLeadRequestRoutes,
+);
 router.use("/auth", authRoutes);
+
+router.use("/owner", ownerPortalRoutes);
+
+router.use(
+  "/crm/owner-invitations",
+  requireAuth,
+  resolveAccessContext({
+    mode: "company",
+    source: "dashboard",
+  }),
+  ownerInvitationRoutes,
+);
+
 router.use("/platform", platformPublicRoutes);
 router.use("/webhook/whatsapp", whatsappRoutes);
 router.use(
@@ -102,6 +178,33 @@ router.use(
 );
 
 router.use("/customers", requireAuth, customersRoutes);
+
+router.use(
+  "/crm/commercial-memory",
+  requireAuth,
+  resolveAccessContext({
+    mode: "company",
+    source: "dashboard",
+  }),
+  requireRoles(
+    "superadmin",
+    "owner",
+    "admin",
+    "supervisor",
+  ),
+  commercialMemoryDashboardRoutes,
+);
+
+router.use(
+  "/crm",
+  requireAuth,
+  resolveAccessContext({
+    mode: "company",
+    source: "dashboard",
+  }),
+  crmRoutes,
+);
+
 router.use(
   "/orders",
 

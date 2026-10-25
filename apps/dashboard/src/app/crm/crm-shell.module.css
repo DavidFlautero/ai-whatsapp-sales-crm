@@ -1,0 +1,338 @@
+.crmShell {
+  min-height: 100vh;
+  background: #f5f7f8;
+}
+
+.crmTopbar {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  width: 100%;
+  border-bottom: 1px solid #e1e5e8;
+  background:
+    rgba(255, 255, 255, .96);
+  backdrop-filter: blur(18px);
+}
+
+.crmTopbarInner {
+  width: min(
+    1480px,
+    calc(100% - 40px)
+  );
+  min-height: 68px;
+  margin: 0 auto;
+
+  display: grid;
+  grid-template-columns:
+    auto
+    minmax(0, 1fr)
+    auto;
+
+  align-items: center;
+  gap: 28px;
+}
+
+.crmBrand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+
+  color: #17212b;
+  text-decoration: none;
+}
+
+.crmBrandMark {
+  width: 36px;
+  height: 36px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 10px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #245b82,
+      #173c59
+    );
+
+  color: #fff;
+
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.crmBrandCopy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.crmBrandCopy strong {
+  font-size: 12px;
+  letter-spacing: -.01em;
+}
+
+.crmBrandCopy small {
+  color: #84909b;
+  font-size: 9px;
+}
+
+.crmNav {
+  height: 68px;
+
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+
+  gap: 4px;
+}
+
+.crmNavLink,
+.crmNavActive {
+  position: relative;
+
+  min-width: 94px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 14px;
+
+  color: #6f7b86;
+
+  text-decoration: none;
+
+  font-size: 12px;
+  font-weight: 750;
+
+  transition:
+    color .16s ease,
+    background .16s ease;
+}
+
+.crmNavLink:hover {
+  color: #263746;
+  background: #f8fafb;
+}
+
+.crmNavActive {
+  color: #193d59;
+}
+
+.crmNavActive::after {
+  content: "";
+
+  position: absolute;
+
+  left: 14px;
+  right: 14px;
+  bottom: -1px;
+
+  height: 3px;
+
+  border-radius:
+    3px 3px 0 0;
+
+  background: #245b82;
+}
+
+.crmPublicActions {
+  display: flex;
+  align-items: center;
+}
+
+.crmPublicLink {
+  min-height: 38px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  padding: 0 13px;
+
+  border: 1px solid #dce2e7;
+  border-radius: 9px;
+
+  background: #fff;
+
+  color: #334756;
+  text-decoration: none;
+
+  font-size: 11px;
+  font-weight: 800;
+
+  transition:
+    border-color .16s ease,
+    background .16s ease;
+}
+
+.crmPublicLink:hover {
+  border-color: #b9c8d3;
+  background: #f9fbfc;
+}
+
+.crmPublicLink span {
+  color: #7f8e99;
+  font-size: 12px;
+}
+
+.crmContent {
+  min-width: 0;
+}
+
+@media (
+  max-width: 850px
+) {
+  .crmTopbarInner {
+    width: min(
+      100% - 22px,
+      1480px
+    );
+
+    min-height: auto;
+
+    grid-template-columns:
+      1fr
+      auto;
+
+    padding:
+      10px 0 0;
+  }
+
+  .crmBrandCopy small {
+    display: none;
+  }
+
+  .crmPublicActions {
+    justify-content: flex-end;
+  }
+
+  .crmPublicLink {
+    min-height: 34px;
+  }
+
+  .crmNav {
+    grid-column:
+      1 / -1;
+
+    width: 100%;
+    height: 48px;
+
+    justify-content:
+      flex-start;
+
+    overflow-x: auto;
+  }
+
+  .crmNavLink,
+  .crmNavActive {
+    min-width: auto;
+    flex: 0 0 auto;
+  }
+}
+
+@media (
+  max-width: 520px
+) {
+  .crmBrandCopy strong {
+    font-size: 10px;
+  }
+
+  .crmPublicLink {
+    font-size: 10px;
+  }
+}
+
+/* ============================================================
+   LOGO REAL EVENTOS MEDITERRÁNEO
+   ============================================================ */
+
+.crmBrandLogoWrap {
+  width: 42px;
+  height: 42px;
+
+  flex: 0 0 42px;
+
+  display: grid;
+  place-items: center;
+
+  overflow: hidden;
+
+  border: 1px solid #e2e6e9;
+  border-radius: 12px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 8px 22px
+    rgba(25, 43, 56, .09);
+}
+
+.crmBrandLogo {
+  width: 100%;
+  height: 100%;
+
+  display: block;
+
+  object-fit: contain;
+
+  padding: 4px;
+}
+
+/* ==================================================
+   CRM CATEGORY NAV — 2026-09-28
+   ================================================== */
+
+.crmNav {
+  flex: 1;
+  justify-content: center;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.crmNav::-webkit-scrollbar {
+  display: none;
+}
+
+.crmNavLink,
+.crmNavActive {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding-left: 11px;
+  padding-right: 11px;
+  font-size: 12px;
+}
+
+@media (max-width: 1280px) {
+  .crmTopbarInner {
+    align-items: center;
+  }
+
+  .crmNav {
+    justify-content: flex-start;
+  }
+
+  .crmBrandCopy small {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .crmTopbarInner {
+    flex-wrap: wrap;
+  }
+
+  .crmNav {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    padding-top: 6px;
+  }
+}
+

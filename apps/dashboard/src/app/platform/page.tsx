@@ -31,7 +31,7 @@ export default function PlatformPage() {
       />
 
       <section className="saas-metrics">
-        <Metric label="Empresas activas" value="1" detail="Fulanitas Fábrica" />
+        <Metric label="Empresas activas" value="1" detail="Eventos Mediterráneo" />
         <Metric label="Robots conectados" value="1" detail="WhatsApp operativo" />
         <Metric label="Usuarios registrados" value="4" detail="Plataforma y empresa" />
         <Metric label="Ingreso mensual" value="USD 50" detail="Cliente inicial" />
@@ -51,7 +51,7 @@ export default function PlatformPage() {
               <span className="saas-company-logo">F</span>
               <div>
                 <StatusBadge>Activa</StatusBadge>
-                <h3>Fulanitas Fábrica</h3>
+                <h3>Eventos Mediterráneo</h3>
                 <p>Cliente inicial · Comercio mayorista</p>
               </div>
             </div>

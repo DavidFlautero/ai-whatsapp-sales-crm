@@ -3,10 +3,67 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
 import styles from "./integrations.module.css";
+
+type MetaEmbeddedConfig = {
+  appId: string;
+  configId: string;
+  graphVersion: string;
+  ready: boolean;
+  serverSecretConfigured: boolean;
+};
+
+type EmbeddedWhatsappSession = {
+  wabaId: string;
+  phoneNumberId?: string;
+};
+
+type FacebookLoginResponse = {
+  status?: string;
+
+  authResponse?: {
+    code?: string;
+  };
+};
+
+declare global {
+  interface Window {
+    FB?: {
+      init: (input: {
+        appId: string;
+        cookie: boolean;
+        xfbml: boolean;
+        version: string;
+      }) => void;
+
+      login: (
+        callback: (
+          response: FacebookLoginResponse,
+        ) => void,
+
+        options: {
+          config_id: string;
+          response_type: "code";
+          override_default_response_type: true;
+
+          extras: {
+            setup: Record<
+              string,
+              never
+            >;
+
+            featureType:
+              "whatsapp_business_app_onboarding";
+          };
+        },
+      ) => void;
+    };
+  }
+}
 
 const apiUrl = (
   process.env.NEXT_PUBLIC_API_URL ||
@@ -16,9 +73,11 @@ const apiUrl = (
 type Provider =
   | "whatsapp"
   | "anthropic"
+  | "openai"
   | "groq"
   | "supabase"
   | "ninox"
+  | "google_calendar"
   | "vision";
 
 type ConnectionStatus =
@@ -89,6 +148,15 @@ type PublicConfig = {
       | null;
   };
 
+  openai: {
+    configured: boolean;
+    apiKeyMasked:
+      | string
+      | null;
+
+    model: string;
+  };
+
   groq: {
     configured: boolean;
     apiKeyMasked:
@@ -117,6 +185,22 @@ type PublicConfig = {
     anonKeyMasked:
       | string
       | null;
+  };
+
+  google_calendar: {
+    configured: boolean;
+    connected: boolean;
+
+    clientId: string;
+
+    clientSecretMasked:
+      | string
+      | null;
+
+    calendarId: string;
+    calendarName: string;
+    timeZone: string;
+    connectedEmail: string;
   };
 
   ninox: {
@@ -266,6 +350,35 @@ const definitions:
     ],
   },
   {
+    id: "openai",
+    eyebrow:
+      "INTELIGENCIA MULTIMODAL",
+    title: "OpenAI",
+    description:
+      "Modelos GPT para análisis visual, automatizaciones y agentes.",
+
+    fields: [
+      {
+        key: "apiKey",
+        label:
+          "OpenAI API Key",
+        type: "password",
+        placeholder:
+          "Dejar vacío para conservar la key actual",
+        helperKey:
+          "apiKeyMasked",
+      },
+      {
+        key: "model",
+        label:
+          "Modelo OpenAI",
+        type: "text",
+        placeholder:
+          "gpt-5.6-luna",
+      },
+    ],
+  },
+  {
     id: "vision",
     eyebrow:
       "BÚSQUEDA VISUAL",
@@ -358,6 +471,80 @@ const definitions:
     ],
   },
   {
+    id: "google_calendar",
+
+    eyebrow:
+      "AGENDA Y COORDINACIÓN",
+
+    title:
+      "Google Calendar",
+
+    description:
+      "Sincroniza eventos, fechas, horarios y ubicaciones del CRM con la agenda de Google.",
+
+    fields: [
+      {
+        key:
+          "clientId",
+
+        label:
+          "Google OAuth Client ID",
+
+        type:
+          "text",
+
+        placeholder:
+          "Client ID de Google Cloud",
+      },
+
+      {
+        key:
+          "clientSecret",
+
+        label:
+          "Google OAuth Client Secret",
+
+        type:
+          "password",
+
+        placeholder:
+          "Dejar vacío para conservarlo",
+
+        helperKey:
+          "clientSecretMasked",
+      },
+
+      {
+        key:
+          "calendarId",
+
+        label:
+          "Calendario destino",
+
+        type:
+          "text",
+
+        placeholder:
+          "primary",
+      },
+
+      {
+        key:
+          "timeZone",
+
+        label:
+          "Zona horaria",
+
+        type:
+          "text",
+
+        placeholder:
+          "Europe/Madrid",
+      },
+    ],
+  },
+
+  {
     id: "ninox",
     eyebrow:
       "MIGRACIÓN Y SINCRONIZACIÓN",
@@ -418,6 +605,12 @@ const emptyDraft:
     apiKey: "",
   },
 
+  openai: {
+    apiKey: "",
+    model:
+      "gpt-5.6-luna",
+  },
+
   vision: {
     apiKey: "",
     model: "",
@@ -431,6 +624,13 @@ const emptyDraft:
     url: "",
     serviceRoleKey: "",
     anonKey: "",
+  },
+
+  google_calendar: {
+    clientId: "",
+    clientSecret: "",
+    calendarId: "primary",
+    timeZone: "Europe/Madrid",
   },
 
   ninox: {
@@ -495,6 +695,9 @@ function statusForProvider(
         .services
         .claude;
 
+    case "openai":
+      return null;
+
     case "groq":
       return status
         .services
@@ -507,6 +710,9 @@ function statusForProvider(
       return status
         .services
         .supabase;
+
+    case "google_calendar":
+      return null;
 
     case "ninox":
       return status
@@ -616,6 +822,26 @@ export function ConnectionsPanel({
     setSuccess,
   ] = useState("");
 
+  const [
+    metaConfig,
+    setMetaConfig,
+  ] = useState<
+    MetaEmbeddedConfig | null
+  >(null);
+
+  const embeddedCodeRef =
+    useRef<string | null>(
+      null,
+    );
+
+  const embeddedSessionRef =
+    useRef<
+      EmbeddedWhatsappSession | null
+    >(null);
+
+  const embeddedCompletingRef =
+    useRef(false);
+
   const configuredCount =
     useMemo(
       () =>
@@ -665,6 +891,16 @@ export function ConnectionsPanel({
         apiKey: "",
       },
 
+      openai: {
+        apiKey: "",
+
+        model:
+          nextConfig
+            .openai
+            .model ||
+          "gpt-5.6-luna",
+      },
+
       vision: {
         apiKey: "",
 
@@ -689,6 +925,28 @@ export function ConnectionsPanel({
         anonKey: "",
       },
 
+      google_calendar: {
+        clientId:
+          nextConfig
+            .google_calendar
+            .clientId
+          || "",
+
+        clientSecret: "",
+
+        calendarId:
+          nextConfig
+            .google_calendar
+            .calendarId
+          || "primary",
+
+        timeZone:
+          nextConfig
+            .google_calendar
+            .timeZone
+          || "Europe/Madrid",
+      },
+
       ninox: {
         enabled:
           nextConfig
@@ -704,6 +962,275 @@ export function ConnectionsPanel({
         webhookSecret: "",
       },
     });
+  }
+
+  async function launchGoogleCalendarOAuth() {
+    setBusy(
+      "google_calendar",
+    );
+
+    setGlobalError("");
+    setSuccess("");
+
+    try {
+      const saved =
+        await apiRequest<{
+          ok: boolean;
+          data:
+            PublicConfig;
+        }>(
+          "/admin/integrations/config",
+          {
+            method:
+              "PUT",
+
+            body:
+              JSON.stringify({
+                provider:
+                  "google_calendar",
+
+                values:
+                  draft
+                    .google_calendar,
+              }),
+          },
+        );
+
+      setConfig(
+        saved.data,
+      );
+
+      const connection =
+        await apiRequest<{
+          ok: boolean;
+          url: string;
+        }>(
+          "/admin/google-calendar/connect-url",
+        );
+
+      window.location.assign(
+        connection.url,
+      );
+    } catch (
+      error: unknown
+    ) {
+      setGlobalError(
+        error instanceof Error
+          ? error.message
+          : "No fue posible iniciar la conexión con Google Calendar.",
+      );
+
+      setBusy(null);
+    }
+  }
+
+
+  async function completeWhatsappEmbeddedSignup() {
+    if (
+      embeddedCompletingRef
+        .current
+    ) {
+      return;
+    }
+
+    const code =
+      embeddedCodeRef.current;
+
+    const session =
+      embeddedSessionRef.current;
+
+    if (
+      !code ||
+      !session
+    ) {
+      return;
+    }
+
+    embeddedCompletingRef.current =
+      true;
+
+    setBusy(
+      "whatsapp",
+    );
+
+    setGlobalError("");
+    setSuccess("");
+
+    try {
+      const body =
+        await apiRequest<{
+          ok: boolean;
+
+          data: {
+            connected:
+              boolean;
+
+            wabaId:
+              string;
+
+            phoneNumberId:
+              string;
+
+            displayPhoneNumber:
+              string | null;
+
+            verifiedName:
+              string | null;
+
+            coexistence:
+              boolean;
+
+            platformType:
+              string | null;
+
+            config:
+              PublicConfig;
+          };
+        }>(
+          "/admin/whatsapp-embedded/complete",
+          {
+            method:
+              "POST",
+
+            body:
+              JSON.stringify({
+                code,
+
+                wabaId:
+                  session
+                    .wabaId,
+
+                phoneNumberId:
+                  session
+                    .phoneNumberId ||
+                  null,
+              }),
+          },
+        );
+
+      setConfig(
+        body.data.config,
+      );
+
+      populateDraft(
+        body.data.config,
+      );
+
+      const label =
+        body.data
+          .displayPhoneNumber ||
+        body.data
+          .verifiedName ||
+        body.data
+          .phoneNumberId;
+
+      setSuccess(
+        body.data.coexistence
+          ? `WhatsApp Business conectado en modo Coexistence: ${label}`
+          : `WhatsApp Business conectado: ${label}`,
+      );
+
+      const statusBody =
+        await apiRequest<SystemStatus>(
+          "/admin/status",
+        );
+
+      setStatus(
+        statusBody,
+      );
+    } catch (
+      error: unknown
+    ) {
+      setGlobalError(
+        error instanceof Error
+          ? error.message
+          : "No fue posible completar la conexión con WhatsApp.",
+      );
+    } finally {
+      embeddedCodeRef.current =
+        null;
+
+      embeddedSessionRef.current =
+        null;
+
+      embeddedCompletingRef.current =
+        false;
+
+      setBusy(null);
+    }
+  }
+
+  function launchWhatsappEmbeddedSignup() {
+    setGlobalError("");
+    setSuccess("");
+
+    if (
+      !metaConfig?.ready
+    ) {
+      setGlobalError(
+        "La aplicación de Meta todavía no está configurada en el servidor.",
+      );
+
+      return;
+    }
+
+    if (
+      !window.FB
+    ) {
+      setGlobalError(
+        "El SDK de Meta todavía no terminó de cargar. Recargá la página e intentá nuevamente.",
+      );
+
+      return;
+    }
+
+    embeddedCodeRef.current =
+      null;
+
+    embeddedSessionRef.current =
+      null;
+
+    window.FB.login(
+      (
+        response:
+          FacebookLoginResponse,
+      ) => {
+        const code =
+          response
+            .authResponse
+            ?.code;
+
+        if (!code) {
+          setGlobalError(
+            "La conexión con Meta fue cancelada o no se completó.",
+          );
+
+          return;
+        }
+
+        embeddedCodeRef.current =
+          code;
+
+        void completeWhatsappEmbeddedSignup();
+      },
+      {
+        config_id:
+          metaConfig.configId,
+
+        response_type:
+          "code",
+
+        override_default_response_type:
+          true,
+
+        extras: {
+          setup: {},
+
+          featureType:
+            "whatsapp_business_app_onboarding",
+        },
+      },
+    );
   }
 
   async function load() {
@@ -750,6 +1277,264 @@ export function ConnectionsPanel({
 
   useEffect(() => {
     void load();
+  }, []);
+
+  useEffect(() => {
+    void (
+      async () => {
+        try {
+          const body =
+            await apiRequest<{
+              ok: boolean;
+              data:
+                MetaEmbeddedConfig;
+            }>(
+              "/admin/whatsapp-embedded/config",
+            );
+
+          setMetaConfig(
+            body.data,
+          );
+        } catch {
+          setMetaConfig(
+            null,
+          );
+        }
+      }
+    )();
+  }, []);
+
+  useEffect(() => {
+    if (
+      !metaConfig?.ready ||
+      !metaConfig.appId
+    ) {
+      return;
+    }
+
+    const initialize =
+      () => {
+        window.FB?.init({
+          appId:
+            metaConfig.appId,
+
+          cookie:
+            true,
+
+          xfbml:
+            false,
+
+          version:
+            metaConfig
+              .graphVersion,
+        });
+      };
+
+    const existing =
+      document
+        .getElementById(
+          "facebook-jssdk",
+        ) as
+        | HTMLScriptElement
+        | null;
+
+    if (existing) {
+      if (window.FB) {
+        initialize();
+      } else {
+        existing
+          .addEventListener(
+            "load",
+            initialize,
+            {
+              once: true,
+            },
+          );
+      }
+
+      return;
+    }
+
+    const script =
+      document
+        .createElement(
+          "script",
+        );
+
+    script.id =
+      "facebook-jssdk";
+
+    script.async =
+      true;
+
+    script.defer =
+      true;
+
+    script.crossOrigin =
+      "anonymous";
+
+    script.src =
+      "https://connect.facebook.net/es_ES/sdk.js";
+
+    script.onload =
+      initialize;
+
+    document.body
+      .appendChild(
+        script,
+      );
+
+    return () => {
+      script.onload =
+        null;
+    };
+  }, [
+    metaConfig,
+  ]);
+
+  useEffect(() => {
+    const listener =
+      (
+        event:
+          MessageEvent,
+      ) => {
+        const allowedOrigins =
+          new Set([
+            "https://www.facebook.com",
+            "https://web.facebook.com",
+            "https://business.facebook.com",
+          ]);
+
+        if (
+          !allowedOrigins.has(
+            event.origin,
+          )
+        ) {
+          return;
+        }
+
+        let payload:
+          unknown =
+          event.data;
+
+        if (
+          typeof payload ===
+          "string"
+        ) {
+          try {
+            payload =
+              JSON.parse(
+                payload,
+              );
+          } catch {
+            return;
+          }
+        }
+
+        if (
+          !payload ||
+          typeof payload !==
+            "object"
+        ) {
+          return;
+        }
+
+        const message =
+          payload as {
+            type?: string;
+
+            event?: string;
+
+            data?: {
+              waba_id?:
+                string;
+
+              phone_number_id?:
+                string;
+
+              error_message?:
+                string;
+            };
+          };
+
+        if (
+          message.type !==
+          "WA_EMBEDDED_SIGNUP"
+        ) {
+          return;
+        }
+
+        if (
+          message.event ===
+            "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING" ||
+          message.event ===
+            "FINISH"
+        ) {
+          const wabaId =
+            message
+              .data
+              ?.waba_id ||
+            "";
+
+          if (!wabaId) {
+            setGlobalError(
+              "Meta completó el proceso pero no devolvió el WABA ID.",
+            );
+
+            return;
+          }
+
+          embeddedSessionRef.current =
+            {
+              wabaId,
+
+              phoneNumberId:
+                message
+                  .data
+                  ?.phone_number_id ||
+                undefined,
+            };
+
+          void completeWhatsappEmbeddedSignup();
+
+          return;
+        }
+
+        if (
+          message.event ===
+          "CANCEL"
+        ) {
+          setGlobalError(
+            "La conexión con WhatsApp fue cancelada.",
+          );
+
+          return;
+        }
+
+        if (
+          message.event ===
+          "ERROR"
+        ) {
+          setGlobalError(
+            message
+              .data
+              ?.error_message ||
+            "Meta informó un error durante la conexión de WhatsApp.",
+          );
+        }
+      };
+
+    window.addEventListener(
+      "message",
+      listener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "message",
+        listener,
+      );
+    };
   }, []);
 
   function update(
@@ -1186,6 +1971,76 @@ export function ConnectionsPanel({
                     )}
                   </span>
                 </header>
+
+                {definition.id ===
+                "whatsapp" ? (
+                  <div
+                    className={
+                      styles.actions
+                    }
+                  >
+                    <button
+                      type="button"
+                      className={
+                        styles.primary
+                      }
+                      onClick={
+                        launchWhatsappEmbeddedSignup
+                      }
+                      disabled={
+                        isBusy
+                      }
+                    >
+                      {isBusy
+                        ? "Conectando…"
+                        : "Conectar WhatsApp Business"}
+                    </button>
+                  </div>
+                ) : null}
+
+                {definition.id ===
+                "google_calendar" ? (
+                  <div
+                    className={
+                      styles.actions
+                    }
+                  >
+                    <button
+                      type="button"
+                      className={
+                        styles.primary
+                      }
+                      onClick={
+                        launchGoogleCalendarOAuth
+                      }
+                      disabled={
+                        isBusy
+                      }
+                    >
+                      {isBusy
+                        ? "Conectando…"
+                        : config
+                            ?.google_calendar
+                            ?.connected
+                          ? "Reconectar Google Calendar"
+                          : "Conectar Google Calendar"}
+                    </button>
+
+                    {config
+                      ?.google_calendar
+                      ?.connected ? (
+                      <span>
+                        {config
+                          .google_calendar
+                          .calendarName
+                          || config
+                            .google_calendar
+                            .connectedEmail
+                          || "Google Calendar conectado"}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 <div
                   className={

@@ -15,6 +15,12 @@ const publicRoutes = new Set([
   "/privacy",
   "/terms",
   "/data-deletion",
+
+  // Captación pública de Eventos Mediterráneo
+  "/organiza-tu-evento",
+
+  // Catálogo público de espacios
+  "/espacios",
 ]);
 
 const vendorRoutes = [
@@ -142,6 +148,20 @@ function canAccess(
 export async function proxy(
   request: NextRequest,
 ) {
+
+  // OWNER_PORTAL_ACCESS_V1
+  // Las páginas son públicas; los datos requieren sesión propia.
+  const ownerPath = request.nextUrl.pathname;
+
+  if (
+    ownerPath === "/propietarios" ||
+    ownerPath.startsWith("/propietarios/") ||
+    ownerPath === "/api/owner" ||
+    ownerPath.startsWith("/api/owner/")
+  ) {
+    return NextResponse.next();
+  }
+
   const { pathname } =
     request.nextUrl;
 
@@ -264,7 +284,8 @@ export async function proxy(
     publicRoutes.has(pathname) ||
     pathname.startsWith("/_next/") ||
     pathname === "/favicon.ico" ||
-    pathname === "/robots.txt";
+    pathname === "/robots.txt" ||
+    pathname.startsWith("/eventos/");
 
   if (isPublic) {
     return NextResponse.next();

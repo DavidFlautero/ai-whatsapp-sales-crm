@@ -1,19 +1,26 @@
+import { Suspense } from "react";
+
 import "./globals.css";
 import "./business.css";
 
 export const metadata = {
-  title: "Fulanitas AI Sales CRM",
-  description: "AI Sales Operating System"
+  title: "Eventos Mediterráneo | Control de Eventos",
+  description:
+    "Gestión comercial, proveedores y operación de eventos",
 };
 
 export default function RootLayout({
-  children
+  children,
 }: {
   children: React.ReactNode;
 }) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body>
+        <Suspense fallback={null}>
+          {children}
+        </Suspense>
+      </body>
     </html>
   );
 }
