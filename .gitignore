@@ -99,3 +99,7 @@ supabase/.branches/
 *.db
 *.dump
 # END VPS GITHUB BACKUP
+
+# Residuos de terminal
+/can_status=0
+/qlite
