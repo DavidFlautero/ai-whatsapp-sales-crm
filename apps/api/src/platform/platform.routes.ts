@@ -4,6 +4,7 @@ import { observeAccessDecision } from "../core/http/access-observation.middlewar
 import { Router } from "express";
 import {
   companies,
+  createPlatformCompany,
   companyById,
   platformOverview,
   publicBranding,
@@ -59,6 +60,11 @@ platformAdminRoutes.get(
 platformAdminRoutes.get(
   "/companies",
   companies,
+);
+
+platformAdminRoutes.post(
+  "/companies",
+  createPlatformCompany,
 );
 
 platformAdminRoutes.get(
