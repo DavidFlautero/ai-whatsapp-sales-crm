@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import { ZodError } from "zod";
+import { SupabaseRpcError } from "../services/db/supabase-rest.client.js";
 import {
+  createCompany,
   findCompany,
   getPlatformOverview,
   getPublicBranding,
@@ -28,10 +30,10 @@ function validationError(
 }
 
 export async function publicBranding(
-  _req: Request,
+  req: Request,
   res: Response,
 ) {
-  const branding = await getPublicBranding();
+  const branding = await getPublicBranding(req.hostname);
 
   return res.json({
     ok: true,
@@ -203,5 +205,32 @@ export async function saveCompanySubscription(
     });
   } catch (error) {
     return validationError(error, res);
+  }
+}
+
+export async function createPlatformCompany(
+  req: Request,
+  res: Response,
+) {
+  try {
+    const data = await createCompany(req.body);
+    return res.status(201).json({ ok: true, data });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return validationError(error, res);
+    }
+
+    if (error instanceof SupabaseRpcError && error.code === "23505") {
+      return res.status(409).json({
+        ok: false,
+        error: "COMPANY_OR_EMAIL_ALREADY_EXISTS",
+      });
+    }
+
+    console.error("[PLATFORM COMPANY CREATE]", error instanceof Error ? error.message : "UNKNOWN");
+    return res.status(500).json({
+      ok: false,
+      error: "COMPANY_PROVISIONING_FAILED",
+    });
   }
 }

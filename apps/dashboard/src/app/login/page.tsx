@@ -9,6 +9,7 @@ import {
 } from "react";
 
 type LoginUser = {
+  companyId?: string | null;
   role:
     | "superadmin"
     | "owner"
@@ -47,10 +48,8 @@ type PublicBranding = {
   } | null;
 };
 
-const apiUrl = (
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://control.xn--eventosmediterrneo-dsb.es/api"
-).replace(/\/+$/, "");
+// Mismo origen para conservar cookies independientes en cada subdominio.
+const apiUrl = "/api";
 
 const fallbackBranding: PublicBranding = {
   platform: {
@@ -88,17 +87,13 @@ const fallbackBranding: PublicBranding = {
   },
 };
 
-function routeForRole(
-  role: LoginUser["role"],
-) {
-  if (role === "superadmin") {
-    return "/platform";
+function routeForRole(user: LoginUser) {
+  if (user.role === "superadmin") return "/platform";
+  if (user.role === "owner" && user.companyId &&
+      !["eventos-mediterraneo", "fulanitas"].includes(user.companyId)) {
+    return "/workspace";
   }
-
-  if (role === "vendedor") {
-    return "/conversations";
-  }
-
+  if (user.role === "vendedor") return "/conversations";
   return "/";
 }
 
@@ -303,7 +298,7 @@ export default function LoginPage() {
       }
 
       router.replace(
-        routeForRole(user.role),
+        routeForRole(user),
       );
 
       router.refresh();
@@ -318,6 +313,7 @@ export default function LoginPage() {
 
   const company =
     branding.defaultCompany;
+  const isEventCompany = company?.id === "eventos-mediterraneo";
 
   const visualBranding =
     company?.branding ||
@@ -356,12 +352,12 @@ export default function LoginPage() {
 
         <div className="login-v3-main-copy">
           <span className="login-v3-kicker">
-            Gestión integral de eventos
+            {isEventCompany ? "Gestión integral de eventos" : (company?.branding.loginEyebrow ?? "Gestión empresarial")}
           </span>
 
           <h1>
-            Hacemos que cada evento sea{" "}
-            <em>inolvidable.</em>
+            {isEventCompany ? <>Hacemos que cada evento sea <em>inolvidable.</em></>
+              : <>{company?.name ?? "Tu empresa"} <em>bajo control.</em></>}
           </h1>
 
           <p>
@@ -411,7 +407,7 @@ export default function LoginPage() {
 
         <div className="login-v3-tagline">
           <span />
-          Más que eventos, grandes historias
+          {isEventCompany ? "Más que eventos, grandes historias" : "Gestión y crecimiento empresarial"}
         </div>
       </section>
 
