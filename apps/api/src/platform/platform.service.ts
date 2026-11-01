@@ -20,15 +20,42 @@ import type {
   PlatformBranding,
 } from "./platform.types.js";
 
-export async function getPublicBranding() {
+export async function getPublicBranding(hostname?: string) {
   const config = await readPlatformConfig();
+  const baseDomain = process.env.TENANT_BASE_DOMAIN?.trim().toLowerCase().replace(/^\\.+/, "");
+  const host = hostname?.trim().toLowerCase();
+
+  if (baseDomain && host?.endsWith("." + baseDomain)) {
+    const slug = host.slice(0, -baseDomain.length - 1);
+    if (/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug)) {
+      const tenant = await findCompany(slug);
+      if (tenant?.active) {
+        return {
+          platform: config.platform,
+          defaultCompany: {
+            id: tenant.id,
+            name: tenant.name,
+            branding: {
+              shortName: tenant.name,
+              loginEyebrow: "GESTIÓN EMPRESARIAL",
+              loginTitle: tenant.name,
+              loginMessage: "Accedé al panel de tu empresa.",
+              loginButtonLabel: "Ingresar",
+              primaryColor: config.platform.primaryColor,
+              logoUrl: null,
+              heroImageUrl: null,
+            },
+          },
+        };
+      }
+    }
+    return { platform: config.platform, defaultCompany: null };
+  }
 
   return {
     platform: config.platform,
     defaultCompany:
-      config.companies.find(
-        (company) => company.active,
-      ) || null,
+      config.companies.find((company) => company.active) || null,
   };
 }
 
