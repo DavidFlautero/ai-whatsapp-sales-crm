@@ -87,3 +87,13 @@ export const updateCompanySchema = z.object({
   legalName: z.string().trim().min(2).max(180).optional(),
   active: z.boolean().optional(),
 });
+
+export const createCompanySchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  slug: z.string().trim().toLowerCase()
+    .regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/),
+  currency: z.string().trim().length(3).toUpperCase(),
+  ownerName: z.string().trim().min(2).max(160),
+  ownerEmail: z.string().trim().email().max(200).toLowerCase(),
+  ownerPassword: z.string().min(12).max(200),
+});
