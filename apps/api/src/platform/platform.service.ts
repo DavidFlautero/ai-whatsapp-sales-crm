@@ -22,7 +22,7 @@ import type {
 
 export async function getPublicBranding(hostname?: string) {
   const config = await readPlatformConfig();
-  const baseDomain = process.env.TENANT_BASE_DOMAIN?.trim().toLowerCase().replace(/^\\.+/, "");
+  const baseDomain = process.env.TENANT_BASE_DOMAIN?.trim().toLowerCase().replace(/^\.+/, "");
   const host = hostname?.trim().toLowerCase();
 
   if (baseDomain && host?.endsWith("." + baseDomain)) {
