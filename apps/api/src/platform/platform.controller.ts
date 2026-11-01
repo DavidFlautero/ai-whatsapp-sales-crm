@@ -30,10 +30,10 @@ function validationError(
 }
 
 export async function publicBranding(
-  _req: Request,
+  req: Request,
   res: Response,
 ) {
-  const branding = await getPublicBranding();
+  const branding = await getPublicBranding(req.hostname);
 
   return res.json({
     ok: true,
