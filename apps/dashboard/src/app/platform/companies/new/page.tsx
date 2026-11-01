@@ -1,63 +1,60 @@
-import { ButtonLink, PageHeader, SectionHeading, StatusBadge } from "../../_components/PagePrimitives";
+"use client";
+import { type FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ButtonLink, PageHeader } from "../../_components/PagePrimitives";
 
 export default function NewCompanyPage() {
-  return (
-    <>
-      <PageHeader
-        kicker="ONBOARDING MULTIEMPRESA"
-        title="Agregar una nueva empresa"
-        description="Vista completa del flujo comercial que permitirá activar un nuevo cliente con identidad, usuarios, WhatsApp, robot y suscripción independientes."
-        actions={<ButtonLink href="/platform/companies">Volver a empresas</ButtonLink>}
-      />
-
-      <div className="saas-callout">Esta pantalla presenta el alcance completo del módulo. El aprovisionamiento automático se activará en la versión multiempresa final.</div>
-
-      <section className="saas-section">
-        <SectionHeading title="Proceso de activación" description="Seis pasos claros para incorporar un cliente sin mezclar sus datos con otras empresas." />
-        <div className="saas-grid">
-          {[
-            ["01", "Información comercial", "Nombre, razón social, país, zona horaria y datos del responsable."],
-            ["02", "Identidad visual", "Logo, colores, mensajes del login y nombre del asistente comercial."],
-            ["03", "Plan y límites", "Suscripción, precio mensual, usuarios, mensajes y módulos incluidos."],
-            ["04", "Equipo inicial", "Owner, administradores, supervisores y vendedores de la empresa."],
-            ["05", "WhatsApp y robot", "Número, Meta Cloud API, webhook, proveedor de IA y reglas operativas."],
-            ["06", "Validación y lanzamiento", "Pruebas, revisión de seguridad y activación definitiva del entorno."],
-          ].map(([step, title, description]) => (
-            <article className="saas-card" key={step}>
-              <div className="saas-card-top"><span className="saas-company-logo" style={{ width: 40, height: 40, borderRadius: 12, fontSize: ".75rem" }}>{step}</span><StatusBadge tone="pending">Preparado</StatusBadge></div>
-              <h3 style={{ marginTop: 18 }}>{title}</h3><p>{description}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="saas-section">
-        <SectionHeading title="Vista previa del alta" description="Formulario visual preparado para conectar al backend de aprovisionamiento." />
-        <div className="saas-grid two">
-          <article className="saas-card">
-            <form className="saas-form">
-              <div className="saas-form-grid">
-                <div className="saas-field"><label>Nombre comercial</label><input placeholder="Nueva empresa" disabled /></div>
-                <div className="saas-field"><label>Identificador</label><input placeholder="nueva-empresa" disabled /></div>
-                <div className="saas-field"><label>Correo del propietario</label><input placeholder="owner@empresa.com" disabled /></div>
-                <div className="saas-field"><label>Plan inicial</label><select disabled><option>Professional</option></select></div>
-                <div className="saas-field full"><label>Descripción de la operación</label><textarea placeholder="Actividad, mercado y objetivos..." disabled /></div>
-              </div>
-              <button className="saas-button primary" type="button" disabled>Crear empresa y continuar</button>
-            </form>
-          </article>
-          <article className="saas-card">
-            <h3>Se creará automáticamente</h3>
-            <div className="saas-list">
-              <div className="saas-list-row"><span>Espacio independiente</span><strong>Tenant aislado</strong></div>
-              <div className="saas-list-row"><span>Acceso principal</span><strong>Owner de empresa</strong></div>
-              <div className="saas-list-row"><span>CRM</span><strong>Sin datos iniciales</strong></div>
-              <div className="saas-list-row"><span>Robot</span><strong>Pendiente de conexión</strong></div>
-              <div className="saas-list-row"><span>Suscripción</span><strong>Según plan elegido</strong></div>
-            </div>
-          </article>
-        </div>
-      </section>
-    </>
-  );
+  const router = useRouter();
+  const [form, setForm] = useState({ name:"", slug:"", currency:"COP", ownerName:"", ownerEmail:"", ownerPassword:"" });
+  const [error,setError] = useState("");
+  const [saving,setSaving] = useState(false);
+  const set = (field:keyof typeof form, value:string) => setForm(old=>({...old,[field]:value}));
+  async function submit(e:FormEvent) {
+    e.preventDefault();
+    setError(""); setSaving(true);
+    try {
+      const response = await fetch("/api/platform/companies",{
+        method:"POST", credentials:"include", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(form),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok || !data.data?.id) {
+        setError(data.error === "COMPANY_OR_EMAIL_ALREADY_EXISTS" ? "Empresa o correo ya registrado." : "No se pudo crear la empresa. Revisá los datos y la API.");
+        return;
+      }
+      setForm(old=>({...old,ownerPassword:""}));
+      router.push("/platform/companies/manage/" + encodeURIComponent(data.data.id));
+    } catch { setError("La API no respondió."); }
+    finally { setSaving(false); }
+  }
+  return <>
+    <PageHeader kicker="ONBOARDING MULTIEMPRESA" title="Crear empresa"
+      description="Registro real en PostgreSQL y cuenta de propietario."
+      actions={<ButtonLink href="/platform/companies">Volver</ButtonLink>}/>
+    <section className="saas-section">
+      <article className="saas-card">
+        <form className="saas-form" onSubmit={submit}>
+          <div className="saas-form-grid">
+            <div className="saas-field"><label>Nombre comercial</label>
+              <input required minLength={2} maxLength={120} value={form.name} onChange={e=>set("name",e.target.value)}/></div>
+            <div className="saas-field"><label>Identificador / subdominio</label>
+              <input required maxLength={63} pattern="[a-z0-9]+(-[a-z0-9]+)*" value={form.slug} onChange={e=>set("slug",e.target.value.toLowerCase())}/></div>
+            <div className="saas-field"><label>Moneda</label>
+              <select value={form.currency} onChange={e=>set("currency",e.target.value)}>
+                <option value="COP">COP</option><option value="EUR">EUR</option>
+                <option value="USD">USD</option><option value="ARS">ARS</option>
+              </select></div>
+            <div className="saas-field"><label>Nombre del propietario</label>
+              <input required minLength={2} value={form.ownerName} onChange={e=>set("ownerName",e.target.value)}/></div>
+            <div className="saas-field full"><label>Correo del propietario</label>
+              <input type="email" required value={form.ownerEmail} onChange={e=>set("ownerEmail",e.target.value)}/></div>
+            <div className="saas-field full"><label>Contraseña inicial (12 caracteres mínimo)</label>
+              <input type="password" autoComplete="new-password" required minLength={12} value={form.ownerPassword} onChange={e=>set("ownerPassword",e.target.value)}/></div>
+          </div>
+          {error && <p role="alert">{error}</p>}
+          <button className="saas-button primary" disabled={saving} type="submit">{saving?"Creando…":"Crear empresa y propietario"}</button>
+        </form>
+      </article>
+    </section>
+  </>;
 }
