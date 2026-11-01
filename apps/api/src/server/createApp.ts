@@ -14,6 +14,22 @@ const allowedOrigins = new Set([
   "http://127.0.0.1:3000",
 ]);
 
+const tenantBaseDomain = process.env.TENANT_BASE_DOMAIN?.trim().toLowerCase();
+
+function isTenantOrigin(origin: string): boolean {
+  if (!tenantBaseDomain) return false;
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== "https:" || url.port) return false;
+    const suffix = "." + tenantBaseDomain;
+    if (!url.hostname.endsWith(suffix)) return false;
+    const slug = url.hostname.slice(0, -suffix.length);
+    return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug);
+  } catch {
+    return false;
+  }
+}
+
 export function createApp() {
   const app = express();
 
@@ -23,7 +39,7 @@ export function createApp() {
   app.use(
     cors({
       origin(origin, callback) {
-        if (!origin || allowedOrigins.has(origin)) {
+        if (!origin || allowedOrigins.has(origin) || isTenantOrigin(origin)) {
           callback(null, true);
           return;
         }
