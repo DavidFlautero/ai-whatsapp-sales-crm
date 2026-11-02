@@ -144,6 +144,9 @@ export async function findCompany(companyId: string) {
 
 export async function createCompany(input: unknown) {
   const payload = createCompanySchema.parse(input);
+  if (authConfig.users.some(u => u.active && u.email.toLowerCase() === payload.ownerEmail)) {
+    throw new Error("OWNER_EMAIL_RESERVED_BY_PLATFORM");
+  }
   const passwordHash = await bcrypt.hash(payload.ownerPassword, 12);
 
   // Una sola RPC = una transacción: empresa, ajustes y owner.
