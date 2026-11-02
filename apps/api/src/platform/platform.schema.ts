@@ -97,3 +97,16 @@ export const createCompanySchema = z.object({
   ownerEmail: z.string().trim().email().max(200).toLowerCase(),
   ownerPassword: z.string().min(12).max(200),
 });
+
+/* Registro seguro desde superadmin; el nombre de dominio se valida nuevamente en servicio. */
+export const companyDomainSchema = z.object({
+  hostname: z.string().trim().toLowerCase().min(4).max(253)
+    .regex(/^[a-z0-9.-]+$/),
+  kind: z.enum(["custom", "subdomain"]),
+  purpose: z.enum(["menu", "panel"]),
+});
+
+export const companyOwnerUpdateSchema = z.object({
+  email: z.string().trim().email().max(200).toLowerCase(),
+  password: z.string().min(12).max(200).optional(),
+});
