@@ -302,6 +302,11 @@ export async function registerCompanyDomain(companyId: string, input: unknown) {
       throw new Error("SUBDOMAIN_BASE_NOT_CONFIGURED_OR_INVALID");
     }
   }
+  const existing = company.domains.find(d => d.purpose === payload.purpose);
+  if (existing?.hostname === hostname && existing.kind === payload.kind) {
+    // Guardar nuevamente un dominio verificado NO debe desactivarlo.
+    return existing;
+  }
   const rows = await supabaseRequest<CompanyDomainRow[]>({
     table: "platform_company_domains",
     method: "POST",
