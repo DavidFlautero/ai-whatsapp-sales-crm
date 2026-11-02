@@ -1,0 +1,97 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Conversaciones · Delibocados</title>
+<style>
+:root{--bg:#140f0b;--side:#241a14;--card:#302218;--line:#60442e;--text:#f6e5d3;--muted:#bca78d;--accent:#e6b47d}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,Arial}
+a{color:var(--accent);text-decoration:none}.shell{max-width:1400px;margin:auto;padding:20px}
+header{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+header h1{font-size:clamp(23px,4vw,33px);margin:5px 0}small,.muted{color:var(--muted)}
+button,input{font:inherit;border-radius:9px;border:1px solid var(--line);padding:11px;color:var(--text);background:var(--side)}
+button{cursor:pointer;min-height:42px}button:disabled{opacity:.5}
+.chat{display:grid;grid-template-columns:320px minmax(0,1fr);min-height:580px;border:1px solid var(--line);border-radius:15px;overflow:hidden}
+.sidebar{background:var(--side);border-right:1px solid var(--line);padding:15px;min-width:0}
+.sidebar input{width:100%;margin:8px 0 15px}
+.user{display:block;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid #4d3524;border-radius:0;padding:15px 8px}
+.user.active{border-left:3px solid var(--accent);background:#423021}.user strong{display:block}.user small{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.main{display:flex;flex-direction:column;min-width:0;background:#1e1510}
+.chatHead{padding:17px 19px;border-bottom:1px solid var(--line);background:#2b2018}
+.chatHead strong{font-size:17px}.history{flex:1;padding:18px;display:flex;flex-direction:column;gap:11px;overflow-y:auto;max-height:600px;min-height:400px}
+.bubble{border-radius:13px;padding:11px 14px;max-width:78%;min-width:120px;white-space:pre-wrap;overflow-wrap:anywhere;background:#3a2b20}
+.bubble.out{align-self:flex-end;background:#3b513f}.bubble.in{align-self:flex-start}
+.bubble small{display:block;margin-top:5px;font-size:10px;opacity:.9}
+.notice{padding:13px 17px;border-top:1px solid var(--line);background:#372719;color:#e9ccad}
+.empty{color:var(--muted);text-align:center;margin:auto;max-width:330px;padding:20px}
+@media(max-width:690px){.shell{padding:10px}.chat{display:flex;flex-direction:column}.sidebar{border-right:0;border-bottom:1px solid var(--line);max-height:285px;overflow-y:auto}.history{min-height:330px}}
+</style></head><body><div class="shell">
+<header><div><a href="/panel">‹ Volver al panel</a><h1>Conversaciones de WhatsApp</h1><span class="muted">Bandeja del CRM · Delibocados exclusivamente</span></div><div><button id="refresh" type="button">Actualizar conversaciones</button></div></header>
+<div class="chat">
+<div class="sidebar"><strong>Conversaciones</strong><div id="status" class="muted" role="status">Cargando…</div>
+<input id="search" type="search" placeholder="Buscar por teléfono o mensaje" aria-label="Buscar conversaciones">
+<div id="threads"></div></div>
+<div class="main"><div class="chatHead"><strong id="person">Seleccioná un contacto</strong><div id="details" class="muted">Solo lectura hasta conectar el número del restaurante</div></div>
+<div class="history" id="messages"><p class="empty">Seleccioná una conversación del listado para ver su historial real.</p></div>
+<div class="notice">El motor de WhatsApp y la toma de control humano se habilitarán cuando el número de Delibocados esté conectado y los mensajes entren al tenant correcto. <strong>No se envían mensajes desde esta pantalla todavía.</strong> <a href="/panel/ia">Configurar canal e IA</a></div></div></div>
+</div><script>
+(()=>{
+"use strict";
+const $=id=>document.getElementById(id);
+let list=[],selected=null,sequence=0;
+function format(v){
+ try{return new Intl.DateTimeFormat("es-CO",{dateStyle:"short",timeStyle:"short"}).format(new Date(v))}
+ catch{return "—"}
+}
+function empty(msg){$("messages").replaceChildren();let p=document.createElement("p");p.className="empty";p.textContent=msg;$("messages").appendChild(p)}
+function render(){
+ let q=$("search").value.trim().toLowerCase(),root=$("threads");
+ root.replaceChildren();let rows=list.filter(x=>
+  String(x.contact_phone+" "+(x.last_message||"")).toLowerCase().includes(q));
+ if(!rows.length){let p=document.createElement("p");p.className="empty";p.textContent="Todavía no hay conversaciones de Delibocados.";root.appendChild(p);return}
+ rows.forEach(c=>{
+  let b=document.createElement("button");b.type="button";b.className="user"+(selected===c.contact_phone?" active":"");
+  let title=document.createElement("strong");title.textContent=c.contact_phone||"Contacto";
+  let prev=document.createElement("small");prev.textContent=c.last_message||"Sin mensajes";
+  let stamp=document.createElement("small");stamp.textContent=format(c.last_message_at);
+  b.append(title,prev,stamp);b.addEventListener("click",()=>openChat(c.contact_phone));
+  root.appendChild(b)
+ });
+}
+async function openChat(phone){
+ selected=phone;render();$("person").textContent=phone;$("details").textContent="Historial real · Solo lectura";
+ empty("Cargando mensajes…");let request=++sequence;
+ try{
+  let r=await fetch("/api/restaurant/conversations/messages?phone="+encodeURIComponent(phone),
+   {credentials:"same-origin",cache:"no-store"});
+  if(r.status===401||r.status===403){location.replace("/ingresar");return}
+  if(!r.ok)throw Error("HTTP "+r.status);
+  let j=await r.json();if(j.companyId!=="delibocados")throw Error("Empresa incorrecta");
+  if(request!==sequence)return;
+  let root=$("messages");root.replaceChildren();
+  if(!j.messages?.length){empty("Sin mensajes registrados para este contacto.");return}
+  j.messages.forEach(m=>{
+   let div=document.createElement("div");
+   div.className="bubble "+(m.direction==="outbound"?"out":"in");
+   let txt=document.createElement("span");txt.textContent=m.body||"["+String(m.message_type||"mensaje")+"]";
+   let meta=document.createElement("small");meta.textContent=
+     (m.direction==="outbound"?"Enviado":"Recibido")+" · "+format(m.occurred_at||m.created_at);
+   div.append(txt,meta);root.appendChild(div)
+  });root.scrollTop=root.scrollHeight
+ }catch(e){empty("No se pudo cargar el historial: "+e.message)}
+}
+async function load(){
+ $("status").textContent="Cargando…";
+ try{
+  let r=await fetch("/api/restaurant/conversations",{credentials:"same-origin",cache:"no-store"});
+  if(r.status===401||r.status===403){location.replace("/ingresar");return}
+  if(!r.ok)throw Error("HTTP "+r.status);
+  let j=await r.json();if(j.companyId!=="delibocados")throw Error("Empresa incorrecta");
+  list=Array.isArray(j.conversations)?j.conversations:[];
+  $("status").textContent=list.length+" conversaciones";render();
+  if(selected&&list.some(c=>c.contact_phone===selected))openChat(selected);
+  else if(list.length)openChat(list[0].contact_phone);
+  else empty("Todavía no hay mensajes recibidos para Delibocados.")
+ }catch(e){$("status").textContent="Sin acceso al historial";empty("La base de conversaciones no respondió: "+e.message)}
+}
+$("search").addEventListener("input",render);
+$("refresh").addEventListener("click",load);
+load();
+})();
+</script></body></html>
