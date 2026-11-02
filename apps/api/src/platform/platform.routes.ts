@@ -5,6 +5,9 @@ import { Router } from "express";
 import {
   companies,
   createPlatformCompany,
+  saveCompanyDomain,
+  checkCompanyDomainDns,
+  saveCompanyOwnerAccess,
   companyById,
   platformOverview,
   publicBranding,
@@ -96,3 +99,8 @@ platformAdminRoutes.put(
   "/companies/:companyId/subscription",
   saveCompanySubscription,
 );
+
+/* Protegidas por requireAuth + superadmin al inicio del router. */
+platformAdminRoutes.put("/companies/:companyId/domain", saveCompanyDomain);
+platformAdminRoutes.post("/companies/:companyId/domain/:purpose/verify", checkCompanyDomainDns);
+platformAdminRoutes.put("/companies/:companyId/owner", saveCompanyOwnerAccess);
