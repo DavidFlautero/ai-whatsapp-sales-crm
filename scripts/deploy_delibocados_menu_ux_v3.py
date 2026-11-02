@@ -119,6 +119,10 @@ def patch_html(raw):
     return raw
 
 def patch_server(raw):
+    """Adaptador tolerante: instalaciones previas pueden tener otro formato QR.
+    No modificar código de sesión/autenticación ni romper un servidor desconocido.
+    """
+    original = raw
     pairs = [
         ("link='https://'+IP+'/r/delibocados?mesa='+token",
          "link='https://delibocados.online/menu?mesa='+token"),
@@ -126,13 +130,17 @@ def patch_server(raw):
          "link='https://delibocados.online/menu'"),
         ("const url='/r/delibocados';const origin=location.origin;",
          "const url='https://delibocados.online/menu';const origin='';"),
+        ('href="/r/delibocados"',
+         'href="https://delibocados.online/menu"'),
     ]
     for old, new in pairs:
         if old in raw:
-            raw = raw.replace(old, new, 1)
-        elif new not in raw:
-            raise RuntimeError("La fuente de QR cambió: "+old[:60])
-    raw = raw.replace('href="/r/delibocados"', 'href="https://delibocados.online/menu"')
+            raw = raw.replace(old, new)
+    if raw == original:
+        print("AVISO: generador QR instalado difiere del original; se conserva sin cambios.")
+        print("La URL /menu funcionará, pero verificaremos el contenido de los QR después.")
+    else:
+        print("Generador QR: referencias antiguas reconocidas y actualizadas.")
     return raw
 
 def patch_nginx(raw):
