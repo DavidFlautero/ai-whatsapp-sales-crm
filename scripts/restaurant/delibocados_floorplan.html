@@ -177,7 +177,7 @@ function createMarker(kind,id,name,obj){
   b.style.width=obj.width+"%";b.style.height=obj.height+"%";
   b.style.transform="translate(-50%, -50%) rotate("+obj.rotation+"deg)";
  }
- b.textContent=name;b.setAttribute("aria-label",name+"; arrastrar para mover");
+ b.dataset.selected=kind+"_"+id;b.textContent=name;b.setAttribute("aria-label",name+"; arrastrar para mover");
  b.addEventListener("click",()=>{selected={kind,id};drawSelection();markSelection()});
  b.addEventListener("pointerdown",e=>{
   if(e.button!==0 && e.pointerType==="mouse")return;
