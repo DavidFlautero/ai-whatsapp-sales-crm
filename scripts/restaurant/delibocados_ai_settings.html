@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>WhatsApp e IA · Delibocados</title>
+<style>
+:root{--bg:#140e0a;--panel:#281c15;--line:#59402e;--text:#f6e7d5;--muted:#b7a38e;--accent:#dea96e}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,Arial}
+main{max-width:1050px;margin:auto;padding:28px 18px}header{display:flex;justify-content:space-between;align-items:center;gap:20px}
+h1{font-size:clamp(25px,4vw,37px);margin:12px 0}h2{font-size:20px}
+.muted,small{color:var(--muted)}small{display:block;font-size:12px;margin:7px 0}
+a{color:var(--accent);text-decoration:none}.card{border:1px solid var(--line);background:var(--panel);padding:22px;border-radius:16px;margin:18px 0}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px 22px}
+label{display:block;font-weight:650;margin:5px 0 7px}
+input,select,textarea{background:#160f0c;border:1px solid #856347;border-radius:9px;padding:12px;color:#fff;width:100%;font:inherit}
+textarea{min-height:150px;resize:vertical}input[type=checkbox]{width:auto;accent-color:var(--accent)}
+.check{font-weight:400;display:flex;gap:10px;align-items:center;margin:14px 0}
+button{background:var(--accent);border:0;border-radius:10px;color:#24180e;font-weight:800;padding:14px 20px;cursor:pointer;font:inherit}
+button:disabled{opacity:.5;cursor:wait}.notice{border-left:3px solid var(--accent);background:#37271b;padding:14px;border-radius:8px;margin:20px 0}
+.footer{display:flex;gap:15px;align-items:center;flex-wrap:wrap}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.card{padding:16px}}
+</style></head><body><main>
+<header><div><a href="/panel">‹ Volver al panel</a><h1>WhatsApp e inteligencia artificial</h1>
+<p class="muted">Configuración exclusiva de Delibocados</p></div><div id="status" class="muted">Cargando…</div></header>
+<div class="notice">Podés configurar Claude u OpenAI y las credenciales de WhatsApp. <strong>Guardar no habilita el envío de mensajes.</strong> Primero debemos conectar y verificar el webhook propio del restaurante y su agente.</div>
+<form id="form" autocomplete="off">
+<section class="card"><h2>Motor de inteligencia artificial</h2>
+<div class="grid">
+<div><label for="provider">Proveedor</label><select id="provider"><option value="openai">OpenAI (GPT)</option><option value="anthropic">Anthropic (Claude)</option></select><small>Elegí qué proveedor usará el agente.</small></div>
+<div><label for="style">Estilo de respuesta</label><select id="style"><option value="conciso">Conciso</option><option value="detallado">Detallado</option><option value="formal">Formal</option></select></div>
+<div><label for="modelOpenai">Modelo de OpenAI</label><input id="modelOpenai" maxlength="120" spellcheck="false"><small>Se utiliza cuando el proveedor es OpenAI.</small></div>
+<div><label for="modelAnthropic">Modelo de Claude</label><input id="modelAnthropic" maxlength="120" spellcheck="false"><small>Se utiliza cuando el proveedor es Anthropic.</small></div>
+<div><label for="keyOpenai">API key de OpenAI</label><input id="keyOpenai" type="password" maxlength="4000" autocomplete="new-password" placeholder="Dejar vacío para conservar"><small id="infoOpenai">Sin configurar</small></div>
+<div><label for="keyAnthropic">API key de Anthropic</label><input id="keyAnthropic" type="password" maxlength="4000" autocomplete="new-password" placeholder="Dejar vacío para conservar"><small id="infoAnthropic">Sin configurar</small></div>
+</div>
+<label for="prompt">Instrucciones del agente</label><textarea id="prompt" maxlength="8000" rows="7"></textarea>
+<small>Definí tono de atención, domicilios, horarios y reglas de confirmación de pedidos.</small>
+<label class="check"><input id="handoff" type="checkbox"> Permitir que un empleado tome la conversación</label>
+<label class="check"><input id="outHours" type="checkbox"> Preparar respuestas fuera de horario (se aplicará al conectar el motor)</label>
+</section>
+<section class="card"><h2>Conexión de WhatsApp Business</h2>
+<div class="grid">
+<div><label for="waProvider">Proveedor del canal</label><select id="waProvider"><option value="whapi">Whapi.Cloud</option><option value="meta_cloud">Meta Cloud API</option><option value="whappi">Whappi</option></select></div>
+<div><label for="phone">Teléfono del restaurante</label><input id="phone" maxlength="20" inputmode="tel" placeholder="+57..."></div>
+<div><label for="waToken">Token de acceso</label><input id="waToken" type="password" maxlength="4000" autocomplete="new-password" placeholder="Dejar vacío para conservar"><small id="infoWaToken">Sin configurar</small></div>
+<div><label for="verify">Token de verificación del webhook</label><input id="verify" type="password" maxlength="4000" autocomplete="new-password" placeholder="Dejar vacío para conservar"><small id="infoVerify">Sin configurar</small></div>
+<div><label for="phoneId">Phone Number ID (Meta)</label><input id="phoneId" maxlength="140"></div>
+<div><label for="businessId">WhatsApp Business Account ID (Meta)</label><input id="businessId" maxlength="140"></div>
+</div>
+<div class="notice">Estas credenciales se almacenan cifradas y no se muestran después de guardarlas. Todavía no se emplean para enviar mensajes.</div>
+<div class="footer"><button id="save" type="submit">Guardar configuración</button><span id="message" role="status"></span></div>
+</section></form></main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+async function load(){
+ try{
+  const r=await fetch("/api/restaurant/ai-config",{credentials:"same-origin",cache:"no-store"});
+  if(r.status===401||r.status===403){location.replace("/ingresar");return}
+  if(!r.ok)throw Error("HTTP "+r.status);
+  const j=await r.json();if(j.companyId!=="delibocados"||!j.ok)throw Error("Empresa incorrecta");
+  const a=j.ai,w=j.whatsapp;
+  $("provider").value=a.provider;$("style").value=a.replyStyle;
+  $("modelOpenai").value=a.modelOpenai;$("modelAnthropic").value=a.modelAnthropic;
+  $("prompt").value=a.prompt;$("handoff").checked=a.humanHandoff;$("outHours").checked=a.outOfHours;
+  $("waProvider").value=w.provider;$("phone").value=w.businessPhone;
+  $("phoneId").value=w.phoneNumberId;$("businessId").value=w.businessAccountId;
+  ["keyOpenai","keyAnthropic","waToken","verify"].forEach(k=>$(k).value="");
+  $("infoOpenai").textContent=a.openaiKeyConfigured?"Clave guardada":"Sin configurar";
+  $("infoAnthropic").textContent=a.anthropicKeyConfigured?"Clave guardada":"Sin configurar";
+  $("infoWaToken").textContent=w.tokenConfigured?"Token guardado":"Sin configurar";
+  $("infoVerify").textContent=w.verifyTokenConfigured?"Token guardado":"Sin configurar";
+  $("status").textContent="Configuración disponible · Agente sin activar";
+ }catch(e){$("status").textContent="Error: "+e.message;}
+}
+$("form").onsubmit=async e=>{
+ e.preventDefault();$("save").disabled=true;$("message").textContent="Guardando…";
+ const payload={
+  ai:{provider:$("provider").value,replyStyle:$("style").value,
+   modelOpenai:$("modelOpenai").value,modelAnthropic:$("modelAnthropic").value,
+   openaiApiKey:$("keyOpenai").value,anthropicApiKey:$("keyAnthropic").value,
+   prompt:$("prompt").value,humanHandoff:$("handoff").checked,outOfHours:$("outHours").checked},
+  whatsapp:{provider:$("waProvider").value,businessPhone:$("phone").value,
+   token:$("waToken").value,verifyToken:$("verify").value,
+   phoneNumberId:$("phoneId").value,businessAccountId:$("businessId").value}
+ };
+ try{
+  const r=await fetch("/api/restaurant/ai-config",{method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  if(r.status===401){location.replace("/ingresar");return}
+  const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||"Error HTTP "+r.status);
+  $("message").textContent="Configuración guardada. Agente aún desactivado.";
+  await load();
+ }catch(e){$("message").textContent="No se guardó: "+e.message}
+ finally{$("save").disabled=false}
+};
+load();
+</script></body></html>
