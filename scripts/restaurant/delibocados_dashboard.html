@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Delibocados · Gestión del restaurante</title>
+<style>
+:root{--bg:#110d0b;--side:#1d1511;--card:#281e19;--line:#49362b;--muted:#af9b88;--text:#f5e9db;--accent:#d7a875;--good:#91cfad;--warn:#eed09a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Arial,sans-serif}
+button,input,select{font:inherit}button{cursor:pointer}.app{display:flex;min-height:100dvh}
+aside{width:252px;position:sticky;top:0;height:100dvh;flex:none;background:var(--side);border-right:1px solid var(--line);padding:22px 14px;overflow-y:auto}
+.brand{display:flex;gap:12px;align-items:center;padding:0 10px 24px;border-bottom:1px solid var(--line)}
+.monogram{display:grid;place-items:center;width:43px;height:43px;border-radius:14px;background:var(--accent);color:#271b13;font-size:20px;font-weight:900}
+.brand b{display:block;font-size:18px;line-height:1.2}.brand small{color:var(--muted);font-size:11px}
+nav{padding-top:20px}.navhead{padding:18px 12px 6px;color:#8d7868;text-transform:uppercase;letter-spacing:.14em;font-size:10px;font-weight:800}
+.nav{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;border-radius:10px;padding:12px;color:#ccbfb3;background:transparent;margin:3px 0}
+.nav:hover,.nav.active{background:#3b2a21;color:var(--text)}.nav.active{box-shadow:inset 3px 0 var(--accent)}
+.nav span:first-child{width:23px;text-align:center;font-size:19px}.nav small{margin-left:auto;color:#a9947f}
+.logout{margin-top:26px;width:100%;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:10px;padding:11px}
+main{min-width:0;flex:1;padding:30px clamp(16px,4vw,52px);max-width:1600px}
+header{display:flex;justify-content:space-between;gap:20px;align-items:start;margin-bottom:28px}
+.kicker{color:var(--accent);text-transform:uppercase;letter-spacing:.14em;font-size:11px;font-weight:800}h1{font-size:clamp(26px,3vw,36px);line-height:1.15;margin:8px 0}h2{font-size:20px;margin:0 0 13px}
+.muted{color:var(--muted)}.tiny{font-size:12px}.pill{display:inline-block;background:#3b2d22;color:var(--accent);border:1px solid #715036;border-radius:999px;padding:6px 12px;font-size:12px}
+.actions{display:flex;gap:9px;flex-wrap:wrap}.btn{border:1px solid var(--line);background:#33271f;color:var(--text);border-radius:10px;padding:10px 14px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.primary{background:var(--accent);color:#23160d;font-weight:750;border-color:var(--accent)}.btn:hover{filter:brightness(1.1)}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}.two{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:21px;min-width:0}
+.metric .val{font-size:clamp(25px,2.7vw,35px);font-weight:760;line-height:1.2;margin:14px 0 5px}.metric .label{color:var(--muted);font-size:13px}
+.section-title{display:flex;justify-content:space-between;align-items:center;gap:14px;margin:30px 0 13px}.section-title h2{margin:0}
+.table-wrap{overflow:auto}.table{border-collapse:collapse;width:100%;min-width:520px;font-size:13px}
+.table th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--line);padding:13px}
+.table td{border-bottom:1px solid #423025;padding:13px;color:#ecdfd1;vertical-align:top}.table tr:last-child td{border:0}
+.status{color:var(--warn)}.status.ok{color:var(--good)}.status.off{color:var(--muted)}
+.view{display:none}.view.current{display:block}.empty{padding:36px 15px;text-align:center;color:var(--muted)}
+.feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.feature-grid .card{min-height:155px}
+label{color:var(--muted)}input[type=search],select{padding:11px 13px;border:1px solid var(--line);background:#191310;color:var(--text);border-radius:10px;max-width:320px;width:100%}
+.notice{border-left:3px solid var(--accent);background:#30241b;border-radius:10px;padding:14px 17px;color:#e4cdb5;margin:17px 0}
+.menu-preview{width:100%;height:650px;border:1px solid var(--line);background:#fff;border-radius:16px}
+.phone{margin:auto;max-width:430px}.hero{display:flex;justify-content:space-between;gap:15px;align-items:center}.hero .muted{max-width:700px}
+.footer{color:#8e7b6d;font-size:12px;margin:50px 0 15px}
+@media(max-width:1080px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.two{grid-template-columns:1fr}}
+@media(max-width:750px){.app{display:block}aside{position:static;width:100%;height:auto;padding:12px}.brand{padding:4px 5px 12px}nav{display:flex;gap:4px;overflow-x:auto;padding:9px 0}.navhead{display:none}.nav{width:auto;white-space:nowrap;flex:none;padding:10px}.nav small{display:none}.logout{margin:0;display:none}main{padding:22px 15px}.grid,.feature-grid{grid-template-columns:1fr 1fr}header{display:block}.actions{margin-top:15px}}
+@media(max-width:470px){.grid,.feature-grid{grid-template-columns:1fr}.card{padding:16px}.btn{font-size:13px}.menu-preview{height:580px}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <div class="brand"><div class="monogram">D</div><div><b>Delibocados</b><small>RESTAURANT OS · V1</small></div></div>
+  <nav aria-label="Módulos del restaurante">
+    <div class="navhead">Restaurante</div>
+    <button type="button" class="nav active" data-tab="inicio"><span>▦</span> Resumen</button>
+    <button type="button" class="nav" data-tab="pedidos"><span>▤</span> Pedidos y ventas</button>
+    <button type="button" class="nav" data-tab="clientes"><span>♙</span> Clientes · CRM</button>
+    <div class="navhead">Inteligencia artificial</div>
+    <button type="button" class="nav" data-tab="whatsapp"><span>☏</span> WhatsApp IA <small>próximo</small></button>
+    <div class="navhead">Catálogo y sistemas</div>
+    <button type="button" class="nav" data-tab="menu"><span>☰</span> Menú e imágenes</button>
+    <button type="button" class="nav" data-tab="qr"><span>▣</span> QR y mesas</button>
+    <button type="button" class="nav" data-tab="integraciones"><span>⚙</span> Integraciones</button>
+  </nav>
+  <button type="button" class="logout" id="logout">Cerrar sesión</button>
+</aside>
+<main>
+  <header>
+    <div><div class="kicker">Administración · Empresa aislada</div>
+      <h1 id="pageTitle">Resumen del restaurante</h1>
+      <div class="muted" id="pageSub">Pedidos, clientes y ventas reales del negocio.</div>
+    </div>
+    <div class="actions"><a class="btn" href="/menu" target="_blank" rel="noopener">Abrir carta pública</a><button class="btn" id="refresh" type="button">Actualizar datos</button></div>
+  </header>
+
+  <section class="view current" id="tab-inicio">
+    <div class="grid">
+      <div class="card metric"><div class="label">Pedidos registrados</div><div class="val" id="mOrders">—</div><div class="tiny muted">Datos de la API de pedidos</div></div>
+      <div class="card metric"><div class="label">Ventas cobradas</div><div class="val" id="mPaid">—</div><div class="tiny muted">Solo estado de pago: pagado</div></div>
+      <div class="card metric"><div class="label">Pedidos pendientes</div><div class="val" id="mPending">—</div><div class="tiny muted">No contabilizados como ventas</div></div>
+      <div class="card metric"><div class="label">Clientes registrados</div><div class="val" id="mCustomers">—</div><div class="tiny muted">CRM de Delibocados</div></div>
+    </div>
+    <div class="section-title"><h2>Operación</h2><span id="apiStatus" class="pill">Consultando API…</span></div>
+    <div class="feature-grid">
+      <div class="card"><h2>Pedidos</h2><p class="muted">Controlá el historial y pagos de mesa, retiro y domicilio.</p><button class="btn" data-goto="pedidos">Ver pedidos</button></div>
+      <div class="card"><h2>Clientes</h2><p class="muted">Consultá los clientes registrados en el CRM del negocio.</p><button class="btn" data-goto="clientes">Ver clientes</button></div>
+      <div class="card"><h2>Menú digital</h2><p class="muted">Abrí el editor existente y revisá la carta pública en pantalla.</p><button class="btn" data-goto="menu">Editar y previsualizar</button></div>
+      <div class="card"><h2>Agente WhatsApp</h2><p class="muted">Motor existente detectado. Falta asignación exclusiva de número y contexto de restaurante.</p><button class="btn" data-goto="whatsapp">Ver integración</button></div>
+    </div>
+    <div class="section-title"><h2>Últimos pedidos</h2></div>
+    <div class="card table-wrap"><table class="table"><thead><tr><th>N.º</th><th>Cliente</th><th>Total</th><th>Pago</th><th>Fecha</th></tr></thead><tbody id="latestOrders"><tr><td colspan="5" class="empty">Consultando datos…</td></tr></tbody></table></div>
+  </section>
+
+  <section class="view" id="tab-pedidos">
+    <div class="hero"><div><h2>Pedidos y ventas</h2><p class="muted">Se muestran registros de la API. No se simulan ventas ni se alteran estados.</p></div><select id="orderFilter"><option value="all">Todos los pedidos</option><option value="paid">Cobrados</option><option value="unpaid">Pendientes de pago</option></select></div>
+    <div class="card table-wrap"><table class="table"><thead><tr><th>N.º</th><th>Cliente</th><th>Origen</th><th>Total COP</th><th>Pago</th><th>Preparación</th><th>Fecha</th></tr></thead><tbody id="allOrders"><tr><td colspan="7" class="empty">Cargando pedidos…</td></tr></tbody></table></div>
+  </section>
+
+  <section class="view" id="tab-clientes">
+    <div class="section-title"><h2>Clientes del restaurante</h2><input type="search" id="customerSearch" placeholder="Buscar por nombre o teléfono"></div>
+    <div class="card table-wrap"><table class="table"><thead><tr><th>Nombre</th><th>WhatsApp</th><th>Correo</th><th>Ciudad</th></tr></thead><tbody id="allCustomers"><tr><td colspan="4" class="empty">Consultando CRM…</td></tr></tbody></table></div>
+  </section>
+
+  <section class="view" id="tab-whatsapp">
+    <div class="card"><div class="kicker">Motor central reutilizable</div><h2>Agente IA de restaurante</h2>
+      <p class="muted">Nuestra plataforma ya cuenta con recepción de WhatsApp, historial, agente de respuestas, memoria comercial y toma de control humano. Todavía no se habilitó este agente para Delibocados.</p>
+      <div class="notice">Protección multiempresa: el agente de Eventos Mediterráneo utiliza una empresa predeterminada. No enviaremos mensajes desde Delibocados hasta separar credenciales, número, prompt y conversaciones.</div>
+      <div class="feature-grid">
+        <div class="card"><strong>Canal WhatsApp</strong><p class="status">Sin asociar al restaurante</p></div>
+        <div class="card"><strong>Memoria y agente IA</strong><p class="status">Adaptación por empresa pendiente</p></div>
+        <div class="card"><strong>Bandeja de chats</strong><p class="status">Pendiente de conexión aislada</p></div>
+        <div class="card"><strong>Envío de pedidos</strong><p class="status">Pendiente de Toteat/POS360</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="tab-menu">
+    <div class="two">
+      <div class="card"><div class="kicker">Editor existente</div><h2>Productos, precios e imágenes</h2>
+        <p class="muted">El editor actual administra el catálogo de Delibocados. Abrilo para hacer cambios y compará inmediatamente la carta pública en la vista móvil.</p>
+        <div class="actions"><a href="/workspace/menu" target="_blank" rel="noopener" class="btn primary">Abrir editor</a><button type="button" class="btn" id="reloadPreview">Actualizar vista previa</button></div>
+        <div class="notice">Pendiente en el editor: vista previa de la imagen seleccionada antes de subirla, validación y recorte. Esta pantalla sí muestra una previsualización real del menú publicado, no del borrador.</div>
+      </div>
+      <div class="card"><div class="section-title"><h2>Vista móvil pública</h2><span class="pill">En vivo</span></div><div class="phone"><iframe class="menu-preview" id="menuPreview" title="Vista previa del menú de Delibocados" loading="lazy" src="/menu"></iframe></div></div>
+    </div>
+  </section>
+
+  <section class="view" id="tab-qr">
+    <div class="two"><div class="card"><h2>Mesas y códigos QR</h2><p class="muted">El editor de QR que ya instalamos conserva los identificadores por mesa. No genera cuentas nuevas ni mezcla restaurantes.</p><a href="/workspace/menu/qr" target="_blank" rel="noopener" class="btn primary">Administrar mesas y QR</a></div>
+    <div class="card"><h2>QR general</h2><div style="background:#fff;max-width:270px;padding:15px;border-radius:12px;margin:auto"><img alt="QR público general Delibocados" src="/restaurant-qr/image?tipo=general" style="display:block;width:100%"></div><p class="tiny muted" style="text-align:center">El destino del código debe verificarse al escanearlo.</p></div></div>
+  </section>
+
+  <section class="view" id="tab-integraciones">
+    <div class="feature-grid">
+      <div class="card"><h2>WhatsApp Business / Whapi</h2><p class="status">Pendiente de conexión independiente</p><p class="muted">Necesitamos asociar el número de Delibocados sin alterar el canal de Eventos Mediterráneo.</p></div>
+      <div class="card"><h2>Agente IA</h2><p class="status">Pendiente de perfil restaurante</p><p class="muted">Prompt, herramientas y memoria por empresa.</p></div>
+      <div class="card"><h2>Toteat</h2><p class="status">Pendiente de credenciales y prueba</p><p class="muted">Sincronización de pedidos y menú tras verificar el contrato de la API.</p></div>
+      <div class="card"><h2>POS360</h2><p class="status">Pendiente de integración</p><p class="muted">Confirmación de comanda, pago y estado; evita ventas duplicadas.</p></div>
+    </div>
+    <div class="notice">Los tokens y secretos de otros negocios no se muestran ni se reutilizan. La configuración multiempresa se habilitará cuando los endpoints estén aislados.</div>
+  </section>
+  <p class="footer">Delibocados Restaurant OS · Datos reales por empresa · Sin acceso al superadmin desde este panel.</p>
+</main>
+</div>
+<script>
+(function(){
+"use strict";
+var names={inicio:["Resumen del restaurante","Pedidos, clientes y ventas reales del negocio."],pedidos:["Pedidos y ventas","Operación y cobros."],clientes:["Clientes y CRM","Información del negocio exclusivamente."],whatsapp:["WhatsApp e inteligencia artificial","Motor central reutilizado, sin habilitación insegura."],menu:["Menú e imágenes","Editor y carta en vivo."],qr:["QR y mesas","Gestión de códigos del restaurante."],integraciones:["Integraciones","Servicios y estado de conexión."]};
+var orders=[],customers=[],orderState="unavailable",customerState="unavailable";
+var money=new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0});
+function text(id,val){document.getElementById(id).textContent=String(val);}
+function safe(x){return String(x==null?"":x).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function num(x){var n=Number(x||0);return Number.isFinite(n)?n:0;}
+function label(x){return x==null||x===""?"—":String(x);}
+function view(tab){
+  if(!names[tab])return;
+  document.querySelectorAll(".view").forEach(function(el){el.classList.toggle("current",el.id==="tab-"+tab);});
+  document.querySelectorAll(".nav").forEach(function(el){el.classList.toggle("active",el.dataset.tab===tab);});
+  text("pageTitle",names[tab][0]);text("pageSub",names[tab][1]);
+}
+document.querySelectorAll("[data-tab]").forEach(function(el){el.addEventListener("click",function(){view(el.dataset.tab);});});
+document.querySelectorAll("[data-goto]").forEach(function(el){el.addEventListener("click",function(){view(el.dataset.goto);});});
+document.getElementById("reloadPreview").addEventListener("click",function(){document.getElementById("menuPreview").src="/menu?v="+Date.now();});
+document.getElementById("refresh").addEventListener("click",refresh);
+document.getElementById("orderFilter").addEventListener("change",renderOrders);
+document.getElementById("customerSearch").addEventListener("input",renderCustomers);
+document.getElementById("logout").addEventListener("click",async function(){try{await fetch("/api/auth/logout",{method:"POST",credentials:"same-origin"});}finally{location.replace("/ingresar");}});
+function cell(v){return "<td>"+safe(label(v))+"</td>";}
+function date(v){var d=new Date(v);return isNaN(d.getTime())?"—":new Intl.DateTimeFormat("es-CO",{dateStyle:"short",timeStyle:"short"}).format(d);}
+function rowOrder(o,short){
+ var customer=o.customer||{};
+ var n=o.number||String(o.id||"").slice(0,8), total=money.format(num(o.total));
+ var arr=[n,customer.name||customer.business_name||"Sin registrar"];
+ if(!short)arr.push(o.source||o.fulfillment_type||"—");
+ arr.push(total,o.payment_status==="paid"?"Cobrado":"Pendiente");
+ if(!short)arr.push(o.fulfillment_status||"—");
+ arr.push(date(o.created_at));
+ return "<tr>"+arr.map(cell).join("")+"</tr>";
+}
+function renderOrders(){
+ var filter=document.getElementById("orderFilter").value;
+ var shown=orders.filter(function(o){return filter==="all"||(filter==="paid"?o.payment_status==="paid":o.payment_status!=="paid");});
+ var msg=orderState!=="ready"?"API de pedidos: "+orderState:"No hay pedidos registrados.";
+ document.getElementById("allOrders").innerHTML=shown.length?shown.slice(0,100).map(function(x){return rowOrder(x,false);}).join(""):"<tr><td colspan=7 class=empty>"+safe(msg)+"</td></tr>";
+ document.getElementById("latestOrders").innerHTML=orders.length?orders.slice(0,8).map(function(x){return rowOrder(x,true);}).join(""):"<tr><td colspan=5 class=empty>"+safe(msg)+"</td></tr>";
+}
+function renderCustomers(){
+ var q=document.getElementById("customerSearch").value.trim().toLowerCase();
+ var shown=customers.filter(function(c){return String([c.name,c.whatsapp,c.email].join(" ")).toLowerCase().includes(q);});
+ var msg=customerState!=="ready"?"API de clientes: "+customerState:"Aún no hay clientes registrados.";
+ document.getElementById("allCustomers").innerHTML=shown.length?shown.slice(0,100).map(function(c){return "<tr>"+[c.name,c.whatsapp,c.email,c.city].map(cell).join("")+"</tr>";}).join(""):"<tr><td colspan=4 class=empty>"+safe(msg)+"</td></tr>";
+}
+async function refresh(){
+ text("apiStatus","Actualizando…");
+ try{
+  var response=await fetch("/api/restaurant/overview",{credentials:"same-origin",cache:"no-store"});
+  if(response.status===401||response.status===403){location.replace("/ingresar");return;}
+  if(!response.ok)throw Error("HTTP "+response.status);
+  var data=await response.json();
+  if(!data.ok||data.companyId!=="delibocados")throw Error("Empresa no identificada");
+  orders=Array.isArray(data.orders)?data.orders:[];customers=Array.isArray(data.customers)?data.customers:[];
+  orderState=data.ordersStatus;customerState=data.customersStatus;
+  text("mOrders",orderState==="ready"?orders.length:"—");
+  text("mCustomers",customerState==="ready"?customers.length:"—");
+  var paid=orders.filter(function(o){return o.payment_status==="paid";});
+  text("mPaid",orderState==="ready"?money.format(paid.reduce(function(s,o){return s+num(o.total);},0)):"—");
+  text("mPending",orderState==="ready"?orders.filter(function(o){return o.payment_status!=="paid";}).length:"—");
+  text("apiStatus","Pedidos: "+orderState+" · CRM: "+customerState);
+  renderOrders();renderCustomers();
+ }catch(error){text("apiStatus","Sin conexión con API: "+error.message);}
+}
+refresh();
+})();
+</script>
+</body>
+</html>
