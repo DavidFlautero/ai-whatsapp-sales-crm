@@ -1,0 +1,104 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Integraciones · Delibocados</title>
+<style>
+:root{--bg:#150f0b;--surface:#2a1e16;--line:#61442d;--text:#faecdd;--muted:#b9a18c;--accent:#d7a36e}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--text);font:15px/1.5 system-ui,Arial;margin:0}
+main{max-width:1050px;margin:auto;padding:30px 18px}a{color:#f3c793;text-decoration:none}h1{font-size:clamp(26px,3.8vw,38px);margin:12px 0}h2{font-size:21px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px;margin:20px 0}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px 20px}.field label{display:block;font-weight:750;margin-bottom:7px}
+input,select,textarea{box-sizing:border-box;width:100%;min-height:44px;background:#17100c;color:var(--text);border:1px solid #926f50;border-radius:9px;padding:10px 12px;font:inherit}
+textarea{min-height:90px;resize:vertical}small,.muted{color:var(--muted)}
+small{display:block;margin:6px 0;font-size:12px}.button{border-radius:10px;padding:12px 15px;border:1px solid var(--line);background:#443021;color:var(--text);font:inherit;cursor:pointer}
+.button.primary{background:var(--accent);color:#21160e;border-color:var(--accent);font-weight:800}.button:disabled{opacity:.5}
+.actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:20px}
+.notice{border-left:3px solid var(--accent);padding:14px;background:#39291b;border-radius:9px;margin:14px 0}
+.pill{font-size:12px;color:#eed3b1;border:1px solid var(--line);padding:6px 10px;border-radius:20px}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.panel{padding:16px}}
+</style></head><body><main>
+<a href="/panel">‹ Volver al panel</a><h1>Integraciones de Delibocados</h1>
+<p class="muted">Configuración por empresa. Los tokens permanecen cifrados en el servidor y nunca se muestran después de guardarlos.</p>
+<div class="notice">Toteat permite consultar productos, ventas y recibir órdenes externas mediante su API. Esta pantalla permite guardar credenciales y probar lectura del menú. <strong>No se enviarán pedidos reales hasta verificar identificadores de productos, permisos y el flujo de comandas.</strong></div>
+<form id="form" autocomplete="off">
+<section class="panel"><div class="actions" style="justify-content:space-between;margin:0"><h2>Toteat</h2><span class="pill" id="tStatus">No comprobado</span></div>
+<div class="grid">
+<div class="field"><label for="environment">Ambiente</label><select id="environment"><option value="production">Producción</option><option value="development">Pruebas</option></select></div>
+<div class="field"><label for="restaurantId">Restaurant ID (xir)</label><input id="restaurantId" inputmode="numeric" maxlength="32" placeholder="Identificador del restaurante"></div>
+<div class="field"><label for="localId">Local ID (xil)</label><input id="localId" inputmode="numeric" maxlength="32" placeholder="Identificador del local"></div>
+<div class="field"><label for="userId">User ID (xiu)</label><input id="userId" inputmode="numeric" maxlength="32" placeholder="Identificador del usuario"></div>
+<div class="field"><label for="apiToken">API Token (xapitoken)</label><input id="apiToken" type="password" autocomplete="new-password" placeholder="Dejar vacío para mantener el guardado"><small id="apiTokenHint">Sin configurar</small></div>
+<div class="field"><label for="originChannel">Canal de origen</label><input id="originChannel" placeholder="Canal habilitado por Toteat"><small>Debe coincidir con la configuración de Pedidos en Toteat.</small></div>
+</div>
+<label style="display:flex;gap:10px;align-items:center;margin-top:18px"><input id="tEnabled" type="checkbox" style="width:auto"> Integración preparada para lectura (no activa envío de pedidos)</label>
+<div class="actions"><button type="button" class="button" id="testToteat">Probar credenciales leyendo productos</button><span id="tTestMessage" aria-live="polite"></span></div>
+</section>
+<section class="panel"><div class="actions" style="justify-content:space-between;margin:0"><h2>POS360 / SmartPOS</h2><span class="pill" id="pStatus">Adaptador pendiente</span></div>
+<p class="muted">El software POS360 instalado localmente necesita un puente autorizado para recibir comandas e imprimirlas. Guardar una dirección no implica que exista una API funcional ni que esté licenciada.</p>
+<div class="grid">
+<div class="field"><label for="posMode">Tipo de integración</label><select id="posMode"><option value="not_connected">Pendiente de conectar</option><option value="local_bridge">Puente local seguro (cuando esté instalado)</option></select></div>
+<div class="field"><label for="installationId">Identificador instalación/local</label><input id="installationId" maxlength="100"></div>
+<div class="field"><label for="bridgeUrl">URL HTTPS del puente</label><input id="bridgeUrl" type="url" maxlength="500" placeholder="https://puente-del-restaurante.example"></div>
+<div class="field"><label for="posToken">Credencial del puente (si existe)</label><input id="posToken" type="password" autocomplete="new-password" placeholder="Dejar vacío para conservar"><small id="posTokenHint">Sin configurar</small></div>
+</div>
+<div class="field"><label for="notes">Notas de instalación e impresoras</label><textarea id="notes" maxlength="800" placeholder="Equipos, impresoras, red local, versión POS360…"></textarea></div>
+<div class="notice">No hay envío de comandas ni impresión automática habilitados. Primero debemos verificar cómo se comunica POS360 con el puente local y hacer una prueba real.</div>
+</section>
+<div class="actions"><button class="button primary" type="submit" id="save">Guardar configuraciones</button><span id="message" role="status" aria-live="polite"></span></div></form>
+<div class="notice"><a href="/panel/ia">Configurar Claude / OpenAI y WhatsApp</a> · <a href="/panel/conversaciones">Ver conversaciones</a> · <a href="/workspace/menu/qr">QR y mesas</a></div>
+</main>
+<script>
+(()=>{
+"use strict";
+const $=id=>document.getElementById(id);
+async function load(){
+ try{
+  let r=await fetch("/api/restaurant/integrations",{credentials:"same-origin",cache:"no-store"});
+  if(r.status===401||r.status===403){location.replace("/ingresar");return}
+  if(!r.ok)throw Error("HTTP "+r.status);
+  let j=await r.json();
+  if(j.companyId!=="delibocados"||!j.ok)throw Error("Empresa no autorizada");
+  let t=j.toteat,p=j.pos360;
+  $("environment").value=t.environment;$("restaurantId").value=t.restaurantId;
+  $("localId").value=t.localId;$("userId").value=t.userId;
+  $("originChannel").value=t.originChannel;$("tEnabled").checked=t.enabled;
+  $("apiToken").value="";$("apiTokenHint").textContent=t.apiTokenConfigured?"Clave guardada en servidor":"Sin configurar";
+  $("tStatus").textContent=t.readyToTest?"Lista para prueba":"Configuración incompleta";
+  $("posMode").value=p.mode;$("bridgeUrl").value=p.bridgeUrl;
+  $("installationId").value=p.installationId;$("notes").value=p.notes;
+  $("posToken").value="";$("posTokenHint").textContent=p.apiTokenConfigured?"Clave guardada en servidor":"Sin configurar";
+  $("pStatus").textContent="Adaptador no conectado";
+ }catch(e){$("message").textContent="Error leyendo configuración: "+e.message}
+}
+$("form").addEventListener("submit",async e=>{
+ e.preventDefault();$("save").disabled=true;$("message").textContent="Guardando cifrado…";
+ const payload={
+  toteat:{environment:$("environment").value,restaurantId:$("restaurantId").value,
+   localId:$("localId").value,userId:$("userId").value,apiToken:$("apiToken").value,
+   originChannel:$("originChannel").value,enabled:$("tEnabled").checked},
+  pos360:{mode:$("posMode").value,bridgeUrl:$("bridgeUrl").value,
+   installationId:$("installationId").value,apiToken:$("posToken").value,notes:$("notes").value}
+ };
+ try{
+  let r=await fetch("/api/restaurant/integrations",{method:"PUT",credentials:"same-origin",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  let j=await r.json().catch(()=>({}));
+  if(!r.ok||!j.ok)throw Error(j.error||"HTTP "+r.status);
+  $("message").textContent="Guardado. Verificando persistencia…";
+  await load();
+  $("message").textContent="Guardado y recargado desde el servidor.";
+ }catch(e){$("message").textContent="No guardó: "+e.message}
+ finally{$("save").disabled=false}
+});
+$("testToteat").addEventListener("click",async()=>{
+ const b=$("testToteat");b.disabled=true;$("tTestMessage").textContent="Probando…";
+ try{
+  let r=await fetch("/api/restaurant/integrations/test",{method:"POST",
+   credentials:"same-origin",headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({provider:"toteat"})});
+  let j=await r.json();
+  $("tTestMessage").textContent=(j.ok?"Conectado: ":"Sin conexión: ")+(j.message||j.status||"error")+
+   (Number.isInteger(j.productCount)?" · "+j.productCount+" productos":"");
+ }catch(e){$("tTestMessage").textContent="Prueba fallida: "+e.message}
+ finally{b.disabled=false}
+});
+load();
+})();
+</script></body></html>
