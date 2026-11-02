@@ -5,7 +5,7 @@ import { ButtonLink, PageHeader } from "../../_components/PagePrimitives";
 
 export default function NewCompanyPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ name:"", slug:"", currency:"COP", ownerName:"", ownerEmail:"", ownerPassword:"" });
+  const [form, setForm] = useState({ name:"", slug:"", currency:"COP", ownerName:"", ownerEmail:"", ownerPassword:"", hostname:"", kind:"custom", purpose:"menu" });
   const [error,setError] = useState("");
   const [saving,setSaving] = useState(false);
   const set = (field:keyof typeof form, value:string) => setForm(old=>({...old,[field]:value}));
@@ -23,6 +23,26 @@ export default function NewCompanyPage() {
         return;
       }
       setForm(old=>({...old,ownerPassword:""}));
+      if (form.hostname.trim()) {
+        try {
+          const domainResponse = await fetch("/api/platform/companies/" +
+            encodeURIComponent(data.data.id) + "/domain", {
+              method: "PUT", credentials: "include",
+              headers: {"Content-Type":"application/json"},
+              body: JSON.stringify({
+                hostname: form.hostname.trim().toLowerCase(),
+                kind: form.kind, purpose: form.purpose
+              }),
+            });
+          if (!domainResponse.ok) {
+            router.push("/platform/companies/manage/" + encodeURIComponent(data.data.id) + "?domainError=1");
+            return;
+          }
+        } catch {
+          router.push("/platform/companies/manage/" + encodeURIComponent(data.data.id) + "?domainError=1");
+          return;
+        }
+      }
       router.push("/platform/companies/manage/" + encodeURIComponent(data.data.id));
     } catch { setError("La API no respondió."); }
     finally { setSaving(false); }
@@ -46,7 +66,19 @@ export default function NewCompanyPage() {
               </select></div>
             <div className="saas-field"><label>Nombre del propietario</label>
               <input required minLength={2} value={form.ownerName} onChange={e=>set("ownerName",e.target.value)}/></div>
-            <div className="saas-field full"><label>Correo del propietario</label>
+            <div className="saas-field"><label>Tipo de dominio</label>
+                <select value={form.kind} onChange={e=>set("kind",e.target.value)}>
+                  <option value="custom">Dominio propio</option><option value="subdomain">Subdominio de la plataforma</option>
+                </select></div>
+              <div className="saas-field"><label>Destino del dominio</label>
+                <select value={form.purpose} onChange={e=>set("purpose",e.target.value)}>
+                  <option value="menu">Menú público</option><option value="panel">Panel del propietario</option>
+                </select></div>
+              <div className="saas-field full"><label>Dominio del cliente (opcional)</label>
+                <input placeholder="restaurantecliente.com" maxLength={253} value={form.hostname}
+                  onChange={e=>set("hostname",e.target.value.toLowerCase())}/></div>
+              <div className="saas-field full"><p>El dominio quedará pendiente de DNS y HTTPS. No se activa automáticamente.</p></div>
+              <div className="saas-field full"><label>Correo del propietario</label>
               <input type="email" required value={form.ownerEmail} onChange={e=>set("ownerEmail",e.target.value)}/></div>
             <div className="saas-field full"><label>Contraseña inicial (12 caracteres mínimo)</label>
               <input type="password" autoComplete="new-password" required minLength={12} value={form.ownerPassword} onChange={e=>set("ownerPassword",e.target.value)}/></div>
