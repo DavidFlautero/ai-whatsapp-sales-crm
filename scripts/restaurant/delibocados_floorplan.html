@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Croquis del restaurante · Delibocados</title>
+<style>
+:root{--bg:#120d0a;--panel:#211711;--panel2:#2e2118;--line:#65472e;--text:#f8ebdd;--muted:#bda992;--accent:#d5a16a;--good:#98ceae}
+*{box-sizing:border-box}body{background:var(--bg);margin:0;color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Arial,sans-serif}
+a{color:#f2c99a;text-decoration:none}button,input,select{font:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:#3b291b;color:var(--text);padding:10px 13px;border-radius:10px;min-height:44px}
+button:hover{filter:brightness(1.13)}button:disabled{opacity:.55;cursor:not-allowed}
+button.primary{background:var(--accent);color:#23180e;border-color:var(--accent);font-weight:800}
+button.danger{border-color:#aa7566;color:#f1b9a8}
+h1{font-size:clamp(26px,3.4vw,38px);margin:8px 0}h2{font-size:20px;margin:0 0 10px}h3{font-size:17px;margin:2px 0 10px}
+p{color:var(--muted);margin:7px 0 14px}small{color:var(--muted)}
+.container{max-width:1540px;margin:auto;padding:24px clamp(12px,3vw,38px)}
+.head{display:flex;gap:16px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:20px}
+.kicker{font-size:12px;font-weight:750;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:19px;margin-bottom:18px}
+.layout{display:grid;grid-template-columns:275px minmax(0,1fr);gap:20px}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+label{display:block;color:#f5dfc8;font-size:13px;font-weight:650;margin-bottom:6px}
+input,select{width:100%;min-height:43px;border:1px solid #755538;color:var(--text);background:#18100c;border-radius:9px;padding:10px 12px}
+fieldset{border:0;padding:0;margin:0 0 16px;min-width:0}
+.note{background:#352419;padding:11px 14px;border-left:3px solid var(--accent);border-radius:8px;color:#f4d6b4;font-size:13px}
+.status{border-radius:9px;padding:9px 13px;background:#38291e;color:#ffd4a7;min-height:42px}
+.status.good{color:var(--good)}
+.floor-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.floor-tab[aria-selected=true]{background:#714b2b;border-color:var(--accent);font-weight:800}
+.small{font-size:12px}
+.toolbar-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.tool{display:flex;align-items:center;gap:8px;justify-content:center;min-height:49px}
+.tool span{font-size:22px}
+.editorTop{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.stage-scroll{width:100%;overflow-x:auto;border-radius:13px}
+.stage{position:relative;min-width:440px;width:100%;aspect-ratio:1.55;max-height:680px;min-height:300px;border:2px dashed #8b5d36;border-radius:14px;overflow:hidden;
+background-color:#20180f;background-image:linear-gradient(#fff1 1px,transparent 1px),linear-gradient(90deg,#fff1 1px,transparent 1px);
+background-size:4% 6.25%;margin-top:13px}
+.stage::before{content:"CROQUIS · ARRASTRÁ LOS ELEMENTOS";position:absolute;left:13px;top:8px;color:#9c846a;font-size:11px;letter-spacing:.09em;pointer-events:none}
+.marker{position:absolute;transform:translate(-50%,-50%);border:2px solid #dfa966;box-shadow:0 2px 8px #0006;
+background:#79502e;color:#fff1d8;display:grid;place-items:center;font-size:12px;font-weight:800;user-select:none;
+touch-action:none;cursor:grab;text-align:center;padding:3px;line-height:1.2}
+.marker:focus-visible{outline:3px solid #fff;outline-offset:3px}.marker:active{cursor:grabbing}
+.marker.table{width:72px;height:63px;border-radius:13px}.marker.table.disabled{opacity:.5}
+.marker.fixture{font-size:12px;border-radius:9px;background:#445346;border-color:#8acaac}
+.marker.fixture.door{background:#394758;border-color:#9bc2ea}
+.marker.fixture.bathroom{background:#3e4a60;border-color:#a3bce6}
+.marker.fixture.stairs{background:#4b425c;border-color:#c7acdd}
+.marker.selected{outline:3px solid #f3f6a0;outline-offset:1px;z-index:20}
+.marker span{display:block;pointer-events:none}
+.selection{border-top:1px solid var(--line);padding-top:13px;margin-top:17px}
+.coordinate{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.coordinate button{font-size:18px;padding:8px}
+.muted{color:var(--muted)}.summary{font-size:13px;color:#c3ad93}
+hr{border:0;border-top:1px solid var(--line);margin:19px 0}
+.printTitle{display:none}
+@media(max-width:1050px){.layout{grid-template-columns:1fr}.side{display:grid;grid-template-columns:1fr 1fr;gap:12px}.side .panel{margin:0}}
+@media(max-width:650px){.container{padding:14px}.side{grid-template-columns:1fr}.panel{padding:14px}.editorTop{align-items:stretch}.stage{min-width:380px}.coordinate{grid-template-columns:repeat(4,1fr)}}
+@media print{body{background:white;color:black}.head,.side,.editorTop .controls,.selection,.status,.note,.floor-tabs,.printHide{display:none!important}.layout{display:block}.stage{min-width:0;max-height:none;width:100%;border:2px solid #555;print-color-adjust:exact}.marker{print-color-adjust:exact}.printTitle{display:block;color:#222}.panel{border:0}}
+</style></head><body><div class="container">
+<header class="head">
+<div><a href="/workspace/menu/qr">‹ Volver a códigos QR y mesas</a><div class="kicker" style="margin-top:16px">Delibocados · Organización del salón</div><h1>Croquis por plantas</h1><p>Diseñá la distribución del restaurante arrastrando mesas, barra, puertas, baños y escaleras.</p></div>
+<div class="controls"><button type="button" id="reload">Recargar</button><button type="button" id="print">Imprimir planta</button><button type="button" class="primary" id="save">Guardar croquis</button></div>
+</header>
+<div class="note" style="margin-bottom:16px">Las mesas y sus QR se administran en el <a href="/workspace/menu/qr">editor de códigos QR</a>. Este croquis organiza la ubicación de mesas ya creadas: <strong>moverlas aquí no cambia sus códigos QR ni sus números</strong>.</div>
+<div class="layout">
+<div class="side">
+<section class="panel">
+<h2>Plantas / pisos</h2><p>Podés agregar hasta 10 plantas.</p>
+<div class="floor-tabs" id="floors" role="tablist" aria-label="Plantas"></div>
+<fieldset><label for="newFloor">Nombre de planta nueva</label><input id="newFloor" maxlength="48" placeholder="Ej.: Piso 2, Terraza, Sótano"></fieldset>
+<div class="controls"><button type="button" id="addFloor">+ Agregar planta</button><button type="button" id="renameFloor">Renombrar</button><button type="button" class="danger" id="removeFloor">Quitar planta</button></div>
+<hr>
+<h3>Mesas del restaurante</h3>
+<p class="summary" id="tableCount">Cargando mesas…</p>
+<label for="tableMover">Llevar mesa a esta planta</label>
+<select id="tableMover"><option value="">Elegí una mesa</option></select>
+<button type="button" id="assignTable" style="margin-top:9px;width:100%">Ubicar mesa aquí</button>
+<small>Si falta una mesa, primero creala y guardala en el editor de QR.</small>
+</section>
+<section class="panel">
+<h2>Elementos del salón</h2><p>Agregá y después arrastrá cada pieza a su lugar.</p>
+<div class="toolbar-group">
+<button class="tool" type="button" data-add="bar"><span>▭</span> Barra</button>
+<button class="tool" type="button" data-add="door"><span>🚪</span> Puerta</button>
+<button class="tool" type="button" data-add="bathroom"><span>♿</span> Baño</button>
+<button class="tool" type="button" data-add="stairs"><span>≋</span> Escalera</button>
+</div>
+<hr>
+<div class="selection">
+<h3>Elemento seleccionado</h3><p id="selectedName">Tocá una mesa o un elemento del plano.</p>
+<label for="selectedFloor">Planta</label><select id="selectedFloor"></select>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0">
+<div><label for="fixtureW">Ancho (%)</label><input id="fixtureW" type="number" min="5" max="40" step="1" value="14"></div>
+<div><label for="fixtureH">Alto (%)</label><input id="fixtureH" type="number" min="5" max="40" step="1" value="10"></div>
+</div>
+<div class="controls" style="margin-bottom:10px"><button type="button" id="resize" style="flex:1">Aplicar tamaño</button><button type="button" id="rotate" style="flex:1">Girar ↻</button></div>
+<div class="coordinate"><button type="button" data-move="up" aria-label="Mover arriba">↑</button><button type="button" data-move="left" aria-label="Mover izquierda">←</button><button type="button" data-move="down" aria-label="Mover abajo">↓</button><button type="button" data-move="right" aria-label="Mover derecha">→</button></div>
+<button type="button" id="removeFixture" class="danger" style="width:100%;margin-top:10px">Eliminar elemento del plano</button>
+<small>Las flechas permiten mover elementos sin arrastrar. No eliminamos las mesas ni sus QR desde aquí.</small>
+</div>
+</section>
+</div>
+<div>
+<section class="panel">
+<div class="editorTop"><div><h2 id="floorTitle">Planta baja</h2><p class="summary" id="floorSummary">Cargando distribución…</p></div>
+<div class="controls printHide"><span class="small muted">Mantener presionado y arrastrar</span><a href="/workspace/menu/qr">Administrar QR</a></div></div>
+<h2 class="printTitle" id="printTitle">Croquis Delibocados</h2>
+<div class="stage-scroll"><div class="stage" id="stage" role="group" aria-label="Plano editable de mesas y elementos"></div></div>
+<div class="controls" style="margin-top:12px"><span class="small muted">Mesas: color café · Barra: verde · Puerta y baño: azul · Escalera: violeta</span></div>
+</section>
+<div class="status" id="message" role="status" aria-live="polite">Cargando croquis…</div>
+</div>
+</div></div>
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+const TYPES = {bar:"Barra",door:"Puerta",bathroom:"Baño",stairs:"Escalera"};
+let layout={floors:[{id:"planta_baja",name:"Planta baja"}],tables:{},fixtures:[]};
+let revision=0,qrTables=[],qrReady=false,current="planta_baja",selected=null,dirty=false,drag=null;
+const show=(msg,ok=false)=>{let el=$("message");el.textContent=msg;el.classList.toggle("good",ok)};
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const makeId=prefix=>prefix+"_"+(crypto.randomUUID?crypto.randomUUID().replaceAll("-",""):Date.now().toString(36)+Math.random().toString(36).slice(2));
+function currentFloor(){return layout.floors.find(f=>f.id===current)||layout.floors[0]}
+function selectedItem(){
+ if(!selected)return null;
+ if(selected.kind==="fixture")return layout.fixtures.find(f=>f.id===selected.id)||null;
+ if(selected.kind==="table")return layout.tables[selected.id]||null;
+ return null;
+}
+function tableById(id){return qrTables.find(t=>t.id===id)}
+function hasChanges(){dirty=true;show("Cambios sin guardar. Presioná «Guardar croquis».")}
+function labelFor(selection){
+ if(!selection)return "Ningún elemento seleccionado";
+ if(selection.kind==="table")return tableById(selection.id)?.mesa||"Mesa";
+ const fixture=layout.fixtures.find(f=>f.id===selection.id);
+ return fixture?TYPES[fixture.type]:"Elemento";
+}
+function syncMissingTables(){
+ if(!qrReady)return;
+ const ids=new Set(qrTables.map(t=>t.id));
+ Object.keys(layout.tables).forEach(id=>{if(!ids.has(id)){delete layout.tables[id];dirty=true}});
+ qrTables.forEach((table,i)=>{
+  if(!layout.tables[table.id]){
+   let floor=layout.floors[0].id;
+   layout.tables[table.id]={floor,x:clamp(Number(table.x)||15+(i%6)*14,3,97),
+                           y:clamp(Number(table.y)||22+Math.floor(i/6)*12,3,97)};
+   dirty=true;
+  }
+ });
+}
+function drawFloors(){
+ const root=$("floors");root.replaceChildren();
+ layout.floors.forEach(f=>{
+  const b=document.createElement("button");b.type="button";b.className="floor-tab";
+  b.setAttribute("role","tab");b.setAttribute("aria-selected",String(f.id===current));
+  b.textContent=f.name;b.addEventListener("click",()=>{current=f.id;selected=null;render()});
+  root.appendChild(b);
+ });
+ const sel=$("selectedFloor");sel.replaceChildren();
+ layout.floors.forEach(f=>{const op=document.createElement("option");op.value=f.id;op.textContent=f.name;sel.appendChild(op)});
+}
+function drawTableMover(){
+ const sel=$("tableMover"),value=sel.value;sel.replaceChildren();
+ const empty=document.createElement("option");empty.value="";empty.textContent="Elegí una mesa";sel.appendChild(empty);
+ qrTables.forEach(t=>{if(t.enabled===false)return;const o=document.createElement("option");o.value=t.id;o.textContent=t.mesa+
+ (layout.tables[t.id]?.floor===current?" (ya está aquí)":"");sel.appendChild(o)});
+ sel.value=qrTables.some(t=>t.id===value)?value:"";
+ $("tableCount").textContent=qrReady?qrTables.length+" mesas creadas en el sistema QR":"No se pudo leer el sistema QR";
+ $("assignTable").disabled=!qrReady;
+}
+function createMarker(kind,id,name,obj){
+ const b=document.createElement("button");b.type="button";b.className="marker "+kind+
+ (kind==="fixture"?" "+obj.type:"")+(selected?.kind===kind&&selected?.id===id?" selected":"")+
+ (kind==="table"&&tableById(id)?.enabled===false?" disabled":"");
+ b.style.left=obj.x+"%";b.style.top=obj.y+"%";
+ if(kind==="fixture"){
+  b.style.width=obj.width+"%";b.style.height=obj.height+"%";
+  b.style.transform="translate(-50%, -50%) rotate("+obj.rotation+"deg)";
+ }
+ b.textContent=name;b.setAttribute("aria-label",name+"; arrastrar para mover");
+ b.addEventListener("click",()=>{selected={kind,id};drawSelection();markSelection()});
+ b.addEventListener("pointerdown",e=>{
+  if(e.button!==0 && e.pointerType==="mouse")return;
+  selected={kind,id};drawSelection();markSelection();
+  const rect=$("stage").getBoundingClientRect();
+  drag={pointer:e.pointerId,button:b,obj,rect};
+  b.setPointerCapture?.(e.pointerId);
+  e.preventDefault();
+ });
+ b.addEventListener("pointermove",e=>{
+  if(!drag||drag.pointer!==e.pointerId||drag.button!==b)return;
+  let x=clamp((e.clientX-drag.rect.left)/drag.rect.width*100,3,97);
+  let y=clamp((e.clientY-drag.rect.top)/drag.rect.height*100,3,97);
+  obj.x=Math.round(x*100)/100;obj.y=Math.round(y*100)/100;
+  b.style.left=obj.x+"%";b.style.top=obj.y+"%";
+  dirty=true;
+ });
+ function finish(e){if(drag&&drag.pointer===e.pointerId&&drag.button===b){drag=null;hasChanges();}}
+ b.addEventListener("pointerup",finish);b.addEventListener("pointercancel",finish);
+ return b;
+}
+function markSelection(){
+ $("stage").querySelectorAll(".marker").forEach(el=>el.classList.remove("selected"));
+ const item=selected&&$("stage").querySelector('[data-selected="'+selected.kind+"_"+selected.id+'"]');
+ if(item)item.classList.add("selected");
+}
+function drawSelection(){
+ const obj=selectedItem();$("selectedName").textContent=labelFor(selected);
+ $("selectedFloor").disabled=!obj;$("removeFixture").disabled=!obj||selected?.kind!=="fixture";
+ $("resize").disabled=!obj||selected?.kind!=="fixture";$("rotate").disabled=!obj||selected?.kind!=="fixture";
+ $("fixtureW").disabled=!obj||selected?.kind!=="fixture";$("fixtureH").disabled=!obj||selected?.kind!=="fixture";
+ document.querySelectorAll("[data-move]").forEach(b=>b.disabled=!obj);
+ if(obj){$("selectedFloor").value=obj.floor}
+ if(obj&&selected.kind==="fixture"){$("fixtureW").value=obj.width;$("fixtureH").value=obj.height}
+}
+function render(){
+ if(!layout.floors.some(f=>f.id===current))current=layout.floors[0].id;
+ drawFloors();drawTableMover();
+ const stage=$("stage");stage.replaceChildren();
+ const floor=currentFloor();
+ $("floorTitle").textContent=floor.name;
+ let n=0;
+ qrTables.forEach(t=>{
+  const o=layout.tables[t.id];if(!o||o.floor!==current)return;n++;
+  stage.appendChild(createMarker("table",t.id,t.mesa,o));
+ });
+ let furniture=0;
+ layout.fixtures.forEach(o=>{
+  if(o.floor!==current)return;furniture++;
+  stage.appendChild(createMarker("fixture",o.id,TYPES[o.type],o));
+ });
+ $("floorSummary").textContent=n+" mesas · "+furniture+" elementos · "+layout.floors.length+" plantas";
+ $("printTitle").textContent="Croquis Delibocados · "+floor.name;
+ drawSelection();
+}
+function getFloorPayload(p){return JSON.stringify(p)}
+async function load(){
+ if(dirty&&!confirm("Hay cambios sin guardar. ¿Querés descartarlos?"))return;
+ show("Cargando croquis y mesas…");
+ try{
+  const [planRes,qrRes]=await Promise.all([
+   fetch("/api/restaurant/floorplan",{credentials:"same-origin",cache:"no-store"}),
+   fetch("/workspace/menu/qr/api",{credentials:"same-origin",cache:"no-store"})
+  ]);
+  if(planRes.status===401||planRes.status===403){location.replace("/ingresar");return}
+  if(!planRes.ok)throw Error("Croquis: HTTP "+planRes.status);
+  const plan=await planRes.json();
+  if(!plan.ok||plan.companyId!=="delibocados")throw Error("Empresa no válida");
+  layout=plan.payload;revision=plan.revision;current=layout.floors[0].id;
+  dirty=false;qrTables=[];qrReady=false;
+  if(qrRes.ok){
+   const qr=await qrRes.json();
+   const body=qr.payload||qr.data?.payload||{};
+   if(Array.isArray(body.tables)){qrTables=body.tables;qrReady=true}
+  }
+  if(qrReady)syncMissingTables();
+  render();
+  show(qrReady?"Croquis cargado. Arrastrá los elementos y guardá.":"Croquis cargado, pero no se pudieron leer las mesas QR.",qrReady);
+  if(dirty)hasChanges();
+ }catch(err){show("No se pudo cargar: "+err.message)}
+}
+$("addFloor").addEventListener("click",()=>{
+ const name=$("newFloor").value.trim();
+ if(layout.floors.length>=10)return show("Máximo 10 plantas.");
+ if(!name||name.length>48)return show("Escribí un nombre de planta (máximo 48 caracteres).");
+ if(layout.floors.some(f=>f.name.toLocaleLowerCase()===name.toLocaleLowerCase()))return show("Ya existe una planta con ese nombre.");
+ const id=makeId("planta");
+ layout.floors.push({id,name});current=id;$("newFloor").value="";selected=null;render();hasChanges();
+});
+$("renameFloor").addEventListener("click",()=>{
+ const f=currentFloor();const name=prompt("Nuevo nombre de la planta:",f.name);
+ if(name===null)return;
+ const n=name.trim();
+ if(!n||n.length>48||layout.floors.some(x=>x.id!==f.id&&x.name.toLocaleLowerCase()===n.toLocaleLowerCase()))
+  return show("Nombre de planta inválido o repetido.");
+ f.name=n;render();hasChanges();
+});
+$("removeFloor").addEventListener("click",()=>{
+ if(layout.floors.length===1)return show("No se puede quitar la única planta.");
+ const f=currentFloor();
+ if(!confirm("¿Quitar «"+f.name+"»? Sus mesas y elementos pasarán a la primera planta. Los QR no se borran."))return;
+ const dest=layout.floors.find(x=>x.id!==current).id;
+ Object.values(layout.tables).forEach(o=>{if(o.floor===current)o.floor=dest});
+ layout.fixtures.forEach(o=>{if(o.floor===current)o.floor=dest});
+ layout.floors=layout.floors.filter(x=>x.id!==current);
+ current=dest;selected=null;render();hasChanges();
+});
+$("assignTable").addEventListener("click",()=>{
+ const id=$("tableMover").value;
+ if(!qrTables.some(t=>t.id===id))return show("Elegí una mesa válida.");
+ const o=layout.tables[id];if(!o)return show("No encontramos esta mesa en el croquis.");
+ o.floor=current;o.x=clamp(o.x,10,90);o.y=clamp(o.y,12,88);
+ selected={kind:"table",id};render();hasChanges();
+});
+document.querySelectorAll("[data-add]").forEach(b=>b.addEventListener("click",()=>{
+ if(layout.fixtures.length>=160)return show("Máximo 160 elementos.");
+ const type=b.dataset.add;
+ const widths={bar:21,door:11,bathroom:15,stairs:15};
+ const heights={bar:9,door:6,bathroom:13,stairs:12};
+ const id=makeId("obj");
+ layout.fixtures.push({id,type,floor:current,x:50,y:50,
+  width:widths[type],height:heights[type],rotation:0});
+ selected={kind:"fixture",id};render();hasChanges();
+}));
+$("selectedFloor").addEventListener("change",()=>{
+ const item=selectedItem();if(!item)return;
+ item.floor=$("selectedFloor").value;current=item.floor;render();hasChanges();
+});
+$("resize").addEventListener("click",()=>{
+ const item=selectedItem();if(!item||selected?.kind!=="fixture")return;
+ const w=Number($("fixtureW").value),h=Number($("fixtureH").value);
+ if(!Number.isFinite(w)||!Number.isFinite(h)||w<5||w>40||h<5||h>40)return show("El tamaño debe estar entre 5 % y 40 %.");
+ item.width=w;item.height=h;render();hasChanges();
+});
+$("rotate").addEventListener("click",()=>{
+ const o=selectedItem();if(!o||selected?.kind!=="fixture")return;
+ o.rotation=(o.rotation+90)%360;render();hasChanges();
+});
+$("removeFixture").addEventListener("click",()=>{
+ if(!selected||selected.kind!=="fixture")return;
+ layout.fixtures=layout.fixtures.filter(f=>f.id!==selected.id);
+ selected=null;render();hasChanges();
+});
+document.querySelectorAll("[data-move]").forEach(b=>b.addEventListener("click",()=>{
+ const o=selectedItem();if(!o)return;
+ const d=b.dataset.move;
+ if(d==="up")o.y=clamp(o.y-2,3,97);
+ if(d==="down")o.y=clamp(o.y+2,3,97);
+ if(d==="left")o.x=clamp(o.x-2,3,97);
+ if(d==="right")o.x=clamp(o.x+2,3,97);
+ render();hasChanges();
+}));
+$("save").addEventListener("click",async()=>{
+ if(!qrReady)return show("No se pueden validar las mesas QR. Recargá antes de guardar.");
+ $("save").disabled=true;
+ try{
+  const r=await fetch("/api/restaurant/floorplan",{
+   method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+   body:getFloorPayload({revision,payload:layout})
+  });
+  if(r.status===401||r.status===403){location.replace("/ingresar");return}
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok||!data.ok)throw Error(data.error||"HTTP "+r.status);
+  revision=data.revision;layout=data.payload;dirty=false;render();
+  show("Croquis guardado correctamente. Los códigos QR permanecen iguales.",true);
+ }catch(err){
+  show("No se guardó: "+err.message+(err.message.includes("CONFLICT")?" (recargá para recuperar cambios recientes)":""));
+ }finally{$("save").disabled=false}
+});
+$("reload").addEventListener("click",load);
+$("print").addEventListener("click",()=>window.print());
+window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue=""}});
+load();
+})();
+</script></body></html>
