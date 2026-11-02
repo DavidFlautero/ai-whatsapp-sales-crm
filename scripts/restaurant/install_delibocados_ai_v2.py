@@ -76,7 +76,8 @@ try:
     for path in (NG, SERVICE, DASH):
         if not path.exists():
             raise RuntimeError("Falta panel V1: " + str(path))
-    if "delibocados-restaurant-panel" not in call("pm2", "list").stdout:
+    processes = call("pm2", "jlist")
+    if processes.returncode or not any(p.get("name") == "delibocados-restaurant-panel" for p in json.loads(processes.stdout)):
         raise RuntimeError("El proceso Delibocados V1 no existe en PM2")
     ng0 = NG.read_text()
     if "location = /panel/ia {" in ng0 or "location = /api/restaurant/ai-config {" in ng0:
