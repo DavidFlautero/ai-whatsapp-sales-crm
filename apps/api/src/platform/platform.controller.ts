@@ -12,6 +12,9 @@ import {
   updateCompanyRobot,
   updateCompanySubscription,
   updatePlatformBranding,
+  registerCompanyDomain,
+  verifyCompanyDomain,
+  updateCompanyOwnerAccess,
 } from "./platform.service.js";
 
 function validationError(
@@ -233,4 +236,41 @@ export async function createPlatformCompany(
       error: "COMPANY_PROVISIONING_FAILED",
     });
   }
+}
+
+function companyActionError(error: unknown, res: Response) {
+  if (error instanceof ZodError) return res.status(400).json({ok:false,error:"VALIDATION_ERROR"});
+  const message = error instanceof Error ? error.message : "UNKNOWN_ERROR";
+  if (["INVALID_HOSTNAME", "INVALID_PURPOSE", "DOMAIN_NOT_REGISTERED", "SUBDOMAIN_BASE_NOT_CONFIGURED_OR_INVALID"].includes(message)) {
+    return res.status(400).json({ok:false,error:message});
+  }
+  if (["EMAIL_RESERVED_BY_EXISTING_ACCOUNT", "EXPECTED_EXACTLY_ONE_ACTIVE_OWNER"].includes(message)) {
+    return res.status(409).json({ok:false,error:message});
+  }
+  console.error("[PLATFORM COMPANY UPDATE]", message);
+  return res.status(409).json({ok:false,error:"OPERATION_FAILED_OR_CONFLICT"});
+}
+
+export async function saveCompanyDomain(req: Request, res: Response) {
+  try {
+    const data = await registerCompanyDomain(req.params.companyId as string, req.body);
+    if (!data) return res.status(404).json({ok:false,error:"COMPANY_NOT_FOUND"});
+    return res.json({ok:true,data});
+  } catch(error) { return companyActionError(error,res); }
+}
+
+export async function checkCompanyDomainDns(req: Request, res: Response) {
+  try {
+    const data = await verifyCompanyDomain(req.params.companyId as string, req.params.purpose as string);
+    if (!data) return res.status(404).json({ok:false,error:"COMPANY_NOT_FOUND"});
+    return res.json({ok:true,data});
+  } catch(error) { return companyActionError(error,res); }
+}
+
+export async function saveCompanyOwnerAccess(req: Request, res: Response) {
+  try {
+    const data = await updateCompanyOwnerAccess(req.params.companyId as string, req.body);
+    if (!data) return res.status(404).json({ok:false,error:"COMPANY_NOT_FOUND"});
+    return res.json({ok:true,data});
+  } catch(error) { return companyActionError(error,res); }
 }
