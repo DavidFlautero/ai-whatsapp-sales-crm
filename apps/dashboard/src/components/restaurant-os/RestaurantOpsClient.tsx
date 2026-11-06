@@ -202,7 +202,7 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
       items: Object.entries(cart).filter(([, qty]) => qty > 0).map(([productId, quantity]) => ({
         productId, quantity
       }))
-    }, "Pedido confirmado, registrado y enviado a la cola de cocina.");
+    }, "Pedido registrado en la cola de cocina.");
     if (ok) {
       idempotencyKey.current = ""; setCart({}); setConfirmed(false);
       setShowNew(false); setPhone(""); setCustomerName(""); setInstructions("");
