@@ -107,10 +107,28 @@ deploy_restaurant_os() {
   elif [[ "$already" != 1 ]]; then
     echo "BLOQUEADO: estado de migración inesperado"; return 1
   fi
+  if [[ ! -f supabase/migrations/20261106200000_restaurant_payment_review.sql ]]; then
+    echo "BLOQUEADO: falta migración de comprobantes"
+    return 1
+  fi
+  already="$(docker exec "$db" psql -U postgres -d "$database" -At -v ON_ERROR_STOP=1 \
+    -c "SELECT count(*) FROM public.commerce_schema_migrations WHERE version='20261106200000'" 2>/dev/null)"
+  if [[ "$already" == 0 ]]; then
+    if ! docker exec -i "$db" psql -U postgres -d "$database" \
+      -X -v ON_ERROR_STOP=1 \
+      < supabase/migrations/20261106200000_restaurant_payment_review.sql; then
+      echo "BLOQUEADO: migración de pagos fallida; no se reiniciaron procesos"
+      return 1
+    fi
+  elif [[ "$already" != 1 ]]; then
+    echo "BLOQUEADO: estado de migración de pagos inesperado"
+    return 1
+  fi
   check="$(docker exec "$db" psql -U postgres -d "$database" -At -v ON_ERROR_STOP=1 \
     -c "SELECT (to_regclass('public.restaurant_ops_orders') IS NOT NULL
        AND to_regclass('public.restaurant_ops_kitchen_tickets') IS NOT NULL
-       AND to_regclass('public.restaurant_ops_couriers') IS NOT NULL)" 2>/dev/null)"
+       AND to_regclass('public.restaurant_ops_couriers') IS NOT NULL
+       AND to_regclass('public.restaurant_ops_payment_proofs') IS NOT NULL)" 2>/dev/null)"
   if [[ "$check" != t ]]; then
     echo "BLOQUEADO: no se localizaron tablas nuevas"; return 1
   fi
@@ -131,6 +149,7 @@ deploy_restaurant_os() {
   echo "RESPALDO: $backup"
   echo "API: OK"
   echo "IA AUTOMATICA: PAUSADA"
+  echo "Pagos: bandeja de comprobantes instalada"
   echo "Toteat/POS360: sin envíos automáticos"
   echo "Siguiente verificación: abrir /panel/pedidos con sesión"
   echo "=== DESPLIEGUE TECNICO COMPLETADO ==="
