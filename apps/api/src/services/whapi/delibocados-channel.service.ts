@@ -45,11 +45,13 @@ function validate(data: unknown): DelibocadosChannel {
 /** A scoped encrypted secret takes priority over the temporary legacy file. */
 export async function getDelibocadosChannel(): Promise<DelibocadosChannel> {
   const registration = await getCompanyIntegration(COMPANY, "whapi");
-  if (registration?.enabled && registration.status === "connected") {
-    const value = await readCompanySecret(context);
-    if (value) {
-      return validate(JSON.parse(value) as unknown);
+  if (registration) {
+    if (!registration.enabled || registration.status !== "connected") {
+      throw new Error("DELIBOCADOS_CHANNEL_NOT_CONFIGURED");
     }
+    const value = await readCompanySecret(context);
+    if (!value) throw new Error("DELIBOCADOS_CHANNEL_NOT_CONFIGURED");
+    return validate(JSON.parse(value) as unknown);
   }
 
   try {
