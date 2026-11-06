@@ -1,3 +1,5 @@
+import { updateConversationMetadata } from "../conversations/conversation.repository.js";
+import { classifyRestaurantIntent } from "../agent/restaurant-ops-conversation.service.js";
 import { findMessageByExternalId } from "../conversations/conversation.repository.js";
 import { existsSync } from "node:fs";
 import { getDelibocadosChannel, type DelibocadosChannel } from "./delibocados-channel.service.js";
@@ -8,6 +10,7 @@ import {
 
 import {
   getOperatorMode,
+  setOperatorMode,
 } from "../operator/operator.service.js";
 
 import {
@@ -132,6 +135,25 @@ async function processMessage(
 
   if (!stored?.id) {
     throw new Error("DELI_AI_MESSAGE_NOT_PERSISTED");
+  }
+
+  // Pruebas de derivación humana: no resolver reclamos graves con un modelo.
+  if (process.env.DELIBOCADOS_OPERATIONS_AI_CONTEXT === "1" &&
+      classifyRestaurantIntent(input.text) === "complaint") {
+    await updateConversationMetadata(input.phone, {
+      restaurant_attention: {
+        type: "complaint",
+        status: "needs_human",
+        last_source_message_id: input.sourceMessageId,
+        reported_at: new Date().toISOString()
+      }
+    }, "delibocados");
+    await setOperatorMode({
+      companyId: "delibocados", contactPhone: input.phone,
+      status: "human", reason: "Reclamación gastronómica que requiere atención"
+    });
+    console.log("[DELI AI HANDOFF]", { last4: input.phone.slice(-4), reason: "complaint" });
+    return;
   }
 
   const result = await executeCompanyAgent({
