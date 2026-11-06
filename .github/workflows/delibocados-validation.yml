@@ -28,7 +28,7 @@ jobs:
       - name: Typecheck API
         run: pnpm --filter @ventas/api typecheck
       - name: Test restaurant intent routing
-        run: pnpm --filter @ventas/api exec tsx --test src/services/agent/restaurant-ops-conversation.test.ts
+        run: pnpm --filter @ventas/api exec tsx --test src/services/agent/restaurant-ops-conversation.test.ts src/services/restaurant-ops/restaurant-zones.test.ts
       - name: Typecheck dashboard
         run: pnpm --filter @ventas/dashboard typecheck
       - name: Build isolated Delibocados dashboard
