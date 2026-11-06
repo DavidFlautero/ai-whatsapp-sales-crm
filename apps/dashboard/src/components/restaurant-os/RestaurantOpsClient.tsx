@@ -343,6 +343,12 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
     {tab === "dispatch" && <section className="rops-card">
       <h2>Despacho y repartidores</h2>
       <p>Asignación manual con control de disponibilidad; los pedidos de retiro no utilizan repartidor.</p>
+      <div className="rops-metrics">
+        <div><span>Bicicletas · objetivo 2</span><strong>{couriers.filter(c => c.active && c.vehicle === "bike").length}/2</strong></div>
+        <div><span>Motos · objetivo 3</span><strong>{couriers.filter(c => c.active && c.vehicle === "motorbike").length}/3</strong></div>
+        <div><span>Disponibles ahora</span><strong>{couriers.filter(c => c.active && c.availability === "available").length}</strong></div>
+      </div>
+      <p>Dotación informada: 2 repartidores en bicicleta y 3 en moto. Registrá nombre y teléfono de cada uno para darles pedidos reales; no se crean perfiles ficticios.</p>
       <div className="rops-couriers">{couriers.map(c => <div key={c.id} className="rops-courier">
         <div><strong>{c.name}</strong><small>{c.phone} · {c.vehicle === "bike" ? "Bicicleta" : "Moto"}</small></div>
         <StatusLabel status={c.availability}/>

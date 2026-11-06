@@ -4,6 +4,12 @@ on:
   push:
     paths:
       - "scripts/deploy/restaurant-ops-v1.sh"
+      - "scripts/deploy/delibocados-test-only.sh"
+      - ".github/workflows/restaurant-deploy-script-validation.yml"
+  pull_request:
+    paths:
+      - "scripts/deploy/delibocados-test-only.sh"
+      - "scripts/deploy/restaurant-ops-v1.sh"
       - ".github/workflows/restaurant-deploy-script-validation.yml"
   workflow_dispatch:
 
@@ -13,7 +19,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate bash deployment syntax
-        run: bash -n scripts/deploy/restaurant-ops-v1.sh
+        run: |
+          bash -n scripts/deploy/restaurant-ops-v1.sh
+          bash -n scripts/deploy/delibocados-test-only.sh
       - name: Enforce paused-AI deployment gate
         run: |
           grep -Fq 'touch /root/delibocados-ai.stop' scripts/deploy/restaurant-ops-v1.sh
@@ -21,3 +29,4 @@ jobs:
             printf '%s\n' "Forbidden: deploy script may not remove AI stop file"
             false
           fi
+
