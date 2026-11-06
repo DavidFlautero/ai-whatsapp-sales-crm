@@ -42,12 +42,10 @@ export default async function RestaurantWhatsappPage() {
     <main id="deli-chat-full">
       <style>{`
         #deli-chat-full {
-          position: fixed;
-          top: 36px;
-          left: 140px;
-          right: 0;
-          bottom: 0;
-          padding: 12px;
+          width: 100%;
+          height: calc(100dvh - 64px);
+          min-height: 560px;
+          padding: 12px 16px;
           background: #f3f6f8;
           box-sizing: border-box;
           z-index: 20;
@@ -84,14 +82,24 @@ export default async function RestaurantWhatsappPage() {
           overflow-y: auto;
         }
 
-        @media (max-width: 800px) {
+        @media (max-width: 1050px) {
           #deli-chat-full {
-            left: 0;
+            height: auto;
+            min-height: calc(100dvh - 64px);
+            padding: 12px;
           }
 
           #deli-chat-full .${styles.workspace} {
-            display: block;
-            overflow-y: auto;
+            height: auto;
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          #deli-chat-full .${styles.chat} {
+            min-height: 480px;
+          }
+
+          #deli-chat-full .${styles.conversationList} {
+            max-height: 320px;
           }
         }
       `}</style>
