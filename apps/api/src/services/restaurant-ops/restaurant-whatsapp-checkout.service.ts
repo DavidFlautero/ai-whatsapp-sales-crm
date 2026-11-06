@@ -10,7 +10,7 @@ import {
   coverageAnswer, isMenuRequest, isMoreMenuRequest, isPreviousMenuRequest,
   isAddRequest, isRemoveRequest, parseNumberedProduct, findMenuMentions,
   mergeCart, removeFromCart, formatDraftCart, isPlausibleCustomerName,
-  type CartLine, type MenuProduct
+  type CartLine
 } from "./restaurant-checkout-dialogue.service.js";
 
 const COMPANY = "delibocados";
@@ -160,7 +160,7 @@ export function shouldStartCheckout(message: string) {
   const m = normalize(message);
   if (["complaint","order_status","payment"].includes(classifyRestaurantIntent(message)))
     return false;
-  return /\b(menu|carta|catalogo|hacer un pedido|quiero pedir|quisiera pedir|voy a pedir|pedir comida|quiero una|quiero dos|quiero tres|me regalas|me vendes)\b/.test(m)
+  return /\b(menu|carta|catalogo|hacer un pedido|quiero pedir|quisiera pedir|voy a pedir|pedir comida|quiero un|quiero una|quiero dos|quiero tres|quisiera un|quisiera una|dame un|dame una|me regalas|me vendes)\b/.test(m)
     || /^(hola|holaa|buenas|buenos dias|buenas tardes|buenas noches)[.!?\s]*$/.test(m)
     || /\b(quiero|quisiera|deme|me das|me vendes)\s+\d+\b/.test(m)
     || classifyRestaurantIntent(message) === "pickup" || classifyRestaurantIntent(message) === "delivery";
@@ -325,9 +325,9 @@ export async function handleRestaurantCheckoutMessage(input: {
     }
     const direct = parseNumberedProduct(input.message,available) ?? parseNaturalItemSelection(input.message,available);
     if (direct) {
-      draft.items=direct;
-      draft.stage="name";
-      await persist(input.phone,draft);
+      return addProduct(direct);
+    }
+    await persist(input.phone,draft);
       return {handled:true,text:"Anoté "+
         direct.map(line=>{
           const product=available.find(p=>p.id===line.productId);
