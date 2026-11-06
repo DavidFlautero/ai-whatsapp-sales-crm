@@ -1,3 +1,4 @@
+import { getContactByPhone, upsertContact } from "../services/crm/crm.repository.js";
 import { queueWhapiAudioTranscription } from "../services/whapi/whapi-audio-processing.service.js";
 import { queueDelibocadosLiveReply } from "../services/whapi/delibocados-live-reply.service.js";
 import { Router } from "express";
@@ -129,6 +130,28 @@ delibocadosTenantWhapiRoutes.post("/webhook", async (req, res) => {
               timestamp > 1e12 ? timestamp : timestamp * 1000
             )
           : null;
+
+      // Whapi incluye from_name (pushname) cuando el remitente lo comparte.
+      // Es un nombre provisional: nunca pisa los datos confirmados del CRM.
+      if (!fromMe) {
+        const candidate = typeof message?.from_name === "string"
+          ? message.from_name.trim().replace(/\\s+/g, " ").slice(0, 120)
+          : "";
+        if (candidate.length >= 2 && !/[<>\\r\\n]/.test(candidate)) {
+          const existing = await getContactByPhone(phone, COMPANY);
+          if (!existing?.name?.trim()) {
+            await upsertContact({
+              phone,
+              name: candidate,
+              metadata: {
+                name_source: "whatsapp_profile",
+                name_confirmed: false,
+                whatsapp_profile_name: candidate
+              }
+            }, COMPANY);
+          }
+        }
+      }
 
       const result = await saveMessage(
         {
