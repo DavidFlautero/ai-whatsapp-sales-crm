@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
   getConversationByPhone, updateConversationMetadata
 } from "../conversations/conversation.repository.js";
@@ -146,6 +145,9 @@ export async function handleRestaurantCheckoutMessage(input: {
   const conversation = await getConversationByPhone(input.phone,COMPANY);
   const previous = existingDraft(conversation?.metadata?.restaurant_checkout_v1);
   const normalized = normalize(input.message);
+  if (previous?.stage === "completed" && normalized === "confirmar pedido") {
+    return { handled:true,text:"Tu pedido #"+(previous.orderNumber ?? "registrado")+" ya está guardado. No se creó uno nuevo." };
+  }
   if (!previous && !shouldStartCheckout(input.message)) return { handled:false,text:"" };
   if (/^(cancelar pedido|cancelar|salir)$/.test(normalized)) {
     if (previous && previous.stage !== "completed") {
@@ -161,7 +163,7 @@ export async function handleRestaurantCheckoutMessage(input: {
   const doc = documents[0];
   const available = (doc?.payload?.products || []).filter(p => p.id && p.name &&
     p.available !== false && p.priceNeedsReview !== true &&
-    Number.isSafeInteger(Number(p.priceCOP)) && Number(p.priceCOP) >= 0).slice(0,40);
+    Number.isSafeInteger(Number(p.priceCOP)) && Number(p.priceCOP) >= 0).slice(0,18);
   if (!doc || !available.length) {
     return { handled:true,text:"Ahora mismo no puedo mostrar un menú con precios verificados. Te atenderá una persona del local." };
   }
@@ -177,6 +179,9 @@ export async function handleRestaurantCheckoutMessage(input: {
            classifyRestaurantIntent(input.message)==="delivery" ? {mode:"delivery" as const} : {})
       };
   if (!previous || ["cancelled","completed"].includes(previous.stage)) {
+    if (previous && !shouldStartCheckout(input.message)) {
+      return { handled:false,text:"" };
+    }
     await persist(input.phone,draft);
     const share = await preferredMenuShare();
     const how = "Para elegir, enviá las cantidades con el número del plato. Ejemplo: *2x1, 1x3* (dos del producto 1 y uno del 3).";
