@@ -245,6 +245,16 @@ async function processMessage(
     };
   };
 
+  // Acknowledge allergy / food-safety issue BEFORE switching to human mode.
+  if ("humanHandoff" in checkout && checkout.humanHandoff) {
+    await setOperatorMode({
+      companyId: "delibocados",
+      contactPhone: input.phone,
+      status: "human",
+      reason: "Alergia o seguridad alimentaria: revisión de ingredientes"
+    });
+  }
+
   // Persistir la respuesta en el CRM del restaurante.
   await saveMessage({
     contact_phone: input.phone,
