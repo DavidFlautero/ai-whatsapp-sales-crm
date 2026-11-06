@@ -2,6 +2,7 @@ import {
   getConversationByPhone, updateConversationMetadata
 } from "../conversations/conversation.repository.js";
 import { getContactByPhone, upsertContact } from "../crm/crm.repository.js";
+import { setOperatorMode } from "../operator/operator.service.js";
 import { supabaseRequest, supabaseRpc } from "../db/supabase-rest.client.js";
 import { classifyRestaurantIntent } from "../agent/restaurant-ops-conversation.service.js";
 
@@ -12,7 +13,7 @@ type MenuDoc = { revision: number; payload: { products?: Item[] } };
 type Zone = { id: string; name: string; fee_cop: number; eta_minutes: number; active: boolean };
 export type CheckoutDraft = {
   id: string;
-  stage: "items" | "name" | "mode" | "zone" | "address" | "payment" | "confirm" | "completed" | "cancelled";
+  stage: "items" | "name" | "mode" | "zone" | "address" | "pickup_time" | "notes" | "payment" | "confirm" | "human_review" | "completed" | "cancelled";
   menuRevision: number;
   items: { productId: string; quantity: number }[];
   customerName?: string;
@@ -20,6 +21,8 @@ export type CheckoutDraft = {
   zoneId?: string;
   address?: string;
   payment?: "cash" | "transfer";
+  customerNote?: string;
+  pickupDueAt?: string;
   createdAt: string;
   orderNumber?: number;
 };
@@ -74,6 +77,8 @@ export function buildOrderSummary(draft: CheckoutDraft, menu: Item[], zones: Zon
       ...lines.map(x => "• " + x.quantity + " × " + x.productName + " — $" +
         (x.unitPrice*x.quantity).toLocaleString("es-CO")),
       "Cliente: " + draft.customerName,
+      ...(draft.pickupDueAt ? ["Retiro solicitado: " + new Date(draft.pickupDueAt).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",timeZone:"America/Bogota"})+" (sujeto a confirmación de cocina)"] : []),
+      ...(draft.customerNote ? ["Indicaciones: " + draft.customerNote] : []),
       "Modalidad: " + (draft.mode === "pickup" ? "Retiro en local" : "Domicilio"),
       ...(draft.mode === "delivery" ? [
         "Zona: " + zone!.name,
@@ -205,10 +210,10 @@ export async function handleRestaurantCheckoutMessage(input: {
     if (value.length < 2 || value.length > 120 || /[\n\r<>{}]/.test(value) || /^\d+$/.test(value))
       return {handled:true,text:"Decime tu nombre para identificar el pedido, por favor."};
     draft.customerName=value;
-    draft.stage=draft.mode==="pickup" ? "payment" : draft.mode==="delivery" ? "zone" : "mode";
+    draft.stage=draft.mode==="pickup" ? "pickup_time" : draft.mode==="delivery" ? "zone" : "mode";
     await persist(input.phone,draft);
-    return {handled:true,text:draft.stage==="payment" ?
-      "¿Vas a pagar en efectivo al retirar o por transferencia? Respondé *EFECTIVO* o *TRANSFERENCIA*." :
+    return {handled:true,text:draft.stage==="pickup_time" ?
+      "¿En cuántos minutos pensás pasar a buscarlo? Respondé *AHORA* o un número entre 10 y 180. La hora queda sujeta a confirmación de cocina." :
       draft.stage==="zone" ? (zoneRows.length ?
         "¿En cuál zona estás? " + zoneRows.map((z,i)=> (i+1)+". "+z.name+" ($"+z.fee_cop.toLocaleString("es-CO")+")").join(" · ") :
         "Todavía no tenemos zonas verificadas. Para domicilio debe confirmar un encargado; si preferís retirar, respondé *RETIRO*.") :
@@ -216,9 +221,9 @@ export async function handleRestaurantCheckoutMessage(input: {
   }
   if (draft.stage==="mode") {
     if (/^(retiro|recoger|paso a buscar|local)$/.test(normalized)) {
-      draft.mode="pickup";draft.stage="payment";
+      draft.mode="pickup";draft.stage="pickup_time";
       await persist(input.phone,draft);
-      return {handled:true,text:"Perfecto, sin costo de domicilio. ¿Pagás *EFECTIVO* al retirar o *TRANSFERENCIA*?"};
+      return {handled:true,text:"Perfecto, sin domicilio. ¿En cuántos minutos pasarás a buscarlo? Respondé *AHORA* o un número entre 10 y 180."};
     }
     if (/^(domicilio|delivery|envio)$/.test(normalized)) {
       draft.mode="delivery";draft.stage="zone";
@@ -231,9 +236,9 @@ export async function handleRestaurantCheckoutMessage(input: {
   }
   if (draft.stage==="zone") {
     if (/^(retiro|local)$/.test(normalized)) {
-      draft.mode="pickup";draft.zoneId=undefined;draft.address=undefined;draft.stage="payment";
+      draft.mode="pickup";draft.zoneId=undefined;draft.address=undefined;draft.stage="pickup_time";
       await persist(input.phone,draft);
-      return {handled:true,text:"Listo, retiro en local. ¿Pagás *EFECTIVO* o *TRANSFERENCIA*?"};
+      return {handled:true,text:"Listo, retiro en local. ¿En cuántos minutos pasarás a buscarlo? *AHORA* o un número entre 10 y 180."};
     }
     const index=Number(normalized)-1;
     const zone=Number.isInteger(index)?zoneRows[index]:null;
@@ -245,8 +250,39 @@ export async function handleRestaurantCheckoutMessage(input: {
     const value=input.message.trim();
     if (value.length < 8 || value.length > 500)
       return {handled:true,text:"Necesito una dirección más completa para poder gestionar el domicilio."};
-    draft.address=value;draft.stage="payment";await persist(input.phone,draft);
-    return {handled:true,text:"¿Pagás *EFECTIVO* al recibir o *TRANSFERENCIA*?"};
+    draft.address=value;draft.stage="notes";await persist(input.phone,draft);
+    return {handled:true,text:"¿Tenés indicaciones especiales o alergias alimentarias? Respondé *NO* si ninguna."};
+  }
+  if (draft.stage==="pickup_time") {
+    const value = normalized;
+    const minutes = value === "ahora" ? 10 : Number(value);
+    if (!Number.isInteger(minutes) || minutes < 10 || minutes > 180) {
+      return {handled:true,text:"Indicame *AHORA* o un número de minutos entre 10 y 180. Cocina debe confirmar la hora."};
+    }
+    draft.pickupDueAt = new Date(Date.now()+minutes*60000).toISOString();
+    draft.stage="notes"; await persist(input.phone,draft);
+    return {handled:true,text:"¿Tenés indicaciones especiales o alergias alimentarias? Respondé *NO* si ninguna."};
+  }
+  if (draft.stage==="notes") {
+    const comment=input.message.trim();
+    if (comment.length > 500 || comment.length < 2) {
+      return {handled:true,text:"Indicame *NO* si no hay observaciones, o escribí una indicación de hasta 500 caracteres."};
+    }
+    if (/\b(alergia|alergico|alergica|celiaco|celiaca|anafilaxia|intolerancia)\b/.test(normalized)) {
+      draft.customerNote=comment;draft.stage="human_review";
+      await persist(input.phone,draft);
+      await setOperatorMode({
+        companyId:COMPANY,contactPhone:input.phone,status:"human",
+        reason:"Declaración de posible alergia: revisar ingredientes y contaminación cruzada"
+      });
+      return {handled:true,text:"Gracias por avisarnos. Por seguridad, un encargado debe revisar los ingredientes y confirmar el pedido. No se registró automáticamente."};
+    }
+    draft.customerNote = normalized==="no" ? "" : comment;
+    draft.stage="payment"; await persist(input.phone,draft);
+    return {handled:true,text:"¿Pagás *EFECTIVO* al recibir o *TRANSFERENCIA*? El comprobante se verifica por separado."};
+  }
+  if (draft.stage==="human_review") {
+    return {handled:true,text:"Tu solicitud requiere la atención de una persona. Todavía no se registró un pedido."};
   }
   if (draft.stage==="payment") {
     if (!/^(efectivo|transferencia)$/.test(normalized))
@@ -270,6 +306,8 @@ export async function handleRestaurantCheckoutMessage(input: {
       p_fulfillment_mode:draft.mode!,p_items:draft.items,
       p_zone_id:draft.mode==="delivery"?draft.zoneId:null,
       p_address:draft.mode==="delivery"?draft.address:null,
+      p_customer_note:draft.customerNote??null,
+      p_pickup_due_at:draft.mode==="pickup"?draft.pickupDueAt:null,
       p_actor_id:"whatsapp_checkout",p_actor_role:"system",
       p_customer_confirmed:true,p_expected_menu_revision:draft.menuRevision,
       p_payment_method:draft.payment==="cash"?"cash":"transfer",
