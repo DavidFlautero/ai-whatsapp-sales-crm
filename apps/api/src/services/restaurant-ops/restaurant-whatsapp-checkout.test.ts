@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
- parseItemSelection, buildOrderSummary, shouldStartCheckout, type CheckoutDraft
+ parseItemSelection, parseNaturalItemSelection, buildOrderSummary, shouldStartCheckout, type CheckoutDraft
 } from "./restaurant-whatsapp-checkout.service.js";
 
 const menu = [
@@ -27,6 +27,21 @@ test("menu numbering and quantity parser are deterministic", () => {
  assert.equal(parseItemSelection("1x4",menu),null);
  assert.equal(parseItemSelection("50x1",menu),null);
  assert.equal(parseItemSelection("1x1, nada",menu),null);
+});
+test("clear natural-language products map only to verified menu IDs", () => {
+ assert.deepEqual(
+   parseNaturalItemSelection("Quiero dos hamburguesas y una gaseosa",menu),
+   [{productId:"burger",quantity:2},{productId:"soda",quantity:1}]
+ );
+ assert.deepEqual(
+   parseNaturalItemSelection("quiero 2 hamburguesas",menu),
+   [{productId:"burger",quantity:2}]
+ );
+ assert.equal(parseNaturalItemSelection("Quiero una pizza",menu),null);
+ assert.equal(parseNaturalItemSelection("Quiero hamburguesas",menu),null);
+ assert.equal(shouldStartCheckout("hola"),true);
+ assert.equal(shouldStartCheckout("Quiero 2 hamburguesas"),true);
+ assert.equal(shouldStartCheckout("Quiero saber dónde está mi pedido"),false);
 });
 test("pickup has exactly zero delivery fee and a confirmed total",() => {
  const total=buildOrderSummary(draft(),menu,[]);
