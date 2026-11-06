@@ -316,7 +316,7 @@ restaurantOpsRoutes.get("/customers", safe(async (_req,res) => {
     nameConfirmed:c.metadata?.name_confirmed===true,
     nameSource:c.metadata?.name_source ?? "unknown",
     status:c.status??"lead",lastSeen:c.last_seen_at??null,
-    ...aggregate.get(c.phone)??{orderCount:0,completed:0,spentCOP:0,lastOrder:null}
+    ...(aggregate.get(c.phone) ?? {orderCount:0,completed:0,spentCOP:0,lastOrder:null})
   }));
   readOnly(res);return res.json({ok:true,customers,
     partial:orders.length>=1000 || incidents.length>=1000});
