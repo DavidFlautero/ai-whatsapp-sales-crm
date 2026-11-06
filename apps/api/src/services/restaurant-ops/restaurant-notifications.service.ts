@@ -7,6 +7,8 @@ type QueueItem = { id: string; order_id: string; kind: string; attempts: number 
 type Order = {
   id: string; number: number; status: string; fulfillment_mode: "pickup" | "delivery";
   customer_phone: string;
+  payment_status: string;
+  source: string;
 };
 type PayloadRow = {
   id: string; order_id: string; kind: string; payload: Record<string, unknown>;
@@ -16,27 +18,46 @@ type TestResult = { disabled?: string; claimed: number; sent: number; failed: nu
 const COMPANY = "delibocados";
 const STOP_FILE = "/root/delibocados-ai.stop";
 
-function message(order: Order, kind: string, status: unknown): string | null {
-  if (kind === "order_confirmed") {
-    if (order.status !== "confirmed") return null;
-    return "Delibocados: recibimos tu pedido #" + order.number + ". Ya quedó confirmado.";
+export function notificationText(order: Order, kind: string, payload: Record<string, unknown>): string | null {
+  const number=order.number;
+  if(kind==="order_confirmed") {
+    if(order.source==="whatsapp")return null; // checkout itself sends an immediate acknowledgement
+    return order.payment_status==="cash_on_delivery" ?
+      "Delibocados: pedido #"+number+" aceptado y enviado a la cola de cocina. Pago en efectivo al recibir.":
+      "Delibocados: pedido #"+number+" registrado. Esperamos confirmar el pago antes de enviarlo a cocina.";
   }
-  if (kind !== "order_status_changed" || status !== order.status) return null;
-  switch (order.status) {
-    case "preparing":
-      return "Delibocados: tu pedido #" + order.number + " está en preparación.";
-    case "ready":
-      return order.fulfillment_mode === "pickup"
-        ? "Delibocados: tu pedido #" + order.number + " ya está listo para retirar en el local."
-        : "Delibocados: tu pedido #" + order.number + " está listo para despacho.";
-    case "out_for_delivery":
-      return "Delibocados: tu pedido #" + order.number + " salió a domicilio.";
-    case "completed":
-      return "Delibocados: pedido #" + order.number + " registrado como entregado. ¡Gracias!";
-    case "cancelled":
-      return "Delibocados: pedido #" + order.number + " cancelado. Si necesitás ayuda, respondé por este chat.";
-    default:
-      return null;
+  if(kind==="payment_proof_received") {
+    return order.payment_status==="proof_submitted"
+      ? "Delibocados: recibimos tu comprobante del pedido #"+number+
+        ". Está en revisión. Te avisaremos cuando se verifique el ingreso." : null;
+  }
+  if(kind==="payment_verified") {
+    return order.payment_status==="verified"
+      ? "Delibocados: verificamos el pago del pedido #"+number+
+        ". Ya está en la cola de cocina. ¡Gracias!" : null;
+  }
+  if(kind==="payment_rejected") {
+    if(order.payment_status!=="pending")return null;
+    const reason=String(payload.reason??"").replace(/[\r\n]/g," ").slice(0,200);
+    return "Delibocados: no pudimos verificar el comprobante del pedido #"+number+
+      (reason?" ("+reason+")":"")+
+      ". Enviá un nuevo comprobante o comunicate con un encargado. No pasó a cocina.";
+  }
+  if(kind==="courier_assigned") {
+    return order.status==="completed"||order.status==="cancelled" ? null :
+      "Delibocados: asignamos un repartidor al pedido #"+number+
+      ". Te avisaremos cuando salga de cocina.";
+  }
+  if(kind!=="order_status_changed" || payload.status!==order.status)return null;
+  switch(order.status) {
+    case "preparing":return "Delibocados: estamos preparando tu pedido #"+number+".";
+    case "ready":return order.fulfillment_mode==="pickup"
+      ?"Delibocados: tu pedido #"+number+" está listo para retirar."
+      :"Delibocados: tu pedido #"+number+" está listo para despacho.";
+    case "out_for_delivery":return "Delibocados: tu pedido #"+number+" ya salió a domicilio.";
+    case "completed":return "Delibocados: pedido #"+number+" entregado. ¡Gracias!";
+    case "cancelled":return "Delibocados: pedido #"+number+" cancelado. Si necesitás ayuda, respondé aquí.";
+    default:return null;
   }
 }
 
@@ -73,7 +94,7 @@ export async function dispatchDelibocadosTestNotifications(): Promise<TestResult
           table: "restaurant_ops_orders",
           query: "?company_id=eq.delibocados&id=eq." + encodeURIComponent(job.order_id) +
             "&customer_phone=eq." + encodeURIComponent(config.testPhone) +
-            "&select=id,number,status,fulfillment_mode,customer_phone&limit=1"
+            "&select=id,number,status,fulfillment_mode,customer_phone,payment_status,source&limit=1"
         }),
         supabaseRequest<PayloadRow[]>({
           table: "restaurant_ops_outbox",
@@ -82,7 +103,7 @@ export async function dispatchDelibocadosTestNotifications(): Promise<TestResult
         })
       ]);
       const order = orders[0]; const record = rows[0];
-      const text = order && record ? message(order,job.kind,record.payload?.status) : null;
+      const text = order && record ? notificationText(order,job.kind,record.payload??{}) : null;
       if (!text) { await updateOutbox(job.id, "suppressed"); result.suppressed++; continue; }
       // Race-safe, operator/AI control: recheck feature flag and test recipient before send.
       if (process.env.DELIBOCADOS_ORDER_NOTIFICATIONS_TEST !== "1" || existsSync(STOP_FILE)
@@ -124,4 +145,23 @@ export async function dispatchDelibocadosTestNotifications(): Promise<TestResult
     }
   }
   return result;
+}
+
+// A single isolated test-channel dispatcher, never public WhatsApp by default.
+let workerStarted = false;
+let workerBusy = false;
+export function startRestaurantNotificationsWorker(): void {
+  if (workerStarted || process.env.DELIBOCADOS_ORDER_NOTIFICATIONS_TEST !== "1") return;
+  workerStarted = true;
+  const timer = setInterval(() => {
+    if (workerBusy || existsSync(STOP_FILE)) return;
+    workerBusy = true;
+    void dispatchDelibocadosTestNotifications()
+      .catch(e => console.error("[RESTAURANT NOTIFICATION WORKER]",{
+        type:e instanceof Error?e.name:"UNKNOWN"
+      }))
+      .finally(() => { workerBusy = false; });
+  },10000);
+  timer.unref();
+  console.log("[RESTAURANT NOTIFICATIONS] test-only worker ready");
 }
