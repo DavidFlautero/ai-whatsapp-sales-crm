@@ -1,5 +1,6 @@
 import { getContactByPhone, upsertContact } from "../services/crm/crm.repository.js";
 import { queueWhapiAudioTranscription } from "../services/whapi/whapi-audio-processing.service.js";
+import { captureRestaurantWhatsappName } from "../services/crm/restaurant-whatsapp-profile.service.js";
 import { queueDelibocadosLiveReply } from "../services/whapi/delibocados-live-reply.service.js";
 import { Router } from "express";
 import { readFileSync } from "node:fs";
@@ -191,6 +192,21 @@ delibocadosTenantWhapiRoutes.post("/webhook", async (req, res) => {
         },
         COMPANY
       );
+
+      // Display names are provisional. CRM enrichment never blocks the webhook.
+      if (!fromMe && !result.duplicate) {
+        try {
+          await captureRestaurantWhatsappName({
+            companyId: COMPANY,
+            phone,
+            profileName: message?.from_name
+          });
+        } catch {
+          console.warn("[DELIBOCADOS PROFILE] Enrichment failed", {
+            last4: phone.slice(-4)
+          });
+        }
+      }
 
       if (result.duplicate) {
         duplicates++;
