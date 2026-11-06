@@ -211,6 +211,7 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
   function OrderCard({ order, kitchen = false }: { order: Order; kitchen?: boolean }) {
     const courier = couriers.find(c => c.id === order.courier_id);
     const current = next(order);
+    const needsPayment = current === "preparing" && !["verified","cash_on_delivery"].includes(order.payment_status);
     return <article className="rops-order" key={order.id}>
       <div className="rops-order-head">
         <div><strong>#{order.number} · {order.customer_name}</strong>
@@ -222,12 +223,13 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
         <OrderLines order={order}/>
         <p><b>Total:</b> {money(order.total_cop)} · <StatusLabel status={order.payment_status}/></p>
         {order.address && <p><b>Dirección:</b> {order.address}</p>}
+        {needsPayment && <p><b>Atención:</b> comprobar el pago antes de pasar a cocina.</p>}
         {order.customer_note && <p><b>Observaciones:</b> {order.customer_note}</p>}
         {courier && <p><b>Repartidor:</b> {courier.name} ({courier.vehicle === "bike" ? "bicicleta" : "moto"})</p>}
         {kitchen && <p><b>Tiempo:</b> {relative(order.preparing_at || order.created_at)}</p>}
       </div>
       <div className="rops-actions">
-        {current && <button disabled={busy} onClick={() => void move(order)}>
+        {current && <button disabled={busy || needsPayment} title={needsPayment ? "Verificar pago antes de cocinar" : ""} onClick={() => void move(order)}>
           {current === "preparing" ? "Iniciar cocina" : current === "ready" ? "Marcar listo" :
             current === "out_for_delivery" ? "Sale a domicilio" :
             order.fulfillment_mode === "pickup" ? "Entregado en local" : "Domicilio entregado"}
