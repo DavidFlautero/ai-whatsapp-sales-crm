@@ -118,7 +118,10 @@ export async function configureDelibocadosChannel(input: {
   };
   const sender = String(health.user?.id ?? "")
     .split("@")[0].replace(/\D/g, "");
-  if (sender && sender !== phone) {
+  if (!sender) {
+    throw new Error("DELIBOCADOS_WHAPI_NO_AUTHENTICATED_SENDER");
+  }
+  if (sender !== phone) {
     throw new Error("DELIBOCADOS_WHAPI_WRONG_SENDER");
   }
 
