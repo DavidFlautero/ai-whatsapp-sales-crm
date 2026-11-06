@@ -259,6 +259,10 @@ export async function handleRestaurantCheckoutMessage(input: {
     if(draft.stage!=="items" && draft.stage!=="human_review") draft.stage="name";
     await persist(input.phone,draft);
   }
+  if(activeDraft && draft.stage==="human_review") {
+    return {handled:true,humanHandoff:true,
+      text:"Tu solicitud requiere revisión de una persona por seguridad alimentaria. El bot no puede modificar ni confirmar ese pedido."};
+  }
   if(activeDraft && wantsCartSummary(input.message)) {
     return {handled:true,text:formatDraftCart(draft.items,available)};
   }
