@@ -328,14 +328,6 @@ export async function handleRestaurantCheckoutMessage(input: {
       return addProduct(direct);
     }
     await persist(input.phone,draft);
-      return {handled:true,text:"Anoté "+
-        direct.map(line=>{
-          const product=available.find(p=>p.id===line.productId);
-          return line.quantity+" × "+(product?.name??"producto");
-        }).join(", ")+
-        ". ¿A nombre de quién registramos el pedido? Después confirmaremos el total."};
-    }
-    await persist(input.phone,draft);
     const share = await preferredMenuShare();
     const how = "Pedime productos por nombre o número. Escribí *VER MÁS* para los demás platos.";
     return {
