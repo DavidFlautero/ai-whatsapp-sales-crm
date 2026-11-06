@@ -71,10 +71,13 @@ async function updateOutbox(id: string, status: "sent" | "failed" | "suppressed"
   });
 }
 
-export async function dispatchDelibocadosTestNotifications(): Promise<TestResult> {
-  // Explicit opt-in + existing AI stop switch. Never send in an ordinary deployment.
-  if (process.env.DELIBOCADOS_ORDER_NOTIFICATIONS_TEST !== "1")
-    return { disabled: "TEST_NOTIFICATIONS_DISABLED", claimed: 0, sent: 0, failed: 0, suppressed: 0 };
+async function dispatch(mode:"test"|"live"): Promise<TestResult> {
+  // Both modes are explicit opt-ins. Refuse ambiguous mixed configuration.
+  const testOn=process.env.DELIBOCADOS_ORDER_NOTIFICATIONS_TEST === "1";
+  const liveOn=process.env.DELIBOCADOS_ORDER_NOTIFICATIONS_LIVE === "1";
+  if (testOn && liveOn) return { disabled:"CONFLICTING_NOTIFICATION_MODES",claimed:0,sent:0,failed:0,suppressed:0 };
+  if ((mode==="test" && !testOn) || (mode==="live" && !liveOn))
+    return { disabled:"NOTIFICATIONS_DISABLED",claimed:0,sent:0,failed:0,suppressed:0 };
   if (existsSync(STOP_FILE))
     return { disabled: "DELIBOCADOS_MESSAGING_PAUSED", claimed: 0, sent: 0, failed: 0, suppressed: 0 };
 
@@ -82,9 +85,13 @@ export async function dispatchDelibocadosTestNotifications(): Promise<TestResult
   if (!config.testPhone || !/^[0-9]{8,15}$/.test(config.testPhone))
     throw new Error("TEST_PHONE_REQUIRED");
 
-  const claimed = await supabaseRpc<QueueItem[]>("restaurant_ops_claim_test_outbox", {
-    p_company_id: COMPANY, p_test_phone: config.testPhone, p_max: 5
-  });
+  const claimed = mode==="test" ?
+    await supabaseRpc<QueueItem[]>("restaurant_ops_claim_test_outbox",{
+      p_company_id:COMPANY,p_test_phone:config.testPhone,p_max:5
+    }) :
+    await supabaseRpc<QueueItem[]>("restaurant_ops_claim_live_outbox",{
+      p_company_id:COMPANY,p_max:10
+    });
 
   const result: TestResult = { claimed: claimed.length, sent: 0, failed: 0, suppressed: 0 };
   for (const job of claimed) {
@@ -93,7 +100,7 @@ export async function dispatchDelibocadosTestNotifications(): Promise<TestResult
         supabaseRequest<Order[]>({
           table: "restaurant_ops_orders",
           query: "?company_id=eq.delibocados&id=eq." + encodeURIComponent(job.order_id) +
-            "&customer_phone=eq." + encodeURIComponent(config.testPhone) +
+            (mode==="test" ? "&customer_phone=eq."+encodeURIComponent(config.testPhone) : "") +
             "&select=id,number,status,fulfillment_mode,customer_phone,payment_status,source&limit=1"
         }),
         supabaseRequest<PayloadRow[]>({
@@ -105,15 +112,20 @@ export async function dispatchDelibocadosTestNotifications(): Promise<TestResult
       const order = orders[0]; const record = rows[0];
       const text = order && record ? notificationText(order,job.kind,record.payload??{}) : null;
       if (!text) { await updateOutbox(job.id, "suppressed"); result.suppressed++; continue; }
-      // Race-safe, operator/AI control: recheck feature flag and test recipient before send.
-      if (process.env.DELIBOCADOS_ORDER_NOTIFICATIONS_TEST !== "1" || existsSync(STOP_FILE)
-          || order.customer_phone !== config.testPhone) {
+      const recipient = mode==="test" ? config.testPhone : order.customer_phone;
+      const modeEnabled = mode==="test" ?
+        process.env.DELIBOCADOS_ORDER_NOTIFICATIONS_TEST === "1" :
+        process.env.DELIBOCADOS_ORDER_NOTIFICATIONS_LIVE === "1";
+      // Recheck guardrails immediately before each send.
+      if (!modeEnabled || existsSync(STOP_FILE) ||
+          !/^[0-9]{8,15}$/.test(recipient) ||
+          (mode==="test" && order.customer_phone !== config.testPhone)) {
         await updateOutbox(job.id,"suppressed"); result.suppressed++; continue;
       }
       const response = await fetch("https://gate.whapi.cloud/messages/text", {
         method: "POST",
         headers: { Authorization: "Bearer " + config.token, "Content-Type": "application/json" },
-        body: JSON.stringify({ to: config.testPhone, body: text }),
+        body: JSON.stringify({ to: recipient, body: text }),
         signal: AbortSignal.timeout(15000)
       });
       if (!response.ok) throw new Error("WHAPI_NOTIFY_HTTP_" + response.status);
@@ -123,7 +135,7 @@ export async function dispatchDelibocadosTestNotifications(): Promise<TestResult
       result.sent++;
       try {
         await saveMessage({
-          contact_phone: config.testPhone,
+          contact_phone: recipient,
           external_message_id: sent.id ?? sent.message?.id,
           direction: "outbound", channel: "whatsapp", message_type: "text",
           body: text, media: { provider: "whapi", source: "system_notification",
@@ -147,21 +159,28 @@ export async function dispatchDelibocadosTestNotifications(): Promise<TestResult
   return result;
 }
 
+export async function dispatchDelibocadosTestNotifications():Promise<TestResult> {
+  return dispatch("test");
+}
+
 // A single isolated test-channel dispatcher, never public WhatsApp by default.
 let workerStarted = false;
 let workerBusy = false;
 export function startRestaurantNotificationsWorker(): void {
-  if (workerStarted || process.env.DELIBOCADOS_ORDER_NOTIFICATIONS_TEST !== "1") return;
+  const testOn=process.env.DELIBOCADOS_ORDER_NOTIFICATIONS_TEST === "1";
+  const liveOn=process.env.DELIBOCADOS_ORDER_NOTIFICATIONS_LIVE === "1";
+  if (workerStarted || testOn === liveOn) return;
+  const mode=liveOn?"live" as const:"test" as const;
   workerStarted = true;
   const timer = setInterval(() => {
     if (workerBusy || existsSync(STOP_FILE)) return;
     workerBusy = true;
-    void dispatchDelibocadosTestNotifications()
+    void dispatch(mode)
       .catch(e => console.error("[RESTAURANT NOTIFICATION WORKER]",{
         type:e instanceof Error?e.name:"UNKNOWN"
       }))
       .finally(() => { workerBusy = false; });
   },10000);
   timer.unref();
-  console.log("[RESTAURANT NOTIFICATIONS] test-only worker ready");
+  console.log("[RESTAURANT NOTIFICATIONS] worker ready: "+mode);
 }
