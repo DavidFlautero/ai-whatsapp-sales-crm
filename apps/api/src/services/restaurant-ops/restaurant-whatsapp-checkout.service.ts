@@ -5,6 +5,13 @@ import { getContactByPhone, upsertContact } from "../crm/crm.repository.js";
 import { supabaseRequest, supabaseRpc } from "../db/supabase-rest.client.js";
 import { classifyRestaurantIntent } from "../agent/restaurant-ops-conversation.service.js";
 import { transferInstructionsForOrder } from "./restaurant-payment-intake.service.js";
+import {
+  MENU_PAGE_SIZE, spanishNormalize, wantsCartSummary, isCoverageQuestion,
+  coverageAnswer, isMenuRequest, isMoreMenuRequest, isPreviousMenuRequest,
+  isAddRequest, isRemoveRequest, parseNumberedProduct, findMenuMentions,
+  mergeCart, removeFromCart, formatDraftCart, isPlausibleCustomerName,
+  type CartLine, type MenuProduct
+} from "./restaurant-checkout-dialogue.service.js";
 
 const COMPANY = "delibocados";
 const MENU_FALLBACK = "https://delibocados.online/menu";
@@ -25,6 +32,8 @@ export type CheckoutDraft = {
   pickupDueAt?: string;
   createdAt: string;
   orderNumber?: number;
+  menuPage?: number;
+  pendingBulk?: CartLine[];
 };
 export type CheckoutReply = {
   handled: boolean;
@@ -59,28 +68,50 @@ export function parseNaturalItemSelection(
   input: string,
   menu: Item[]
 ): {productId:string;quantity:number}[] | null {
-  const source=normalize(input);
+  const source=spanishNormalize(input);
   const words:Record<string,number>={
     un:1,una:1,uno:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,
     siete:7,ocho:8,nueve:9,diez:10
   };
-  const found:Array<{start:number;end:number;productId:string;quantity:number}>=[];
-  for(const product of menu) {
-    const name=normalize(product.name);
-    if(name.length<4)continue;
-    const index=source.indexOf(name);
-    if(index<0 || source.indexOf(name,index+name.length)>=0)continue;
-    const prefix=source.slice(Math.max(0,index-25),index).trim();
+  const mentions=findMenuMentions(input,menu);
+  if(!mentions.length || mentions.length>20)return null;
+  const found=new Map<string,number>();
+  for(const mention of mentions) {
+    const prefix=source.slice(Math.max(0,mention.start-45),mention.start).trim();
     const q=prefix.match(/(?:^|[^a-z0-9])(\d{1,2}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s*(?:de\s*)?$/);
     if(!q)return null;
-    const number=/^\d/.test(q[1])?Number(q[1]):words[q[1]];
-    if(!number || number>25)return null;
-    found.push({start:index,end:index+name.length,productId:product.id,quantity:number});
+    const quantity=/^\d/.test(q[1])?Number(q[1]):words[q[1]];
+    if(!quantity||quantity>25)return null;
+    const total=(found.get(mention.product.id)??0)+quantity;
+    if(total>25)return null;
+    found.set(mention.product.id,total);
   }
-  if(!found.length || found.length>20)return null;
-  found.sort((a,b)=>a.start-b.start);
-  if(found.some((x,i)=>i>0 && x.start<found[i-1].end))return null;
-  return found.map(x=>({productId:x.productId,quantity:x.quantity}));
+  return [...found].map(([productId,quantity])=>({productId,quantity}));
+}
+
+function menuPageText(menu:Item[],page:number):string {
+  const start=Math.max(0,page)*MENU_PAGE_SIZE;
+  const slice=menu.slice(start,start+MENU_PAGE_SIZE);
+  if(!slice.length)return "Llegamos al final del menú. Escribí *MENÚ* para volver a empezar.";
+  return "Productos "+(start+1)+"–"+(start+slice.length)+" de "+menu.length+":\n"+
+    slice.map((p,i)=>(start+i+1)+". "+p.name+" — $"+
+      Number(p.priceCOP).toLocaleString("es-CO")).join("\n")+
+    (start+slice.length<menu.length?"\n\nEscribí *VER MÁS* para ver otros productos.":"")+
+    "\n\nPodés pedir por nombre o por número, por ejemplo *11* (una unidad) o *2x7* (dos unidades del número 7).";
+}
+
+function stagePrompt(stage:CheckoutDraft["stage"]):string {
+  switch(stage) {
+    case "name": return "¿A nombre de quién registramos el pedido?";
+    case "mode": return "¿Preferís *RETIRO* o *DOMICILIO*?";
+    case "zone": return "Decime la zona para el domicilio.";
+    case "address": return "Pasame la dirección completa del domicilio.";
+    case "pickup_time":return "¿En cuántos minutos pasás a buscarlo? *AHORA* o 10–180.";
+    case "notes":return "¿Tenés indicaciones o alergias? Respondé *NO* si ninguna.";
+    case "payment":return "¿Pagás *EFECTIVO* o *TRANSFERENCIA*?";
+    case "confirm":return "Por los cambios, necesitamos revisar el total otra vez. Respondé *EFECTIVO* o *TRANSFERENCIA*.";
+    default:return "Decime qué más querés pedir.";
+  }
 }
 
 export function buildOrderSummary(draft: CheckoutDraft, menu: Item[], zones: Zone[]) {
@@ -184,6 +215,10 @@ export async function handleRestaurantCheckoutMessage(input: {
   const conversation = await getConversationByPhone(input.phone,COMPANY);
   const previous = existingDraft(conversation?.metadata?.restaurant_checkout_v1);
   const normalized = normalize(input.message);
+  // Coverage questions never change the checkout draft or invent geofences.
+  if(isCoverageQuestion(input.message)) {
+    return {handled:true,text:coverageAnswer(input.message)};
+  }
   if (previous?.stage === "completed" && normalized === "confirmar pedido") {
     return { handled:true,text:"Tu pedido #"+(previous.orderNumber ?? "registrado")+" ya está guardado. No se creó uno nuevo." };
   }
@@ -202,7 +237,7 @@ export async function handleRestaurantCheckoutMessage(input: {
   const doc = documents[0];
   const available = (doc?.payload?.products || []).filter(p => p.id && p.name &&
     p.available !== false && p.priceNeedsReview !== true &&
-    Number.isSafeInteger(Number(p.priceCOP)) && Number(p.priceCOP) >= 0).slice(0,18);
+    Number.isSafeInteger(Number(p.priceCOP)) && Number(p.priceCOP) >= 0).slice(0,250);
   if (!doc || !available.length) {
     return { handled:true,text:"Ahora mismo no puedo mostrar un menú con precios verificados. Te atenderá una persona del local." };
   }
@@ -217,11 +252,78 @@ export async function handleRestaurantCheckoutMessage(input: {
         ...(classifyRestaurantIntent(input.message)==="pickup" ? {mode:"pickup" as const} :
            classifyRestaurantIntent(input.message)==="delivery" ? {mode:"delivery" as const} : {})
       };
+  const activeDraft = previous && !["cancelled","completed"].includes(previous.stage);
+  if(activeDraft && draft.customerName && !isPlausibleCustomerName(draft.customerName)) {
+    // Recover drafts polluted by the former "anything is a name" bug.
+    draft.customerName=undefined;
+    if(draft.stage!=="items" && draft.stage!=="human_review") draft.stage="name";
+    await persist(input.phone,draft);
+  }
+  if(activeDraft && wantsCartSummary(input.message)) {
+    return {handled:true,text:formatDraftCart(draft.items,available)};
+  }
+  if(activeDraft && (isMenuRequest(input.message) || isMoreMenuRequest(input.message) ||
+      isPreviousMenuRequest(input.message))) {
+    const maxPage=Math.max(0,Math.ceil(available.length/MENU_PAGE_SIZE)-1);
+    const newPage=isMenuRequest(input.message)?0:isMoreMenuRequest(input.message)?
+      Math.min(maxPage,(draft.menuPage??0)+1):Math.max(0,(draft.menuPage??0)-1);
+    draft.menuPage=newPage;
+    await persist(input.phone,draft);
+    return {handled:true,text:menuPageText(available,newPage)};
+  }
+  if(activeDraft && /^vaciar (?:carrito|pedido)$/.test(normalized)) {
+    draft.items=[];draft.pendingBulk=undefined;draft.stage="items";
+    await persist(input.phone,draft);
+    return {handled:true,text:"Vacié el carrito. No se ha registrado ningún pedido. Decime qué querés pedir."};
+  }
+  const addLines = (value:string) => {
+    const stripped=value.replace(/^(?:agrega(?:me)?|agregar|anade(?:me)?|anadir|suma(?:me)?|sumar|pon(?:me)?|incluye|inclui|quiero agregar|quiero anadir|quiero sumar)\s+/i,"");
+    return parseNumberedProduct(stripped,available) ??
+      parseItemSelection(stripped,available) ?? parseNaturalItemSelection(value,available);
+  };
+  const addProduct = async (lines:CartLine[],confirmedQuantity=false):Promise<CheckoutReply> => {
+    if(!confirmedQuantity && lines.some(x=>x.quantity>5)) {
+      draft.pendingBulk=lines;
+      await persist(input.phone,draft);
+      return {handled:true,text:"Esa cantidad es alta: "+
+        formatDraftCart(lines,available)+
+        "\nSi realmente querés esas unidades, respondé *CONFIRMAR CANTIDAD*. Todavía no se añadieron."};
+    }
+    const combined=mergeCart(draft.items,lines);
+    if(!combined)return {handled:true,text:"La cantidad supera el máximo permitido por producto (25). Decime cuántas unidades querés."};
+    draft.pendingBulk=undefined;draft.items=combined;draft.menuRevision=doc.revision;
+    if(draft.stage==="items")draft.stage="name";
+    if(draft.stage==="confirm")draft.stage="payment";
+    await persist(input.phone,draft);
+    return {handled:true,text:formatDraftCart(draft.items,available)+"\n\n"+stagePrompt(draft.stage)};
+  };
+  if(activeDraft && normalized==="confirmar cantidad" && draft.pendingBulk?.length) {
+    return addProduct(draft.pendingBulk,true);
+  }
+  if(activeDraft && isRemoveRequest(input.message)) {
+    const matches=findMenuMentions(input.message,available);
+    if(!matches.length)return {handled:true,text:"No identifiqué qué producto querés quitar. Escribí *QUITA* seguido del nombre exacto del menú."};
+    const ids=matches.map(x=>x.product.id);
+    if(!draft.items.some(x=>ids.includes(x.productId)))
+      return {handled:true,text:"Ese producto no aparece en el carrito. "+formatDraftCart(draft.items,available)};
+    draft.items=removeFromCart(draft.items,ids);
+    draft.pendingBulk=undefined;draft.menuRevision=doc.revision;
+    if(!draft.items.length)draft.stage="items";
+    else if(draft.stage==="confirm")draft.stage="payment";
+    await persist(input.phone,draft);
+    return {handled:true,text:formatDraftCart(draft.items,available)+"\n\n"+stagePrompt(draft.stage)};
+  }
+  if(activeDraft && isAddRequest(input.message)) {
+    const found=addLines(input.message);
+    if(!found)return {handled:true,text:"No pude identificar ese producto con seguridad. Pasame el nombre exacto o el número del menú. Escribí *MENÚ* para consultarlo."};
+    return addProduct(found);
+  }
+
   if (!previous || ["cancelled","completed"].includes(previous.stage)) {
     if (previous && !shouldStartCheckout(input.message)) {
       return { handled:false,text:"" };
     }
-    const direct = parseNaturalItemSelection(input.message,available);
+    const direct = parseNumberedProduct(input.message,available) ?? parseNaturalItemSelection(input.message,available);
     if (direct) {
       draft.items=direct;
       draft.stage="name";
@@ -235,25 +337,23 @@ export async function handleRestaurantCheckoutMessage(input: {
     }
     await persist(input.phone,draft);
     const share = await preferredMenuShare();
-    const how = "Para elegir, enviá las cantidades con el número del plato. Ejemplo: *2x1, 1x3* (dos del producto 1 y uno del 3).";
+    const how = "Pedime productos por nombre o número. Escribí *VER MÁS* para los demás platos.";
     return {
       handled:true,
       text:(share.url ? "Este es nuestro menú: " + share.url + "\n\n" :
             share.imageUrl ? "Te comparto la foto del menú.\n\n" : "") +
-        "Estos son los productos disponibles:\n" + menuList(available) + "\n\n" + how,
+        menuPageText(available,0) + "\n\n" + how,
       ...(share.imageUrl ? {imageUrl:share.imageUrl}: {})
     };
   }
   if (draft.stage === "items") {
-    const lines = parseItemSelection(input.message,available) ?? parseNaturalItemSelection(input.message,available);
+    const lines = parseNumberedProduct(input.message,available) ?? parseItemSelection(input.message,available) ?? parseNaturalItemSelection(input.message,available);
     if (!lines) return {handled:true,text:"Pasame los números y cantidades del menú, por ejemplo *2x1, 1x3*. Si querés ver la carta otra vez, escribí *CANCELAR PEDIDO* y luego *MENÚ*."};
-    draft.items=lines;draft.menuRevision=doc.revision;draft.stage="name";
-    await persist(input.phone,draft);
-    return {handled:true,text:"Perfecto. ¿A nombre de quién registramos el pedido?"};
+    return addProduct(lines);
   }
   if (draft.stage === "name") {
     const value=input.message.trim().replace(/\s+/g," ");
-    if (value.length < 2 || value.length > 120 || /[\n\r<>{}]/.test(value) || /^\d+$/.test(value))
+    if (!isPlausibleCustomerName(value))
       return {handled:true,text:"Decime tu nombre para identificar el pedido, por favor."};
     draft.customerName=value;
     draft.stage=draft.mode==="pickup" ? "pickup_time" : draft.mode==="delivery" ? "zone" : "mode";
