@@ -408,19 +408,14 @@ GRANT EXECUTE ON FUNCTION public.restaurant_ops_assign_courier(text,uuid,uuid,in
 GRANT EXECUTE ON FUNCTION public.restaurant_ops_set_payment(text,uuid,integer,text,text,text,text) TO service_role;
 
 
--- Delivery-safe test mode: lock and claim only recent rows addressed to the
--- channel's configured test number. Old, production or unrelated messages are not claimed.
+-- Test-only outbox claims: delivered exclusively to the configured test number.
 CREATE OR REPLACE FUNCTION public.restaurant_ops_claim_test_outbox(
  p_company_id text, p_test_phone text, p_max integer DEFAULT 5
 ) RETURNS TABLE(id uuid, order_id uuid, kind text, attempts integer)
- LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 BEGIN
  IF p_company_id <> 'delibocados'
-    OR coalesce(p_test_phone,'') !~ '^[0-9]{8,15}
-VALUES('20261106170000','Restaurant operations: confirmed orders, kitchen, dispatch, incidents, audit and outbox')
-ON CONFLICT(version) DO NOTHING;
-COMMIT;
-
+    OR coalesce(p_test_phone,'') !~ '^[0-9]{8,15}$'
     OR p_max NOT BETWEEN 1 AND 10 THEN
    RAISE EXCEPTION 'OUTBOX_CLAIM_NOT_ALLOWED';
  END IF;
@@ -436,11 +431,12 @@ COMMIT;
    ORDER BY o.created_at,o.id
    FOR UPDATE OF o SKIP LOCKED
    LIMIT p_max
- ) UPDATE public.restaurant_ops_outbox o
+ )
+ UPDATE public.restaurant_ops_outbox o
  SET status='processing',attempts=o.attempts+1
  FROM to_claim c WHERE o.id=c.id
  RETURNING o.id,o.order_id,o.kind,o.attempts;
-END $;
+END $$;
 REVOKE ALL ON FUNCTION public.restaurant_ops_claim_test_outbox(text,text,integer)
  FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.restaurant_ops_claim_test_outbox(text,text,integer)
