@@ -54,6 +54,7 @@ export async function saveDelibocadosChannel(
     const known = [
       "DELIBOCADOS_CHANNEL_INPUT_INVALID",
       "DELIBOCADOS_WHAPI_WRONG_SENDER",
+      "DELIBOCADOS_WHAPI_NO_AUTHENTICATED_SENDER",
     ];
     if (known.includes(reason) || reason.startsWith("DELIBOCADOS_WHAPI_AUTH_HTTP_")) {
       return res.status(422).json({ ok: false, error: reason });
