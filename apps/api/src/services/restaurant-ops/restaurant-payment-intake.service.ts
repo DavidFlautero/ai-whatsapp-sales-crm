@@ -1,6 +1,5 @@
 import { supabaseRequest, supabaseRpc } from "../db/supabase-rest.client.js";
 import { updateConversationMetadata } from "../conversations/conversation.repository.js";
-import { getDefaultPaymentAccount } from "../payments/payment-submission.service.js";
 
 const COMPANY = "delibocados";
 
@@ -19,7 +18,18 @@ type PaymentProof = {
   source_message_id: string;
   status: "pending_review" | "approved" | "rejected";
 };
-type PaymentAccount = NonNullable<Awaited<ReturnType<typeof getDefaultPaymentAccount>>>;
+export type RestaurantPaymentAccount = {
+  company_id: string;
+  institution_name: string;
+  holder_name: string;
+  account_type: "bank_account" | "virtual_wallet";
+  account_number?: string | null;
+  alias?: string | null;
+  instructions?: string | null;
+  currency: "COP";
+  active: boolean;
+};
+type PaymentAccount = RestaurantPaymentAccount;
 
 export function transferInstructions(account: PaymentAccount, orderNumber: number, totalCOP: number) {
   const lines = [
@@ -39,7 +49,11 @@ export function transferInstructions(account: PaymentAccount, orderNumber: numbe
 }
 
 export async function transferInstructionsForOrder(input: { number: number; totalCOP: number }) {
-  const account = await getDefaultPaymentAccount({ companyId: COMPANY, currency: "COP" });
+  const accounts = await supabaseRequest<RestaurantPaymentAccount[]>({
+    table:"restaurant_ops_payment_accounts",
+    query:"?company_id=eq.delibocados&active=eq.true&select=*&limit=1"
+  });
+  const account=accounts[0];
   if (!account || account.account_type === "cash" ||
       (!account.account_number && !account.alias)) {
     return {
