@@ -203,7 +203,7 @@ GRANT EXECUTE ON FUNCTION public.restaurant_ops_review_payment_proof(text,uuid,t
  TO service_role;
 -- Courier assignment emits a durable customer notification and an auditable dispatch event.
 CREATE OR REPLACE FUNCTION public.restaurant_ops_notify_courier_assignment()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 BEGIN
  IF NEW.company_id='delibocados' AND NEW.event_type='courier_assigned' THEN
    INSERT INTO public.restaurant_ops_outbox(company_id,order_id,kind,payload)
@@ -211,7 +211,7 @@ BEGIN
      jsonb_build_object('courier_id',NEW.details->>'courier_id'));
  END IF;
  RETURN NEW;
-END $;
+END $$;
 DROP TRIGGER IF EXISTS restaurant_ops_courier_assignment_notify
  ON public.restaurant_ops_order_events;
 CREATE TRIGGER restaurant_ops_courier_assignment_notify
