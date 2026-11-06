@@ -220,7 +220,15 @@ export async function sendOperatorMessage(
   let companyWhapiToken: string | undefined;
 
   if (companyId === "delibocados") {
-    companyWhapiToken = getDelibocadosToken();
+    try {
+      companyWhapiToken = await getDelibocadosToken();
+    } catch {
+      return res.status(503).json({
+        ok: false,
+        error: "WHAPI_CHANNEL_NOT_CONNECTED",
+        message: "Configurá el canal existente en Integraciones.",
+      });
+    }
   }
 
   const useWhapi =

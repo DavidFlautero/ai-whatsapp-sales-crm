@@ -1,5 +1,6 @@
 import { findMessageByExternalId } from "../conversations/conversation.repository.js";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
+import { getDelibocadosChannel, type DelibocadosChannel } from "./delibocados-channel.service.js";
 
 import {
   executeCompanyAgent,
@@ -21,40 +22,16 @@ type Incoming = {
   occurredAt?: string;
 };
 
-type ChannelConfig = {
-  enabled: boolean;
-  phone: string;
-  token: string;
-  testPhone?: string;
-};
+type ChannelConfig = DelibocadosChannel;
 
-const CONFIG_FILE = "/root/delibocados-ai-whapi.json";
 const STOP_FILE = "/root/delibocados-ai.stop";
 
 const pending = new Map<string, Promise<void>>();
 
-function getConfig(): ChannelConfig | null {
-  if (
-    existsSync(STOP_FILE) ||
-    !existsSync(CONFIG_FILE)
-  ) {
-    return null;
-  }
-
+async function getConfig(): Promise<ChannelConfig | null> {
+  if (existsSync(STOP_FILE)) return null;
   try {
-    const config = JSON.parse(
-      readFileSync(CONFIG_FILE, "utf8")
-    ) as ChannelConfig;
-
-    if (
-      config.enabled !== true ||
-      !/^[0-9]{8,15}$/.test(config.phone) ||
-      !config.token
-    ) {
-      return null;
-    }
-
-    return config;
+    return await getDelibocadosChannel();
   } catch {
     return null;
   }
@@ -106,7 +83,7 @@ async function processMessage(
     return;
   }
 
-  const config = getConfig();
+  const config = await getConfig();
 
   if (!config) {
     return;
@@ -178,7 +155,7 @@ async function processMessage(
   }
 
   // Volver a comprobar permisos y canal antes de enviar.
-  const latest = getConfig();
+  const latest = await getConfig();
 
   if (
     !latest ||
@@ -272,7 +249,7 @@ export function queueDelibocadosLiveReply(
 ): void {
   if (
     input.companyId !== "delibocados" ||
-    !getConfig()
+    existsSync(STOP_FILE)
   ) {
     return;
   }

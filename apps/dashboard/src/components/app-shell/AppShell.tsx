@@ -363,11 +363,7 @@ const restaurantGroups: MenuGroup[] = [
     icon: "home",
     items: [
       { label: "Inicio", href: "/panel", icon: "home" },
-      {
-        label: "Conversaciones",
-        href: "/panel/conversaciones",
-        icon: "message",
-      },
+      { label: "Conversaciones", href: "/panel/operador", icon: "message" },
     ],
   },
   {
@@ -375,14 +371,11 @@ const restaurantGroups: MenuGroup[] = [
     label: "Restaurante",
     icon: "briefcase",
     items: [
-      { label: "Pedidos", href: "/orders", icon: "inbox" },
-      { label: "Menú y catálogo", href: "/catalog", icon: "file" },
-      {
-        label: "Clientes",
-        href: "/crm",
-        queryView: "customers",
-        icon: "customer",
-      },
+      { label: "Pedidos", href: "/panel/pedidos", icon: "inbox" },
+      { label: "Menú y catálogo", href: "/panel/menu", icon: "file" },
+      { label: "Clientes", href: "/panel/clientes", icon: "customer" },
+      { label: "Códigos QR", href: "/panel/qr", icon: "target" },
+      { label: "Plano de mesas", href: "/panel/plano", icon: "building" },
     ],
   },
   {
@@ -390,8 +383,8 @@ const restaurantGroups: MenuGroup[] = [
     label: "Inteligencia artificial",
     icon: "sparkles",
     items: [
-      { label: "Asistente IA", href: "/ai-core", icon: "bot" },
-      { label: "Integraciones", href: "/integrations", icon: "plug" },
+      { label: "Asistente IA", href: "/panel/ia", icon: "bot" },
+      { label: "Integraciones", href: "/panel/integraciones", icon: "plug" },
     ],
   },
   {
@@ -399,7 +392,7 @@ const restaurantGroups: MenuGroup[] = [
     label: "Administración",
     icon: "settings",
     items: [
-      { label: "Configuración", href: "/settings", icon: "settings" },
+      { label: "Inicio del panel", href: "/panel", icon: "settings" },
     ],
   },
 ];
