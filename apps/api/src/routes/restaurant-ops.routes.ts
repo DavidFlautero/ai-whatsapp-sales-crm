@@ -1,3 +1,4 @@
+import { dispatchDelibocadosTestNotifications } from "../services/restaurant-ops/restaurant-notifications.service.js";
 import { Router, type Request, type Response } from "express";
 import { z, ZodError } from "zod";
 import { requireRoles } from "../middlewares/auth.middleware.js";
@@ -278,3 +279,11 @@ restaurantOpsRoutes.get("/report",safe(async (req,res) => {
     customers:new Set(orders.map(o=>String(o.customer_phone))).size
   }});
 }));
+
+// Deliberately manual, manager-only and limited to the configured test phone.
+restaurantOpsRoutes.post("/notifications/dispatch-test",
+  requireRoles("owner","admin"), safe(async (_req,res) => {
+    const result = await dispatchDelibocadosTestNotifications();
+    return res.json({ok:true,result});
+  })
+);
