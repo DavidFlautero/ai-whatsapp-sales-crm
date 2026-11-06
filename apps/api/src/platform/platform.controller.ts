@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import { ZodError } from "zod";
 import {
+  CompanyAlreadyExistsError,
+  createCompany,
   findCompany,
   getPlatformOverview,
   getPublicBranding,
@@ -203,5 +205,32 @@ export async function saveCompanySubscription(
     });
   } catch (error) {
     return validationError(error, res);
+  }
+}
+
+
+export async function provisionCompany(
+  req: Request,
+  res: Response,
+) {
+  try {
+    const data = await createCompany(req.body);
+    return res.status(201).json({ ok: true, data });
+  } catch (error) {
+    if (error instanceof CompanyAlreadyExistsError) {
+      return res.status(409).json({
+        ok: false,
+        error: "COMPANY_ALREADY_EXISTS",
+      });
+    }
+    if (error instanceof ZodError) {
+      return validationError(error, res);
+    }
+    console.error("[COMPANY PROVISIONING FAILED]", error);
+    return res.status(503).json({
+      ok: false,
+      error: "COMPANY_PROVISIONING_FAILED",
+      message: "No se pudo completar el alta. Es seguro reintentar.",
+    });
   }
 }

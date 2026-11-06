@@ -27,6 +27,7 @@ const vendorRoutes = [
   "/conversations",
   "/crm",
   "/catalog",
+  "/panel",
 ];
 
 const supervisorBlockedRoutes = [
@@ -148,6 +149,41 @@ function canAccess(
 export async function proxy(
   request: NextRequest,
 ) {
+  // DELIBOCADOS_UNIFIED_AUTH_V1
+  // Validar acceso en el proxy ANTES del render de React/Next.
+  if (process.env.NEXT_PUBLIC_PANEL_INSTANCE === "delibocados") {
+    const p = request.nextUrl.pathname;
+    if (p === "/login") return NextResponse.redirect(new URL("/ingresar", request.url));
+    if (p === "/ingresar" || p.startsWith("/api/restaurant-auth/")) {
+      return NextResponse.next();
+    }
+    if (p === "/panel" || p.startsWith("/panel/")) {
+      const originalCookie = request.headers.get("cookie") || "";
+      if (!originalCookie) {
+        return NextResponse.redirect(new URL("/ingresar", request.url));
+      }
+      try {
+        const response = await fetch("http://127.0.0.1:4100/auth/session", {
+          headers: { Cookie: originalCookie, Accept: "application/json" },
+          cache: "no-store",
+          signal: AbortSignal.timeout(7000),
+        });
+        if (!response.ok) {
+          return NextResponse.redirect(new URL("/ingresar", request.url));
+        }
+        const session = await response.json();
+        const user = session?.user;
+        if (user?.companyId !== "delibocados" || user?.active !== true ||
+            !["owner", "admin"].includes(user?.role || "")) {
+          return NextResponse.redirect(new URL("/ingresar?error=empresa", request.url));
+        }
+        return NextResponse.next();
+      } catch {
+        // Backend no disponible: acceso denegado por defecto.
+        return NextResponse.redirect(new URL("/ingresar", request.url));
+      }
+    }
+  }
 
   // OWNER_PORTAL_ACCESS_V1
   // Las páginas son públicas; los datos requieren sesión propia.

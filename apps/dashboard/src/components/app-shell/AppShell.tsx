@@ -355,6 +355,55 @@ const groups: MenuGroup[] = [
 ];
 
 
+
+const restaurantGroups: MenuGroup[] = [
+  {
+    id: "principal",
+    label: "Principal",
+    icon: "home",
+    items: [
+      { label: "Inicio", href: "/panel", icon: "home" },
+      {
+        label: "Conversaciones",
+        href: "/panel/conversaciones",
+        icon: "message",
+      },
+    ],
+  },
+  {
+    id: "operacion",
+    label: "Restaurante",
+    icon: "briefcase",
+    items: [
+      { label: "Pedidos", href: "/orders", icon: "inbox" },
+      { label: "Menú y catálogo", href: "/catalog", icon: "file" },
+      {
+        label: "Clientes",
+        href: "/crm",
+        queryView: "customers",
+        icon: "customer",
+      },
+    ],
+  },
+  {
+    id: "ia",
+    label: "Inteligencia artificial",
+    icon: "sparkles",
+    items: [
+      { label: "Asistente IA", href: "/ai-core", icon: "bot" },
+      { label: "Integraciones", href: "/integrations", icon: "plug" },
+    ],
+  },
+  {
+    id: "sistema",
+    label: "Administración",
+    icon: "settings",
+    items: [
+      { label: "Configuración", href: "/settings", icon: "settings" },
+    ],
+  },
+];
+
 function Icon({
   name,
   size = 18,
@@ -691,6 +740,14 @@ export function AppShell({
 }: {
   children: React.ReactNode;
 }) {
+  const isRestaurant =
+    process.env.NEXT_PUBLIC_PANEL_INSTANCE === "delibocados";
+
+  const menuGroups = isRestaurant ? restaurantGroups : groups;
+  const businessName = isRestaurant
+    ? "Delibocados"
+    : "Eventos Mediterráneo";
+
   const pathname =
     usePathname();
 
@@ -870,7 +927,7 @@ export function AppShell({
       () => {
         for (
           const group
-          of groups
+          of menuGroups
         ) {
           for (
             const item
@@ -940,7 +997,7 @@ export function AppShell({
           }
         >
           <Link
-            href="/crm"
+            href={isRestaurant ? "/panel" : "/crm"}
             className={
               styles.brand
             }
@@ -950,7 +1007,7 @@ export function AppShell({
                 styles.brandMark
               }
             >
-              EM
+              {isRestaurant ? "DB" : "EM"}
             </div>
 
             {
@@ -963,13 +1020,15 @@ export function AppShell({
                   }
                 >
                   <span>
-                    Gestión de eventos
+                    {isRestaurant ? "Gestión gastronómica" : "Gestión de eventos"}
                   </span>
 
                   <strong>
-                    Eventos
-                    <br />
-                    Mediterráneo
+                    {isRestaurant ? (
+                      "Delibocados"
+                    ) : (
+                      <>Eventos<br />Mediterráneo</>
+                    )}
                   </strong>
                 </div>
               )
@@ -1018,11 +1077,11 @@ export function AppShell({
               (
                 <div>
                   <strong>
-                    Eventos Mediterráneo
+                    {businessName}
                   </strong>
 
                   <small>
-                    Operación conectada
+                    {isRestaurant ? "Centro de gestión" : "Operación conectada"}
                   </small>
                 </div>
               )
@@ -1037,7 +1096,7 @@ export function AppShell({
           }
         >
           {
-            groups.map(
+            menuGroups.map(
               group => {
                 const opened =
                   Boolean(
@@ -1266,7 +1325,7 @@ export function AppShell({
             &&
             (
               <Link
-                href="/conversations"
+                href={isRestaurant ? "/panel/conversaciones" : "/conversations"}
                 className={
                   styles.assistantCard
                 }
@@ -1309,7 +1368,7 @@ export function AppShell({
                     }
                   />
 
-                  WhatsApp conectado
+                  {isRestaurant ? "Bandeja WhatsApp" : "WhatsApp conectado"}
                 </div>
 
                 <p>
@@ -1417,7 +1476,7 @@ export function AppShell({
               </span>
 
               <strong>
-                Eventos Mediterráneo
+                {businessName}
               </strong>
             </div>
 
@@ -1454,7 +1513,7 @@ export function AppShell({
               />
 
               <span>
-                Robot operativo
+                {isRestaurant ? "IA en configuración" : "Robot operativo"}
               </span>
             </div>
 
@@ -1478,11 +1537,11 @@ export function AppShell({
                 }
               >
                 <strong>
-                  David
+                  {isRestaurant ? "Equipo" : "David"}
                 </strong>
 
                 <span>
-                  Owner
+                  {isRestaurant ? "Restaurante" : "Owner"}
                 </span>
               </div>
             </Link>

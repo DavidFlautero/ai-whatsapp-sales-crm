@@ -1,0 +1,15 @@
+.app{--ink:#1e293b;--muted:#64748b;--accent:#ba8b4c;min-height:100vh;display:flex;background:#f6f7fa;color:var(--ink);font-family:Arial,Helvetica,sans-serif}
+.sidebar{width:256px;background:#142029;color:#dde6ee;flex-shrink:0;padding:24px 14px;display:flex;flex-direction:column;min-height:100vh}
+.brand{color:#fff;display:flex;align-items:center;gap:12px;padding:0 9px 24px;text-decoration:none}
+.brand span:last-child{display:flex;flex-direction:column;gap:4px}
+.brand strong{font-size:18px;letter-spacing:-.4px}.brand small{font-size:9px;letter-spacing:1.4px;color:#9faeb8}
+.logo{display:inline-grid;place-items:center;background:#ad8856;color:#fff;border-radius:10px;width:42px;height:42px;font-size:23px;font-weight:700}
+.group{margin:20px 12px 8px;color:#94a5b3;letter-spacing:1.5px;font-size:10px;font-weight:700}
+.link{display:block;color:#d5dde4;text-decoration:none;padding:12px 15px;border-radius:9px;margin:2px 0;font-size:13px}
+.link:hover{background:#283843}.selected{background:#334550;color:white;font-weight:700}
+.logout{margin-top:auto;background:transparent;border:1px solid #4b5964;border-radius:9px;padding:12px;color:white;cursor:pointer;text-align:left}
+.content{flex:1;min-width:0}.top{height:65px;border-bottom:1px solid #e5e9f0;background:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 34px;color:#667789;font-size:13px}
+.main{padding:35px;max-width:1440px;margin:auto}.main h1{font-size:28px;letter-spacing:-.7px;margin:0 0 9px}.main p{color:#6b7787;line-height:1.5}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px;margin-top:26px}.card{background:white;border:1px solid #e2e8f0;border-radius:14px;padding:21px;box-shadow:0 3px 12px #1e293b06;color:#1e293b;text-decoration:none;display:block}.card:hover{border-color:#c4a477}.card h2{font-size:15px;margin:0 0 10px}.card p{margin:0;font-size:13px}.frame{width:100%;min-height:72vh;border:1px solid #e2e8f0;border-radius:14px;background:white}
+.linkButton{display:inline-block;text-decoration:none;padding:12px 18px;background:#263842;color:white;border-radius:9px;margin:15px 0}
+@media(max-width:800px){.app{flex-direction:column}.sidebar{width:auto;min-height:0}.sidebar nav{display:flex;overflow-x:auto;gap:4px}.group{display:none}.link{white-space:nowrap}.logout{margin:12px 0 0}.main{padding:18px}.top{padding:0 18px}}

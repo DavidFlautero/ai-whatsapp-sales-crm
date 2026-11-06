@@ -1,3 +1,4 @@
+import { getDelibocadosToken } from "../whapi/delibocados-channel.service.js";
 import {
   env,
 } from "../../config/env.js";
@@ -254,8 +255,11 @@ async function downloadRemoteMedia(
 
 async function downloadWhapiMedia(
   mediaId: string,
+  companyId: string,
 ): Promise<{ buffer: Buffer; contentType: string }> {
-  const token = process.env.WHAPI_TOKEN?.trim();
+  const token = companyId === "delibocados"
+    ? getDelibocadosToken()
+    : process.env.WHAPI_TOKEN?.trim();
 
   if (!token) {
     throw new Error("WHAPI_TOKEN_NOT_CONFIGURED");
@@ -419,7 +423,7 @@ export async function resolveMessageMedia(
 
   if (provider === "whapi" && mediaId) {
     const downloaded =
-      await downloadWhapiMedia(mediaId);
+      await downloadWhapiMedia(mediaId, companyId);
 
     buffer = downloaded.buffer;
     detectedMimeType = downloaded.contentType;

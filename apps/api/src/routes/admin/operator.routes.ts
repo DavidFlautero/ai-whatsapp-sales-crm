@@ -1,3 +1,4 @@
+import { getTenantConversations } from "../../controllers/admin/tenant-conversations.controller.js";
 import {
   Router,
 } from "express";
@@ -25,3 +26,5 @@ adminOperatorRoutes.post(
   "/operator/message",
   sendOperatorMessage,
 );
+
+adminOperatorRoutes.get("/tenant/conversations", getTenantConversations);

@@ -1,3 +1,4 @@
+import { delibocadosTenantWhapiRoutes } from "./delibocados-tenant-whapi.routes.js";
 import {
   normalizeWhapiMessageType,
 } from "../services/whapi/whapi-message-normalizer.js";
@@ -526,3 +527,5 @@ whapiRoutes.post(
   },
 );
 
+
+whapiRoutes.use("/delibocados", delibocadosTenantWhapiRoutes);

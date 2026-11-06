@@ -1,11 +1,13 @@
 import { resolveAccessContext } from "../core/http/access-context.middleware.js";
 import { requirePermission } from "../core/http/permission.middleware.js";
 import { observeAccessDecision } from "../core/http/access-observation.middleware.js";
+import { getCompanyModules, saveCompanyModules } from "./company-modules.controller.js";
 import { Router } from "express";
 import {
   companies,
   companyById,
   platformOverview,
+  provisionCompany,
   publicBranding,
   saveCompany,
   saveCompanyBranding,
@@ -61,6 +63,11 @@ platformAdminRoutes.get(
   companies,
 );
 
+platformAdminRoutes.post(
+  "/companies",
+  provisionCompany,
+);
+
 platformAdminRoutes.get(
   "/companies/:companyId",
   companyById,
@@ -90,3 +97,6 @@ platformAdminRoutes.put(
   "/companies/:companyId/subscription",
   saveCompanySubscription,
 );
+
+platformAdminRoutes.get("/companies/:companyId/modules", getCompanyModules);
+platformAdminRoutes.put("/companies/:companyId/modules", saveCompanyModules);

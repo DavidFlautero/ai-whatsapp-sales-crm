@@ -91,6 +91,10 @@ const fallbackBranding: PublicBranding = {
 function routeForRole(
   role: LoginUser["role"],
 ) {
+  if (process.env.NEXT_PUBLIC_PANEL_INSTANCE === "delibocados") {
+    return "/panel";
+  }
+
   if (role === "superadmin") {
     return "/platform";
   }
@@ -316,16 +320,21 @@ export default function LoginPage() {
     }
   }
 
+  const isRestaurant =
+    process.env.NEXT_PUBLIC_PANEL_INSTANCE === "delibocados";
+
   const company =
-    branding.defaultCompany;
+    isRestaurant ? null : branding.defaultCompany;
 
   const visualBranding =
     company?.branding ||
     branding.platform;
 
   const brandName =
-    company?.branding.shortName ||
-    branding.platform.shortName;
+    isRestaurant
+      ? "DELIBOCADOS"
+      : company?.branding.shortName ||
+        branding.platform.shortName;
 
   const heroImage =
     company?.branding
@@ -356,12 +365,12 @@ export default function LoginPage() {
 
         <div className="login-v3-main-copy">
           <span className="login-v3-kicker">
-            Gestión integral de eventos
+            {isRestaurant ? "Gestión inteligente de restaurantes" : "Gestión integral de eventos"}
           </span>
 
           <h1>
-            Hacemos que cada evento sea{" "}
-            <em>inolvidable.</em>
+            {isRestaurant ? "Tu restaurante, todo " : "Hacemos que cada evento sea "}
+            <em>{isRestaurant ? "bajo control." : "inolvidable."}</em>
           </h1>
 
           <p>
@@ -411,7 +420,7 @@ export default function LoginPage() {
 
         <div className="login-v3-tagline">
           <span />
-          Más que eventos, grandes historias
+          {isRestaurant ? "Atención, pedidos y tecnología en un mismo lugar" : "Más que eventos, grandes historias"}
         </div>
       </section>
 
@@ -451,7 +460,7 @@ export default function LoginPage() {
                 Ingresá con tu cuenta
                 asignada de{" "}
                 {company?.name ||
-                  "Eventos Mediterráneo"}
+                  (isRestaurant ? "Delibocados" : "Eventos Mediterráneo")}
                 .
               </p>
             </header>

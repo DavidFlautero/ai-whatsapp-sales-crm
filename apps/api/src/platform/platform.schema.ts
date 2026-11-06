@@ -87,3 +87,14 @@ export const updateCompanySchema = z.object({
   legalName: z.string().trim().min(2).max(180).optional(),
   active: z.boolean().optional(),
 });
+
+// Alta validada, sin credenciales ni permisos enviados por el navegador.
+export const createCompanySchema = z.object({
+  id: z.string().trim().regex(/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/),
+  name: z.string().trim().min(2).max(120),
+  legalName: z.string().trim().min(2).max(180),
+  ownerEmail: z.string().trim().email().max(200),
+  sector: z.enum(["restaurant", "events", "services", "retail", "other"]),
+  plan: z.enum(["starter", "professional", "enterprise"]),
+  currency: z.string().trim().regex(/^[A-Z]{3}$/),
+}).strict();

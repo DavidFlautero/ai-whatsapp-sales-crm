@@ -2,11 +2,9 @@ const DEFAULT_BASE =
   "https://gate.whapi.cloud";
 
 
-function configuration() {
+function configuration(tokenOverride?: string) {
   const token =
-    process.env
-      .WHAPI_TOKEN
-      ?.trim();
+    (tokenOverride ?? process.env.WHAPI_TOKEN)?.trim();
 
 
   const baseUrl =
@@ -41,12 +39,13 @@ function configuration() {
 async function whapiRequest(
   path: string,
   options: RequestInit = {},
+  tokenOverride?: string,
 ) {
   const {
     token,
     baseUrl,
   } =
-    configuration();
+    configuration(tokenOverride);
 
 
   const response =
@@ -138,6 +137,7 @@ export async function getWhapiHealth() {
 export async function sendWhapiText(
   to: string,
   body: string,
+  tokenOverride?: string,
 ) {
   const cleanTo =
     String(
@@ -182,5 +182,6 @@ export async function sendWhapiText(
             cleanBody,
         }),
     },
+    tokenOverride,
   );
 }

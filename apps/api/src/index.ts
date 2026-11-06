@@ -35,6 +35,7 @@ async function bootstrap() {
 
   app.listen(
     env.PORT,
+    "127.0.0.1",
     () => {
       console.log(
         `[api] running on http://localhost:${env.PORT}`,

@@ -1,5 +1,6 @@
 import {
   companyBrandingSchema,
+  createCompanySchema,
   companyRobotSchema,
   companySubscriptionSchema,
   platformBrandingSchema,
@@ -158,4 +159,135 @@ export async function updateCompanySubscription(
 
   const saved = await writePlatformConfig(config);
   return saved.companies[index];
+}
+
+
+// Provisionamiento inicial: DB transaccional por RPC + vista del Superadmin.
+// La cuenta owner y las credenciales externas quedan PENDIENTES de activación.
+let provisionQueue: Promise<void> = Promise.resolve();
+
+export class CompanyAlreadyExistsError extends Error {
+  constructor() {
+    super("COMPANY_ALREADY_EXISTS");
+  }
+}
+
+function defaultCompany(input: {
+  id: string;
+  name: string;
+  legalName: string;
+  plan: string;
+  currency: string;
+}): PlatformCompany {
+  const name = input.name;
+  return {
+    id: input.id,
+    slug: input.id,
+    name,
+    legalName: input.legalName,
+    active: false, // No activar antes de conceder acceso al owner.
+    createdAt: new Date().toISOString(),
+    branding: {
+      shortName: name.slice(0, 40),
+      panelTitle: `${name} · Panel`.slice(0, 120),
+      panelSubtitle: "Gestión y operación empresarial",
+      loginEyebrow: "ACCESO EMPRESARIAL",
+      loginTitle: `Bienvenido a ${name}`.slice(0, 180),
+      loginMessage: "Accede con las credenciales de tu empresa.",
+      loginButtonLabel: "Iniciar sesión",
+      robotName: "Asistente",
+      primaryColor: "#2856B6",
+      logoUrl: null,
+      heroImageUrl: null,
+    },
+    robot: {
+      status: "pending",
+      phone: "Sin configurar",
+      provider: "pending",
+      webhookStatus: "pending",
+      aiStatus: "pending",
+    },
+    subscription: {
+      plan: input.plan,
+      monthlyPrice: 0,
+      currency: input.currency,
+      paymentStatus: "pending",
+    },
+  };
+}
+
+async function provisionInDatabase(input: {
+  id: string;
+  name: string;
+  legalName: string;
+  ownerEmail: string;
+  sector: string;
+  plan: string;
+  currency: string;
+}) {
+  const supabaseUrl = process.env.SUPABASE_URL?.trim().replace(/\/+$/, "");
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!supabaseUrl || !serviceKey) {
+    throw new Error("SUPABASE_PROVISIONING_NOT_CONFIGURED");
+  }
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/rpc/platform_provision_company`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": serviceKey,
+        "Authorization": `Bearer ${serviceKey}`,
+      },
+      body: JSON.stringify({
+        p_company_id: input.id,
+        p_name: input.name,
+        p_owner_email: input.ownerEmail,
+        p_sector: input.sector,
+        p_plan: input.plan,
+        p_currency: input.currency,
+      }),
+      signal: AbortSignal.timeout(15000),
+    },
+  );
+  if (response.status === 409) {
+    throw new CompanyAlreadyExistsError();
+  }
+  if (!response.ok) {
+    // No volcar la respuesta: podría contener detalles internos del proveedor.
+    throw new Error(`COMPANY_DATABASE_PROVISIONING_FAILED_${response.status}`);
+  }
+}
+
+export function createCompany(input: unknown): Promise<PlatformCompany> {
+  // Serializar altas en este proceso para evitar perder actualizaciones del JSON.
+  const operation = provisionQueue
+    .catch(() => undefined)
+    .then(async () => {
+      const parsed = createCompanySchema.parse(input);
+      const config = await readPlatformConfig();
+      const existing = config.companies.find(
+        (company) => company.id === parsed.id,
+      );
+      if (existing && existing.name !== parsed.name) {
+        throw new CompanyAlreadyExistsError();
+      }
+
+      // La RPC es idempotente: si falla la proyección JSON, se puede reintentar.
+      await provisionInDatabase(parsed);
+      if (existing) return existing;
+
+      const newCompany = defaultCompany(parsed);
+      await writePlatformConfig({
+        ...config,
+        companies: [...config.companies, newCompany],
+      });
+      return newCompany;
+    });
+
+  provisionQueue = operation.then(
+    () => undefined,
+    () => undefined,
+  );
+  return operation;
 }

@@ -1,3 +1,4 @@
+import { getDelibocadosToken } from "../../services/whapi/delibocados-channel.service.js";
 import type {
   Request,
   Response,
@@ -24,6 +25,14 @@ import {
 import {
   sendWhapiText,
 } from "../../services/whapi/whapi.client.js";
+
+import {
+  getCompanyIntegration,
+} from "../../services/integrations/company-integration.repository.js";
+
+import {
+  readCompanySecret,
+} from "../../services/integrations/company-secret.repository.js";
 
 
 function effectiveCompanyId(
@@ -208,13 +217,20 @@ export async function sendOperatorMessage(
     });
   }
 
+  let companyWhapiToken: string | undefined;
+
+  if (companyId === "delibocados") {
+    companyWhapiToken = getDelibocadosToken();
+  }
+
   const useWhapi =
+    companyId === "delibocados" ||
     companyId === env.DEFAULT_COMPANY_ID;
 
   const sent = useWhapi
     ? await (async () => {
         const result =
-          await sendWhapiText(contactPhone, text);
+          await sendWhapiText(contactPhone, text, companyWhapiToken);
 
         const raw =
           result && typeof result === "object"

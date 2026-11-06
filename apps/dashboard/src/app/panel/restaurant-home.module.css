@@ -1,0 +1,35 @@
+
+.hero {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 28px;
+  overflow: hidden;
+  margin-top: 22px;
+  padding: 38px;
+  border: 1px solid rgba(218,185,120,.24);
+  border-radius: 22px;
+  background: linear-gradient(115deg,#122a25 0%,#214139 65%,#31463a 100%);
+  color: #fff;
+  box-shadow: 0 18px 45px rgba(0,0,0,.12);
+}
+.hero > div:first-child { position:relative; z-index:1; max-width:670px; }
+.eyebrow { font-size:11px; letter-spacing:2px; font-weight:800; color:#ddbc80; }
+.hero h2 { font-size:clamp(26px,3vw,39px); line-height:1.12; margin:14px 0; letter-spacing:-1px; color:#fff; }
+.hero p { line-height:1.75; color:#d1ddd7; margin-bottom:25px; font-size:14px; }
+.primary { display:inline-flex; align-items:center; gap:28px; padding:13px 19px; border-radius:10px; background:#d5ac6d; color:#172822; text-decoration:none; font-weight:750; }
+.primary:hover { background:#edc68b; }
+.monogram { font-size:110px; font-weight:900; line-height:1; letter-spacing:-13px; color:rgba(225,194,135,.17); transform:rotate(-9deg); padding-right:25px; }
+.sectionTitle { margin:32px 0 16px; }
+.sectionTitle h2 { font-size:21px; margin:0 0 5px; }
+.sectionTitle p { margin:0; opacity:.65; font-size:13px; }
+.grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.card { min-height:194px; display:flex; flex-direction:column; padding:23px; text-decoration:none; border:1px solid rgba(150,150,150,.18); border-radius:17px; background:rgba(128,128,128,.055); color:inherit; transition:transform .2s,border-color .2s,box-shadow .2s; }
+.card:hover { transform:translateY(-3px); border-color:#bc955d; box-shadow:0 12px 28px rgba(0,0,0,.09); }
+.number { font-size:12px; letter-spacing:2px; font-weight:800; color:#b58b50; }
+.card h3 { font-size:19px; margin:21px 0 8px; }
+.card p { margin:0; opacity:.68; font-size:13px; line-height:1.6; flex:1; }
+.link { display:flex; justify-content:space-between; margin-top:20px; font-size:12px; font-weight:750; color:#b58b50; }
+@media(max-width:1100px) { .grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:650px) { .hero {padding:25px;} .monogram {display:none;} .grid {grid-template-columns:1fr;} }
