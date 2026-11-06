@@ -54,6 +54,35 @@ export function parseItemSelection(input: string, menu: Item[]) {
   }
   return [...quantities].map(([productId,quantity]) => ({ productId,quantity }));
 }
+/** Conservative natural-language product matcher: exact published names only. */
+export function parseNaturalItemSelection(
+  input: string,
+  menu: Item[]
+): {productId:string;quantity:number}[] | null {
+  const source=normalize(input);
+  const words:Record<string,number>={
+    un:1,una:1,uno:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,
+    siete:7,ocho:8,nueve:9,diez:10
+  };
+  const found:Array<{start:number;end:number;productId:string;quantity:number}>=[];
+  for(const product of menu) {
+    const name=normalize(product.name);
+    if(name.length<4)continue;
+    const index=source.indexOf(name);
+    if(index<0 || source.indexOf(name,index+name.length)>=0)continue;
+    const prefix=source.slice(Math.max(0,index-25),index).trim();
+    const q=prefix.match(/(?:^|[^a-z0-9])(\d{1,2}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s*(?:de\s*)?$/);
+    if(!q)return null;
+    const number=/^\d/.test(q[1])?Number(q[1]):words[q[1]];
+    if(!number || number>25)return null;
+    found.push({start:index,end:index+name.length,productId:product.id,quantity:number});
+  }
+  if(!found.length || found.length>20)return null;
+  found.sort((a,b)=>a.start-b.start);
+  if(found.some((x,i)=>i>0 && x.start<found[i-1].end))return null;
+  return found.map(x=>({productId:x.productId,quantity:x.quantity}));
+}
+
 export function buildOrderSummary(draft: CheckoutDraft, menu: Item[], zones: Zone[]) {
   const lines = draft.items.map(line => {
     const product = menu.find(p => p.id === line.productId);
@@ -98,7 +127,10 @@ export function menuList(menu: Item[]) {
 }
 export function shouldStartCheckout(message: string) {
   const m = normalize(message);
-  return /\b(menu|carta|catalogo|hacer un pedido|quiero pedir|quisiera pedir|voy a pedir|pedir comida)\b/.test(m)
+  if (["complaint","order_status","payment"].includes(classifyRestaurantIntent(message)))
+    return false;
+  return /\b(menu|carta|catalogo|hacer un pedido|quiero pedir|quisiera pedir|voy a pedir|pedir comida|quiero una|quiero dos|quiero tres|me regalas|me vendes)\b/.test(m)
+    || /^(hola|holaa|buenas|buenos dias|buenas tardes|buenas noches)[.!?\s]*$/.test(m)
     || classifyRestaurantIntent(message) === "pickup" || classifyRestaurantIntent(message) === "delivery";
 }
 function safeMenuUrl(value: string) {
@@ -200,7 +232,7 @@ export async function handleRestaurantCheckoutMessage(input: {
     };
   }
   if (draft.stage === "items") {
-    const lines = parseItemSelection(input.message,available);
+    const lines = parseItemSelection(input.message,available) ?? parseNaturalItemSelection(input.message,available);
     if (!lines) return {handled:true,text:"Pasame los números y cantidades del menú, por ejemplo *2x1, 1x3*. Si querés ver la carta otra vez, escribí *CANCELAR PEDIDO* y luego *MENÚ*."};
     draft.items=lines;draft.menuRevision=doc.revision;draft.stage="name";
     await persist(input.phone,draft);
