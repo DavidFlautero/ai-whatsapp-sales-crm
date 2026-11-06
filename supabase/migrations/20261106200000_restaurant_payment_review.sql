@@ -218,6 +218,32 @@ CREATE TRIGGER restaurant_ops_courier_assignment_notify
  AFTER INSERT ON public.restaurant_ops_order_events
  FOR EACH ROW EXECUTE FUNCTION public.restaurant_ops_notify_courier_assignment();
 
+-- Live notification claims use only recent events; activate only after WhatsApp E2E tests.
+CREATE OR REPLACE FUNCTION public.restaurant_ops_claim_live_outbox(
+ p_company_id text,p_max integer DEFAULT 10
+) RETURNS TABLE(id uuid,order_id uuid,kind text,attempts integer)
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+BEGIN
+ IF p_company_id<>'delibocados' OR p_max NOT BETWEEN 1 AND 20 THEN
+   RAISE EXCEPTION 'LIVE_OUTBOX_CLAIM_NOT_ALLOWED';
+ END IF;
+ RETURN QUERY
+ WITH claimed AS (
+   SELECT o.id
+   FROM public.restaurant_ops_outbox o
+   WHERE o.company_id=p_company_id AND o.status IN ('pending','failed')
+     AND o.attempts<3 AND o.created_at>now()-interval '2 hours'
+   ORDER BY o.created_at,o.id
+   FOR UPDATE OF o SKIP LOCKED LIMIT p_max
+ )
+ UPDATE public.restaurant_ops_outbox o SET status='processing',attempts=o.attempts+1
+ FROM claimed c WHERE c.id=o.id
+ RETURNING o.id,o.order_id,o.kind,o.attempts;
+END $$;
+REVOKE ALL ON FUNCTION public.restaurant_ops_claim_live_outbox(text,integer)
+ FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.restaurant_ops_claim_live_outbox(text,integer) TO service_role;
+
 INSERT INTO public.commerce_schema_migrations(version,description)
  VALUES('20261106200000','Restaurant payment proof review, verification, kitchen hold and audit')
  ON CONFLICT(version) DO NOTHING;
