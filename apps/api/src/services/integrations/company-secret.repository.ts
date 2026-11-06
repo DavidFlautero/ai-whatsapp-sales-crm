@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   supabaseRequest,
 } from "../db/supabase-rest.client.js";
@@ -18,14 +19,25 @@ type StoredSecret = {
 };
 
 function masterKey(): Buffer {
-  const value =
+  // Prefer a dedicated company key, but allow the already deployed
+  // AES-256-GCM integration master key during the migration.
+  const dedicated =
     process.env.COMPANY_INTEGRATION_MASTER_KEY_HEX?.trim() ?? "";
 
-  if (!/^[a-fA-F0-9]{64}$/.test(value)) {
-    throw new Error("COMPANY_MASTER_KEY_NOT_CONFIGURED");
+  if (dedicated) {
+    if (!/^[a-fA-F0-9]{64}$/.test(dedicated)) {
+      throw new Error("COMPANY_MASTER_KEY_INVALID");
+    }
+    return Buffer.from(dedicated, "hex");
   }
 
-  return Buffer.from(value, "hex");
+  const shared = process.env.INTEGRATIONS_MASTER_KEY?.trim() ?? "";
+  if (!shared) {
+    throw new Error("COMPANY_MASTER_KEY_NOT_CONFIGURED");
+  }
+  return /^[a-fA-F0-9]{64}$/.test(shared)
+    ? Buffer.from(shared, "hex")
+    : createHash("sha256").update(shared).digest();
 }
 
 function toDatabase(value: Buffer): string {
