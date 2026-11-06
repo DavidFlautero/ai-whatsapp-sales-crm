@@ -203,7 +203,13 @@ BEGIN
  THEN RAISE EXCEPTION 'RESTAURANT_ORDER_INVALID'; END IF;
  SELECT * INTO v_existing FROM public.restaurant_ops_orders
  WHERE company_id=p_company_id AND source_key=p_source_key;
- IF FOUND THEN RETURN to_jsonb(v_existing); END IF;
+ IF FOUND THEN
+   IF v_existing.customer_phone <> p_customer_phone
+    OR v_existing.customer_name <> trim(p_customer_name)
+    OR v_existing.fulfillment_mode <> p_fulfillment_mode
+   THEN RAISE EXCEPTION 'IDEMPOTENCY_CONFLICT'; END IF;
+   RETURN to_jsonb(v_existing);
+ END IF;
 
  SELECT payload,revision INTO v_catalog,v_revision
  FROM public.restaurant_menu_documents WHERE company_id=p_company_id;
@@ -303,6 +309,9 @@ BEGIN
  ) THEN RAISE EXCEPTION 'INVALID_ORDER_TRANSITION'; END IF;
  IF p_next_status='cancelled' AND length(trim(coalesce(p_reason,'')))<5
  THEN RAISE EXCEPTION 'CANCELLATION_REASON_REQUIRED'; END IF;
+ IF p_next_status IN ('out_for_delivery','completed')
+   AND v_order.payment_status NOT IN ('verified','cash_on_delivery')
+ THEN RAISE EXCEPTION 'PAYMENT_NOT_CLEARED_OR_COLLECT_ON_DELIVERY'; END IF;
  IF p_next_status='out_for_delivery' AND v_order.courier_id IS NULL
  THEN RAISE EXCEPTION 'COURIER_ASSIGNMENT_REQUIRED'; END IF;
  UPDATE public.restaurant_ops_orders SET status=p_next_status,version=version+1,updated_at=now(),
