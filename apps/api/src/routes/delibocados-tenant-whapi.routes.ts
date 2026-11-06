@@ -205,6 +205,11 @@ delibocadosTenantWhapiRoutes.post("/webhook", async (req, res) => {
           queueWhapiAudioTranscription({
             messageId: result.message.id,
             companyId: COMPANY,
+            contactPhone: phone,
+            sourceMessageId: externalId,
+            occurredAt:
+              occurredAt && !Number.isNaN(occurredAt.getTime())
+                ? occurredAt.toISOString() : undefined,
           });
         }
 
