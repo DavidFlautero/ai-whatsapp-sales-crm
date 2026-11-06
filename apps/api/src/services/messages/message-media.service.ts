@@ -258,7 +258,7 @@ async function downloadWhapiMedia(
   companyId: string,
 ): Promise<{ buffer: Buffer; contentType: string }> {
   const token = companyId === "delibocados"
-    ? getDelibocadosToken()
+    ? await getDelibocadosToken()
     : process.env.WHAPI_TOKEN?.trim();
 
   if (!token) {
