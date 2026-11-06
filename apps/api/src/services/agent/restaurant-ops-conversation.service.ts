@@ -8,7 +8,7 @@ export function classifyRestaurantIntent(message: string): RestaurantIntent {
   const value = message.toLocaleLowerCase("es-CO").normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 
-  const pickup = /\b(paso a buscar|voy a (pasar|recoger|buscar)|lo (recojo|recogemos)|pasamos por|retiro en (el )?local|para recoger|recoger en (el )?local|para llevar|lo busco)\b/.test(value);
+  const pickup = /\b(paso a buscar(?:lo|la)?|voy a (?:pasar|recoger|buscar)(?:lo|la)?|lo (recojo|recogemos)|pasamos por|retiro en (el )?local|para recoger|recoger en (el )?local|para llevar|lo busco)\b/.test(value);
   const delivery = /\b(domicilio|domicilios|a mi casa|a mi direccion|me lo (envian|mandan|llevan)|me lo pueden traer|envio a domicilio|para entregar)\b/.test(value);
   if (pickup && delivery) return "ambiguous";
   if (pickup) return "pickup";
