@@ -311,7 +311,11 @@ router.use("/admin", adminStatusRoutes);
 router.use("/admin", adminDataRoutes);
 router.use("/admin", adminRecoveryRoutes);
 router.use("/admin", adminContactRoutes);
-router.use("/admin", adminMessageMediaRoutes);
+router.use(
+  "/admin",
+  resolveAccessContext({ mode: "company", source: "dashboard" }),
+  adminMessageMediaRoutes
+);
 
 router.use("/admin", adminAdvancedRoutes);
 router.use(

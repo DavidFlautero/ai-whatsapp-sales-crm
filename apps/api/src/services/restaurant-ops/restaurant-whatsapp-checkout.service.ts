@@ -4,6 +4,7 @@ import {
 import { getContactByPhone, upsertContact } from "../crm/crm.repository.js";
 import { supabaseRequest, supabaseRpc } from "../db/supabase-rest.client.js";
 import { classifyRestaurantIntent } from "../agent/restaurant-ops-conversation.service.js";
+import { transferInstructionsForOrder } from "./restaurant-payment-intake.service.js";
 
 const COMPANY = "delibocados";
 const MENU_FALLBACK = "https://delibocados.online/menu";
@@ -53,6 +54,35 @@ export function parseItemSelection(input: string, menu: Item[]) {
   }
   return [...quantities].map(([productId,quantity]) => ({ productId,quantity }));
 }
+/** Conservative natural-language product matcher: exact published names only. */
+export function parseNaturalItemSelection(
+  input: string,
+  menu: Item[]
+): {productId:string;quantity:number}[] | null {
+  const source=normalize(input);
+  const words:Record<string,number>={
+    un:1,una:1,uno:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,
+    siete:7,ocho:8,nueve:9,diez:10
+  };
+  const found:Array<{start:number;end:number;productId:string;quantity:number}>=[];
+  for(const product of menu) {
+    const name=normalize(product.name);
+    if(name.length<4)continue;
+    const index=source.indexOf(name);
+    if(index<0 || source.indexOf(name,index+name.length)>=0)continue;
+    const prefix=source.slice(Math.max(0,index-25),index).trim();
+    const q=prefix.match(/(?:^|[^a-z0-9])(\d{1,2}|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s*(?:de\s*)?$/);
+    if(!q)return null;
+    const number=/^\d/.test(q[1])?Number(q[1]):words[q[1]];
+    if(!number || number>25)return null;
+    found.push({start:index,end:index+name.length,productId:product.id,quantity:number});
+  }
+  if(!found.length || found.length>20)return null;
+  found.sort((a,b)=>a.start-b.start);
+  if(found.some((x,i)=>i>0 && x.start<found[i-1].end))return null;
+  return found.map(x=>({productId:x.productId,quantity:x.quantity}));
+}
+
 export function buildOrderSummary(draft: CheckoutDraft, menu: Item[], zones: Zone[]) {
   const lines = draft.items.map(line => {
     const product = menu.find(p => p.id === line.productId);
@@ -97,7 +127,11 @@ export function menuList(menu: Item[]) {
 }
 export function shouldStartCheckout(message: string) {
   const m = normalize(message);
-  return /\b(menu|carta|catalogo|hacer un pedido|quiero pedir|quisiera pedir|voy a pedir|pedir comida)\b/.test(m)
+  if (["complaint","order_status","payment"].includes(classifyRestaurantIntent(message)))
+    return false;
+  return /\b(menu|carta|catalogo|hacer un pedido|quiero pedir|quisiera pedir|voy a pedir|pedir comida|quiero una|quiero dos|quiero tres|me regalas|me vendes)\b/.test(m)
+    || /^(hola|holaa|buenas|buenos dias|buenas tardes|buenas noches)[.!?\s]*$/.test(m)
+    || /\b(quiero|quisiera|deme|me das|me vendes)\s+\d+\b/.test(m)
     || classifyRestaurantIntent(message) === "pickup" || classifyRestaurantIntent(message) === "delivery";
 }
 function safeMenuUrl(value: string) {
@@ -187,6 +221,18 @@ export async function handleRestaurantCheckoutMessage(input: {
     if (previous && !shouldStartCheckout(input.message)) {
       return { handled:false,text:"" };
     }
+    const direct = parseNaturalItemSelection(input.message,available);
+    if (direct) {
+      draft.items=direct;
+      draft.stage="name";
+      await persist(input.phone,draft);
+      return {handled:true,text:"Anoté "+
+        direct.map(line=>{
+          const product=available.find(p=>p.id===line.productId);
+          return line.quantity+" × "+(product?.name??"producto");
+        }).join(", ")+
+        ". ¿A nombre de quién registramos el pedido? Después confirmaremos el total."};
+    }
     await persist(input.phone,draft);
     const share = await preferredMenuShare();
     const how = "Para elegir, enviá las cantidades con el número del plato. Ejemplo: *2x1, 1x3* (dos del producto 1 y uno del 3).";
@@ -199,7 +245,7 @@ export async function handleRestaurantCheckoutMessage(input: {
     };
   }
   if (draft.stage === "items") {
-    const lines = parseItemSelection(input.message,available);
+    const lines = parseItemSelection(input.message,available) ?? parseNaturalItemSelection(input.message,available);
     if (!lines) return {handled:true,text:"Pasame los números y cantidades del menú, por ejemplo *2x1, 1x3*. Si querés ver la carta otra vez, escribí *CANCELAR PEDIDO* y luego *MENÚ*."};
     draft.items=lines;draft.menuRevision=doc.revision;draft.stage="name";
     await persist(input.phone,draft);
@@ -296,7 +342,7 @@ export async function handleRestaurantCheckoutMessage(input: {
       return {handled:true,text:"El menú cambió desde que cotizamos. Necesito confirmar otra vez el total antes de guardar el pedido. Escribí *EFECTIVO* o *TRANSFERENCIA*."};
     }
     const quote=buildOrderSummary(draft,available,zoneRows);
-    const order=await supabaseRpc<{id:string;number:number;version:number}>("restaurant_ops_create_order",{
+    const order=await supabaseRpc<{id:string;number:number;version:number;total_cop:number}>("restaurant_ops_create_order",{
       p_company_id:COMPANY,p_source:"whatsapp",p_source_key:"wa-"+draft.id,
       p_customer_phone:input.phone,p_customer_name:draft.customerName!,
       p_fulfillment_mode:draft.mode!,p_items:draft.items,
@@ -320,12 +366,23 @@ export async function handleRestaurantCheckoutMessage(input: {
         metadata:{ name_source:"customer",name_confirmed:true,last_restaurant_order_id:order.id }
       },COMPANY);
     } catch { console.warn("[DELI CHECKOUT] CRM enrichment pending", {orderId:order.id}); }
-    return {handled:true,text:"*Pedido #"+order.number+" registrado*.\n"+
-      quote.lines.map(x=>x.quantity+" × "+x.productName).join("\n")+
-      "\nTotal: $"+quote.total.toLocaleString("es-CO")+
-      (draft.mode==="pickup"?"\nRetiro en local. Te avisamos cuando esté listo.":
-        "\nDomicilio registrado. Te avisamos cuando salga a reparto.")+
-      (draft.payment==="transfer"?"\nPago por transferencia pendiente de verificar.":"\nPago en efectivo al recibir.")};
+    const instructions = draft.payment === "transfer"
+      ? await transferInstructionsForOrder({
+          number: order.number,
+          totalCOP: Number(order.total_cop ?? quote.total)
+        }).catch(() => ({
+          text: "La cuenta bancaria no está disponible en este momento. " +
+            "Un encargado te indicará cómo completar el pago; no hagas transferencias a cuentas no verificadas.",
+          humanHandoff: true
+        }))
+      : null;
+    return {handled:true,humanHandoff:instructions?.humanHandoff===true,
+      text:"*Pedido #"+order.number+" registrado*.\n"+
+        quote.lines.map(x=>x.quantity+" × "+x.productName).join("\n")+
+        "\nTotal: $"+quote.total.toLocaleString("es-CO")+
+        (draft.mode==="pickup"?"\nRetiro en local. Te avisamos cuando esté listo.":
+          "\nDomicilio registrado. Te avisamos cuando salga a reparto.")+
+        (instructions?"\n\n"+instructions.text:"\nPago en efectivo al recibir. Pasamos el pedido a cocina.")};
   }
   return {handled:false,text:""};
 }

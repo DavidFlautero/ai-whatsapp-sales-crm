@@ -14,6 +14,8 @@ import {
   hydrateIntegrationSecrets,
 } from "./services/integrations/integration-secrets.repository.js";
 
+import { startRestaurantNotificationsWorker } from "./services/restaurant-ops/restaurant-notifications.service.js";
+
 async function bootstrap() {
 
   /*
@@ -40,6 +42,7 @@ async function bootstrap() {
       console.log(
         `[api] running on http://localhost:${env.PORT}`,
       );
+      startRestaurantNotificationsWorker();
     },
   );
 }

@@ -79,7 +79,11 @@ function handleError(err: unknown, res: Response) {
     "COURIER_ASSIGNMENT_REQUIRED", "COURIER_NOT_AVAILABLE", "ORDER_NOT_ASSIGNABLE",
     "ORDER_ALREADY_ASSIGNED", "CANCELLATION_REASON_REQUIRED", "PAYMENT_TRANSITION_FORBIDDEN",
     "PAYMENT_VERIFICATION_REQUIRES_MANAGER", "PICKUP_MUST_NOT_HAVE_ZONE",
-    "INSTRUCTIONS_TOO_LONG", "ORDER_TOTAL_TOO_LARGE"
+    "INSTRUCTIONS_TOO_LONG", "ORDER_TOTAL_TOO_LARGE",
+    "PROOF_NOT_FOUND","PROOF_ALREADY_REVIEWED","ORDER_PAYMENT_STATE_CHANGED",
+    "ORDER_NOT_REVIEWABLE","TRANSFER_REQUIRES_PROOF_REVIEW",
+    "PAYMENT_REVIEW_FORBIDDEN","REJECTION_REASON_REQUIRED",
+    "PAYMENT_REVIEW_REQUIRED_BEFORE_KITCHEN"
   ];
   const code = allowed.find(x => message.includes(x));
   if (code) return res.status(code === "ORDER_VERSION_CONFLICT" ? 409 : 422)
@@ -154,6 +158,99 @@ restaurantOpsRoutes.post("/orders/:id/payment",requireRoles("owner","admin","sup
   });
   return res.json({ok:true,order});
  }));
+const bankAccountInput=z.object({
+  institutionName:str.min(2).max(120),
+  holderName:str.min(2).max(180),
+  accountType:z.enum(["bank_account","virtual_wallet"]),
+  accountNumber:str.max(80).nullable().optional(),
+  alias:str.max(120).nullable().optional(),
+  instructions:str.max(1000).nullable().optional(),
+  active:z.boolean().default(false)
+}).strict();
+
+restaurantOpsRoutes.get("/payments/account",requireRoles("owner","admin"),
+  safe(async (_req,res)=>{
+    const account=await rows("restaurant_ops_payment_accounts",
+      "?company_id=eq.delibocados&select=*&limit=1");
+    readOnly(res);return res.json({ok:true,account:account[0]??null});
+  })
+);
+restaurantOpsRoutes.post("/payments/account",requireRoles("owner","admin"),
+  safe(async (req,res)=>{
+    const v=bankAccountInput.parse(req.body);
+    if(!v.accountNumber?.trim()&&!v.alias?.trim())return res.status(422)
+      .json({ok:false,error:"BANK_DESTINATION_REQUIRED"});
+    const a=actor(req);
+    const account=await supabaseRequest<Row[]>({
+      table:"restaurant_ops_payment_accounts",
+      method:"POST",
+      query:"?on_conflict=company_id",
+      prefer:"resolution=merge-duplicates,return=representation",
+      body:[{
+        company_id:"delibocados",
+        institution_name:v.institutionName,
+        holder_name:v.holderName,
+        account_type:v.accountType,
+        account_number:v.accountNumber||null,
+        alias:v.alias||null,
+        instructions:v.instructions||null,
+        currency:"COP",active:v.active,
+        updated_by:a.id,updated_at:new Date().toISOString()
+      }]
+    });
+    return res.json({ok:true,account:account[0]??null});
+  })
+);
+
+type RestaurantPaymentProof = {
+  id: string; order_id: string; source_message_id: string; status: string;
+  customer_phone: string; created_at: string; reviewed_at?: string | null;
+  reviewed_by?: string | null; rejection_reason?: string | null;
+};
+restaurantOpsRoutes.get("/payments", requireRoles("owner","admin"), safe(async (req,res) => {
+  const status=z.enum(["pending_review","approved","rejected","all"])
+    .parse(req.query.status ?? "pending_review");
+  const condition=status==="all"?"":"&status=eq."+status;
+  const proofs=await supabaseRequest<RestaurantPaymentProof[]>({
+    table:"restaurant_ops_payment_proofs",
+    query:"?company_id=eq.delibocados"+condition+"&select=*"+
+      "&order=created_at.desc&limit=150"
+  });
+  const orderIds=[...new Set(proofs.map(p=>p.order_id))];
+  const orders=orderIds.length?await rows("restaurant_ops_orders",
+    "?company_id=eq.delibocados&id=in.("+orderIds.map(encodeURIComponent).join(",")+")"+
+    "&select=id,number,customer_name,customer_phone,total_cop,payment_method,payment_status,status"): [];
+  const index=new Map(orders.map(x=>[String(x.id),x]));
+  readOnly(res);return res.json({
+    ok:true,proofs:proofs.map(p=>({...p,order:index.get(p.order_id)??null}))
+  });
+}));
+restaurantOpsRoutes.post("/payments/:id/review",requireRoles("owner","admin"),
+ safe(async (req,res) => {
+   const proofId=uuid.parse(req.params.id);
+   const decision=z.enum(["approve","reject"]).parse(req.body?.decision);
+   const reason=decision==="reject"
+     ? str.min(5).max(500).parse(req.body?.reason)
+     : null;
+   const a=actor(req);
+   const review=await supabaseRpc<Row>("restaurant_ops_review_payment_proof",{
+     p_company_id:"delibocados",
+     p_proof_id:proofId,
+     p_decision:decision,
+     p_actor_id:a.id,
+     p_actor_role:a.role,
+     p_reason:reason
+   });
+   return res.json({ok:true,review});
+ }));
+
+restaurantOpsRoutes.get("/kitchen",safe(async (_req,res) => {
+  const tickets=await rows("restaurant_ops_kitchen_tickets",
+    "?company_id=eq.delibocados&select=id,order_id,status,queued_at,started_at,ready_at,printed_at"+
+    "&order=queued_at.desc&limit=200");
+  readOnly(res);return res.json({ok:true,tickets});
+}));
+
 restaurantOpsRoutes.get("/orders/:id/events",safe(async (req,res) => {
   const orderId=uuid.parse(req.params.id);
   const events=await rows("restaurant_ops_order_events",

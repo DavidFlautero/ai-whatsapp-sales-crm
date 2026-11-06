@@ -41,9 +41,18 @@ export async function downloadAdminMessageMedia(
         ?? "",
       ).trim();
 
+    const companyId = req.tenantContext?.effectiveCompanyId;
+    if (!companyId) {
+      return res.status(403).json({ok:false,error:"COMPANY_CONTEXT_REQUIRED"});
+    }
+    if (req.authUser?.role !== "superadmin" && req.authUser?.companyId !== companyId) {
+      return res.status(403).json({ok:false,error:"TENANT_MEDIA_DENIED"});
+    }
+
     const media =
       await resolveMessageMedia({
         messageId,
+        companyId,
       });
 
     res.setHeader(

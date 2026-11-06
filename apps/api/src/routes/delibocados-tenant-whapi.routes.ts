@@ -1,5 +1,6 @@
 import { queueWhapiAudioTranscription } from "../services/whapi/whapi-audio-processing.service.js";
 import { captureRestaurantWhatsappName } from "../services/crm/restaurant-whatsapp-profile.service.js";
+import { captureRestaurantPaymentProof } from "../services/restaurant-ops/restaurant-payment-intake.service.js";
 import { queueDelibocadosLiveReply } from "../services/whapi/delibocados-live-reply.service.js";
 import { Router } from "express";
 import { readFileSync } from "node:fs";
@@ -72,6 +73,7 @@ delibocadosTenantWhapiRoutes.post("/webhook", async (req, res) => {
   let saved = 0;
   let duplicates = 0;
   let ignored = 0;
+  let paymentIntakeFailures = 0;
 
   try {
     for (const message of messages) {
@@ -185,6 +187,37 @@ delibocadosTenantWhapiRoutes.post("/webhook", async (req, res) => {
         }
       }
 
+        if (
+          !fromMe &&
+          (messageType === "image" || messageType === "document") &&
+          result.message?.id
+        ) {
+          try {
+            const receipt = await captureRestaurantPaymentProof({
+              companyId: COMPANY,
+              phone,
+              internalMessageId: result.message.id,
+              externalMessageId: externalId,
+              kind: messageType,
+              caption: body === "[" + messageType + "]" ? "" : body
+            });
+            if (receipt.reason !== "NO_PENDING_TRANSFER") {
+              console.log("[DELIBOCADOS PAYMENT INTAKE]", {
+                last4: phone.slice(-4),
+                received: receipt.received,
+                reason: receipt.reason,
+                orderNumber: receipt.orderNumber ?? null
+              });
+            }
+          } catch (error) {
+            // The same message is safe to retry: saving and proof submission are idempotent.
+            paymentIntakeFailures++;
+            console.warn("[DELIBOCADOS PAYMENT INTAKE ERROR]", {
+              type: error instanceof Error ? error.name : "UNKNOWN"
+            });
+          }
+        }
+
       if (result.duplicate) {
         duplicates++;
       } else {
@@ -233,6 +266,13 @@ delibocadosTenantWhapiRoutes.post("/webhook", async (req, res) => {
       ignored
     });
 
+    if (paymentIntakeFailures > 0) {
+      res.status(503).json({
+        ok: false, error: "PAYMENT_INTAKE_RETRY_REQUIRED",
+        saved, duplicates, ignored
+      });
+      return;
+    }
     res.json({
       ok: true,
       companyId: COMPANY,
