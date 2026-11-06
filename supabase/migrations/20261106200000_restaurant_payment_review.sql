@@ -1,6 +1,25 @@
 -- Independent restaurant payment review workflow. Does not touch Fulanitas retail payment submissions.
 BEGIN;
 
+-- Dedicated COP banking instructions for the restaurant; Fulanitas remains unchanged.
+CREATE TABLE IF NOT EXISTS public.restaurant_ops_payment_accounts (
+  company_id text PRIMARY KEY REFERENCES public.commerce_companies(id) ON DELETE CASCADE,
+  institution_name text NOT NULL CHECK(length(trim(institution_name)) BETWEEN 2 AND 120),
+  holder_name text NOT NULL CHECK(length(trim(holder_name)) BETWEEN 2 AND 180),
+  account_type text NOT NULL CHECK(account_type IN ('bank_account','virtual_wallet')),
+  account_number text,
+  alias text,
+  instructions text,
+  currency text NOT NULL DEFAULT 'COP' CHECK(currency='COP'),
+  active boolean NOT NULL DEFAULT false,
+  updated_by text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CHECK(length(trim(coalesce(account_number,'')))>2 OR length(trim(coalesce(alias,'')))>2)
+);
+ALTER TABLE public.restaurant_ops_payment_accounts ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.restaurant_ops_payment_accounts FROM PUBLIC,anon,authenticated;
+GRANT SELECT,INSERT,UPDATE ON public.restaurant_ops_payment_accounts TO service_role;
+
 CREATE TABLE IF NOT EXISTS public.restaurant_ops_payment_proofs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id text NOT NULL,
