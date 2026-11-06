@@ -9,6 +9,9 @@ DECLARE
   v_proof_id uuid;
   v_paid text;
   v_kitchen text;
+  v_zone uuid;
+  v_courier uuid;
+  v_delivery jsonb;
 BEGIN
   v_order := public.restaurant_ops_create_order(
     p_company_id=>'delibocados',p_source=>'whatsapp',
@@ -67,6 +70,31 @@ BEGIN
       WHERE company_id='delibocados' AND order_id=v_order_id
         AND kind IN ('payment_proof_received','payment_verified','payment_rejected'))<>4
   THEN RAISE EXCEPTION 'MISSING_PAYMENT_NOTIFICATION_EVENTS'; END IF;
-  RAISE NOTICE 'RESTAURANT_PAYMENT_REVIEW_SMOKE_SUCCESS';
+  SELECT id INTO v_zone FROM public.restaurant_ops_zones
+    WHERE company_id='delibocados' AND name='200M';
+  UPDATE public.restaurant_ops_zones SET active=true
+    WHERE id=v_zone AND company_id='delibocados';
+  INSERT INTO public.restaurant_ops_couriers(
+    company_id,name,phone,vehicle,availability
+  ) VALUES('delibocados','QA Courier','573001112233','motorbike','available')
+    RETURNING id INTO v_courier;
+  v_delivery:=public.restaurant_ops_create_order(
+    p_company_id=>'delibocados',p_source=>'whatsapp',
+    p_source_key=>'restaurant-payment-dispatch-smoke-246',
+    p_customer_phone=>'573002222333',p_customer_name=>'Cliente Domicilio',
+    p_fulfillment_mode=>'delivery',
+    p_items=>'[{"productId":"burger","quantity":1}]'::jsonb,
+    p_zone_id=>v_zone,p_address=>'Calle 15 # 8-20 Funza',
+    p_customer_confirmed=>true,p_expected_menu_revision=>1,
+    p_payment_method=>'cash',p_payment_status=>'cash_on_delivery'
+  );
+  PERFORM public.restaurant_ops_assign_courier(
+    'delibocados',(v_delivery->>'id')::uuid,v_courier,1,'manager','owner'
+  );
+  IF (SELECT count(*) FROM public.restaurant_ops_outbox
+    WHERE company_id='delibocados' AND order_id=(v_delivery->>'id')::uuid
+      AND kind='courier_assigned')<>1
+  THEN RAISE EXCEPTION 'COURIER_ASSIGNMENT_NOTIFICATION_MISSING'; END IF;
+    RAISE NOTICE 'RESTAURANT_PAYMENT_REVIEW_SMOKE_SUCCESS';
 END $$;
 ROLLBACK;
