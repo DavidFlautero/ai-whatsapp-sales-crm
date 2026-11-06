@@ -2,7 +2,6 @@ import {
   getConversationByPhone, updateConversationMetadata
 } from "../conversations/conversation.repository.js";
 import { getContactByPhone, upsertContact } from "../crm/crm.repository.js";
-import { setOperatorMode } from "../operator/operator.service.js";
 import { supabaseRequest, supabaseRpc } from "../db/supabase-rest.client.js";
 import { classifyRestaurantIntent } from "../agent/restaurant-ops-conversation.service.js";
 
@@ -30,6 +29,7 @@ export type CheckoutReply = {
   handled: boolean;
   text: string;
   imageUrl?: string;
+  humanHandoff?: boolean;
 };
 export function normalize(value: string) {
   return value.toLocaleLowerCase("es-CO").normalize("NFD")
@@ -271,11 +271,7 @@ export async function handleRestaurantCheckoutMessage(input: {
     if (/\b(alergia|alergico|alergica|celiaco|celiaca|anafilaxia|intolerancia)\b/.test(normalized)) {
       draft.customerNote=comment;draft.stage="human_review";
       await persist(input.phone,draft);
-      await setOperatorMode({
-        companyId:COMPANY,contactPhone:input.phone,status:"human",
-        reason:"Declaración de posible alergia: revisar ingredientes y contaminación cruzada"
-      });
-      return {handled:true,text:"Gracias por avisarnos. Por seguridad, un encargado debe revisar los ingredientes y confirmar el pedido. No se registró automáticamente."};
+      return {handled:true,humanHandoff:true,text:"Gracias por avisarnos. Por seguridad, un encargado debe revisar los ingredientes y confirmar el pedido. No se registró automáticamente."};
     }
     draft.customerNote = normalized==="no" ? "" : comment;
     draft.stage="payment"; await persist(input.phone,draft);
