@@ -1,3 +1,4 @@
+import { polygonSchema, containsPoint } from "../services/restaurant-ops/restaurant-zones.service.js";
 import { listContacts } from "../services/crm/crm.repository.js";
 import { dispatchDelibocadosTestNotifications } from "../services/restaurant-ops/restaurant-notifications.service.js";
 import { Router, type Request, type Response } from "express";
@@ -46,7 +47,7 @@ const zoneInput = z.object({
   priority: z.number().int().min(1).max(500).default(100),
   active: z.boolean().default(false),
   coverageVerified: z.boolean().default(false),
-  geojson: z.unknown().nullable().optional()
+  geojson: polygonSchema.nullable().optional()
 }).strict();
 const incidentInput = z.object({
   orderId: uuid,
@@ -167,7 +168,7 @@ restaurantOpsRoutes.get("/zones",safe(async (_req,res) => {
 }));
 restaurantOpsRoutes.post("/zones",requireRoles("owner","admin"),safe(async (req,res) => {
   const v=zoneInput.parse(req.body);
-  if(v.active&&!v.coverageVerified)
+  if(v.active&&(!v.coverageVerified || !v.geojson))
     return res.status(422).json({ok:false,error:"ZONE_COVERAGE_VERIFICATION_REQUIRED"});
   const zones=await supabaseRequest<Row[]>({table:"restaurant_ops_zones",
     method:"POST",query:"?on_conflict=company_id,name",
@@ -320,4 +321,22 @@ restaurantOpsRoutes.get("/customers", safe(async (_req,res) => {
   }));
   readOnly(res);return res.json({ok:true,customers,
     partial:orders.length>=1000 || incidents.length>=1000});
+}));
+
+
+restaurantOpsRoutes.get("/zones/quote", safe(async (req,res) => {
+  const lat=z.coerce.number().finite().min(-90).max(90).parse(req.query.lat);
+  const lng=z.coerce.number().finite().min(-180).max(180).parse(req.query.lng);
+  const zones=await rows("restaurant_ops_zones",
+    "?company_id=eq.delibocados&active=eq.true&select=id,name,geojson,fee_cop,eta_minutes,priority&order=priority.asc&limit=100");
+  for(const zone of zones) {
+    const verified=polygonSchema.safeParse(zone.geojson);
+    if(verified.success && containsPoint(verified.data,lng,lat)) {
+      readOnly(res);return res.json({ok:true,covered:true,zone:{
+        id:zone.id,name:zone.name,feeCOP:zone.fee_cop,
+        etaMinutes:zone.eta_minutes
+      }});
+    }
+  }
+  readOnly(res);return res.json({ok:true,covered:false,zone:null});
 }));
