@@ -259,7 +259,7 @@ restaurantOpsRoutes.get("/report",safe(async (req,res) => {
       verifiedPayment:count(orders,"payment_status","verified")
     },
     kitchen:{
-      commandsSent:tickets.length,started:count(tickets,"status","working")+count(tickets,"status","ready"),
+      commandsGenerated:tickets.length,printed:tickets.filter(t=>Boolean(t.printed_at)).length,started:count(tickets,"status","working")+count(tickets,"status","ready"),
       ready:count(tickets,"status","ready"),
       averagePrepMinutes:prep.length?Math.round(prep.reduce((a,b)=>a+b,0)/prep.length):null,
       overdue:tickets.filter(t=>t.status==="working"&&
