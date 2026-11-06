@@ -93,7 +93,10 @@ async function processMessage(
     return;
   }
 
+  // Public rollout requires an explicit second opt-in; default is test-only.
+  const liveMode = process.env.DELIBOCADOS_CHECKOUT_LIVE === "1";
   if (
+    !liveMode &&
     config.testPhone &&
     input.phone !== config.testPhone
   ) {
@@ -159,7 +162,7 @@ async function processMessage(
 
   // Restaurant checkout is deterministic and persists the confirmed order through
   // a transactional RPC. All other messages continue through the regular AI.
-  const checkout = process.env.DELIBOCADOS_CHECKOUT_TEST === "1"
+  const checkout = (liveMode || process.env.DELIBOCADOS_CHECKOUT_TEST === "1")
     ? await handleRestaurantCheckoutMessage({
         companyId: "delibocados", phone: input.phone, message: input.text
       })
@@ -196,6 +199,7 @@ async function processMessage(
   }
 
   if (
+    !liveMode &&
     latest.testPhone &&
     latest.testPhone !== input.phone
   ) {
