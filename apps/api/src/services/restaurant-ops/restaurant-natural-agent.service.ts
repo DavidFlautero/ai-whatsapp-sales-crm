@@ -124,8 +124,28 @@ export async function handleNaturalRestaurantTurn(input:{
   }
   if(decision.kind==="answer"&&decision.answer.trim()){
     const answer=decision.answer.trim();
-    if(/\b(?:ya se imprimio|pago aprobado|ya entro a toteat|ya enviamos a cocina)\b/i.test(answer))
-      return {handled:true,text:"Todavía no tengo confirmación de esa operación. Te ayudo a verificarla."};
+    // A conversational reply may not claim physical printing or external POS receipt:
+    // we have no Toteat export/Print Server evidence available in this service.
+    if(/\b(?:impres[oa]|imprimi\w*|comanda en cocina|enviad[oa] a cocina|enviad[oa] a toteat|toteat lo recibi[oa])\b/i.test(answer))
+      return {handled:true,text:"Todavía no tengo confirmación de recepción en Toteat ni de impresión en cocina."};
+    // Do not convert a proof submitted by a customer into an approved payment.
+    const allPending=orders.every(o=>o.payment_status!=="verified");
+    if(allPending && /\b(?:ya pagaste|pago recibido|pago aprobado|pago confirmado|transferencia verificada|ya esta pagado)\b/i.test(answer))
+      return {handled:true,text:"Tu transferencia no figura verificada. Un encargado debe confirmar el ingreso bancario."};
+    // Reject money amounts not corroborated by the official published data.
+    const validAmounts=new Set([
+      ...items.map(x=>Number(x.priceCOP)),
+      ...zones.map(x=>Number(x.fee_cop)),
+      ...orders.map(x=>Number(x.total_cop)),
+      ...(draft?[draft.items.reduce((n,x)=>{
+        const item=items.find(p=>p.id===x.productId);
+        return n+(item?.priceCOP??0)*x.quantity;
+      },0)]:[])
+    ]);
+    const claimed=[...answer.matchAll(/\$\s*([\d.,]+)/g)]
+      .map(m=>Number(m[1].replace(/[.,]/g,"")));
+    if(claimed.some(x=>!validAmounts.has(x)))
+      return {handled:true,text:"Prefiero confirmarte el precio exacto desde el menú oficial antes de darte un total."};
     return {handled:true,text:answer};
   }
   const checkout=await handleRestaurantCheckoutMessage(input);
