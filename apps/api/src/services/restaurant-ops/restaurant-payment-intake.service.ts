@@ -54,8 +54,7 @@ export async function transferInstructionsForOrder(input: { number: number; tota
     query:"?company_id=eq.delibocados&active=eq.true&select=*&limit=1"
   });
   const account=accounts[0];
-  if (!account || account.account_type === "cash" ||
-      (!account.account_number && !account.alias)) {
+  if (!account || (!account.account_number && !account.alias)) {
     return {
       text: "Tu pedido #" + input.number + " está registrado, pero la cuenta para transferencia aún no está configurada. " +
         "Un encargado te compartirá los datos oficiales. *No transfieras a una cuenta enviada por terceros.*",
