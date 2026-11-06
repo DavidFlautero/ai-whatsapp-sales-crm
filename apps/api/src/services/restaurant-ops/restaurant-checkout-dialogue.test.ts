@@ -3,7 +3,7 @@ import { test } from "node:test";
 import {
   spanishNormalize, wantsCartSummary, isCoverageQuestion, coverageAnswer,
   isMenuRequest, isMoreMenuRequest, isAddRequest, isRemoveRequest,
-  parseNumberedProduct, findMenuMentions, mergeCart, removeFromCart,
+  isStandaloneMenuSelection, parseNumberedProduct, findMenuMentions, mergeCart, removeFromCart,
   formatDraftCart, isPlausibleCustomerName
 } from "./restaurant-checkout-dialogue.service.js";
 import {
@@ -53,6 +53,13 @@ test("one number means one product and supports all 126 menu items",()=>{
   assert.equal(parseNumberedProduct("26x5",menu),null);
 });
 
+test("a second numeric selection may add a product, but pickup minutes and zones are stage-specific",()=>{
+  assert.equal(isStandaloneMenuSelection("11"),true);
+  assert.equal(isStandaloneMenuSelection("11x44"),true);
+  assert.equal(isStandaloneMenuSelection("2x7, 1x11"),true);
+  assert.equal(isStandaloneMenuSelection("30 minutos"),false);
+  assert.equal(isStandaloneMenuSelection("domicilio"),false);
+});
 test("exact longest product matching avoids picking Arepa instead of Arepa Mixta",()=>{
   const mentions=findMenuMentions("quiero agregar una arepa mixta",menu);
   assert.equal(mentions.length,1);
