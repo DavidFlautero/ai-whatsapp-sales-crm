@@ -3,14 +3,16 @@
  * Run from apps/api with env loaded: pnpm exec tsx src/scripts/delibocados-ops-smoke.ts
  * Does not create orders, send messages, change states, print credentials or terminate the shell.
  */
-import "dotenv/config";
-import { getDelibocadosChannel } from "../services/whapi/delibocados-channel.service.js";
-import { supabaseRequest } from "../services/db/supabase-rest.client.js";
-import { getContactByPhone } from "../services/crm/crm.repository.js";
+import { config } from "dotenv";
+config({path:"../../.env",quiet:true});
 
 type Row = Record<string,unknown>;
 async function main() {
   console.log("=== DELIBOCADOS / VERIFICACIÓN REAL ===");
+  // Dynamic imports ensure the root environment is initialized before config modules.
+  const {getDelibocadosChannel}=await import("../services/whapi/delibocados-channel.service.js");
+  const {supabaseRequest}=await import("../services/db/supabase-rest.client.js");
+  const {getContactByPhone}=await import("../services/crm/crm.repository.js");
   let phone = "";
   try {
     const channel = await getDelibocadosChannel();
