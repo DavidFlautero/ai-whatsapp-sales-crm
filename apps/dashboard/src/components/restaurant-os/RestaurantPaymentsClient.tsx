@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import "./restaurant-ops.css";
 
 type Order = {
@@ -12,6 +12,12 @@ type Proof = {
   created_at: string; reviewed_at?: string; reviewed_by?: string;
   rejection_reason?: string; order: Order | null;
 };
+type BankAccount={
+ institution_name:string;holder_name:string;
+ account_type:"bank_account"|"virtual_wallet";
+ account_number:string|null;alias:string|null;
+ instructions:string|null;active:boolean;
+};
 type PaymentList = { ok:boolean; proofs: Proof[]; error?: string };
 const url="/dashboard-api/restaurant-ops/payments";
 const money=(v:number)=>new Intl.NumberFormat("es-CO",{
@@ -19,6 +25,14 @@ const money=(v:number)=>new Intl.NumberFormat("es-CO",{
 }).format(v);
 
 export default function RestaurantPaymentsClient() {
+  const [account,setAccount]=useState<BankAccount|null>(null);
+  const [institution,setInstitution]=useState("");
+  const [holder,setHolder]=useState("");
+  const [accountType,setAccountType]=useState<"bank_account"|"virtual_wallet">("bank_account");
+  const [accountNumber,setAccountNumber]=useState("");
+  const [alias,setAlias]=useState("");
+  const [bankNotes,setBankNotes]=useState("");
+  const [bankActive,setBankActive]=useState(false);
   const [proofs,setProofs]=useState<Proof[]>([]);
   const [filter,setFilter]=useState<"pending_review"|"approved"|"rejected"|"all">("pending_review");
   const [loading,setLoading]=useState(true);
@@ -41,6 +55,46 @@ export default function RestaurantPaymentsClient() {
     const timer=setInterval(()=>void refresh(),10000);
     return ()=>clearInterval(timer);
   },[refresh]);
+
+  const loadAccount=useCallback(async()=>{
+    try {
+      const response=await fetch(url+"/account",{credentials:"same-origin",cache:"no-store"});
+      const data=await response.json();
+      if(!response.ok||!data.ok)throw new Error(data.error||"ACCOUNT_UNAVAILABLE");
+      const a=data.account as BankAccount|null;
+      setAccount(a);
+      if(a) {
+        setInstitution(a.institution_name);setHolder(a.holder_name);
+        setAccountType(a.account_type);setAccountNumber(a.account_number??"");
+        setAlias(a.alias??"");setBankNotes(a.instructions??"");setBankActive(a.active);
+      }
+    }catch(e){setError(e instanceof Error?e.message:"No se pudo consultar la cuenta COP");}
+  },[]);
+  useEffect(()=>{void loadAccount();},[loadAccount]);
+  async function saveAccount(event:FormEvent) {
+    event.preventDefault();
+    if(!accountNumber.trim()&&!alias.trim()) {
+      setError("Indicá número de cuenta o alias oficial.");return;
+    }
+    setBusy("bank");setError("");setNotice("");
+    try {
+      const response=await fetch(url+"/account",{
+        method:"POST",credentials:"same-origin",cache:"no-store",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          institutionName:institution,holderName:holder,accountType,
+          accountNumber:accountNumber||null,alias:alias||null,
+          instructions:bankNotes||null,active:bankActive
+        })
+      });
+      const data=await response.json();
+      if(!response.ok||!data.ok)throw new Error(data.error||"SAVE_ACCOUNT_FAILED");
+      setNotice("Cuenta COP guardada. "+(bankActive?
+        "El bot podrá enviar estos datos en pedidos por transferencia.":"Sigue inactiva."));
+      await loadAccount();
+    }catch(e){setError(e instanceof Error?e.message:"No se pudo guardar la cuenta");}
+    finally{setBusy(null);}
+  }
 
   async function review(proof:Proof,decision:"approve"|"reject") {
     if(!proof.order)return;
@@ -84,6 +138,37 @@ export default function RestaurantPaymentsClient() {
     </header>
     {error&&<div className="rops-error" role="alert">{error}</div>}
     {notice&&<div className="rops-notice" role="status">{notice}</div>}
+    <section className="rops-card">
+      <div className="rops-row">
+        <h2>Cuenta oficial para transferencias · COP</h2>
+        <span className={"rops-pill "+(account?.active?"rops-ok":"rops-warning")}>
+          {account?.active?"Activa":"No configurada / inactiva"}
+        </span>
+      </div>
+      <p>Estos datos se comparten con clientes que seleccionan transferencia. No uses cuentas personales no autorizadas.</p>
+      <form className="rops-mini-form" onSubmit={e=>void saveAccount(e)}>
+        <input aria-label="Banco o plataforma de pago" placeholder="Banco / Nequi / Daviplata"
+          required minLength={2} value={institution} onChange={e=>setInstitution(e.target.value)}/>
+        <input aria-label="Titular de la cuenta" placeholder="Nombre del titular"
+          required minLength={2} value={holder} onChange={e=>setHolder(e.target.value)}/>
+        <select aria-label="Tipo de cuenta" value={accountType}
+          onChange={e=>setAccountType(e.target.value as typeof accountType)}>
+          <option value="bank_account">Cuenta bancaria</option>
+          <option value="virtual_wallet">Billetera digital</option>
+        </select>
+        <input aria-label="Número de cuenta" placeholder="Número de cuenta / celular"
+          value={accountNumber} onChange={e=>setAccountNumber(e.target.value)}/>
+        <input aria-label="Alias o identificación de cobro" placeholder="Alias (opcional)"
+          value={alias} onChange={e=>setAlias(e.target.value)}/>
+        <textarea aria-label="Instrucciones para pagar" rows={2} placeholder="Instrucciones"
+          value={bankNotes} onChange={e=>setBankNotes(e.target.value)}/>
+        <label className="rops-check"><input type="checkbox" checked={bankActive}
+          onChange={e=>setBankActive(e.target.checked)}/>
+          Activar cuenta oficial verificada
+        </label>
+        <button disabled={busy!==null}>Guardar cuenta COP</button>
+      </form>
+    </section>
     <section className="rops-card">
       <div className="rops-row">
         <h2>Cola de comprobantes</h2>
