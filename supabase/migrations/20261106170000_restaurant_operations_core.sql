@@ -192,7 +192,7 @@ DECLARE
  v_fee integer:=0; v_count integer:=0;
  v_name text; v_product_id text;
 BEGIN
- IF NOT p_customer_confirmed THEN RAISE EXCEPTION 'CUSTOMER_CONFIRMATION_REQUIRED'; END IF;
+ IF p_customer_confirmed IS DISTINCT FROM true THEN RAISE EXCEPTION 'CUSTOMER_CONFIRMATION_REQUIRED'; END IF;
  IF p_company_id IS NULL OR p_source NOT IN ('whatsapp','panel','web','qr','external')
    OR length(trim(coalesce(p_source_key,''))) NOT BETWEEN 8 AND 200
    OR coalesce(p_customer_phone,'') !~ '^[0-9]{8,15}$'
@@ -287,11 +287,13 @@ CREATE OR REPLACE FUNCTION public.restaurant_ops_transition_order(
  p_next_status text,p_actor_id text,p_actor_role text,p_reason text DEFAULT NULL
 ) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 DECLARE v_order public.restaurant_ops_orders%ROWTYPE;
+        v_previous_status text;
 BEGIN
  SELECT * INTO v_order FROM public.restaurant_ops_orders
  WHERE id=p_order_id AND company_id=p_company_id FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'ORDER_NOT_FOUND'; END IF;
  IF v_order.version<>p_expected_version THEN RAISE EXCEPTION 'ORDER_VERSION_CONFLICT'; END IF;
+ v_previous_status := v_order.status;
  IF NOT (
    (v_order.status='confirmed' AND p_next_status IN ('preparing','cancelled')) OR
    (v_order.status='preparing' AND p_next_status IN ('ready','cancelled')) OR
@@ -318,17 +320,13 @@ BEGIN
     ready_at=CASE WHEN p_next_status='ready' THEN now() ELSE ready_at END
   WHERE company_id=p_company_id AND order_id=p_order_id;
  END IF;
- IF p_next_status='completed' AND v_order.courier_id IS NOT NULL THEN
+ IF p_next_status IN ('completed','cancelled') AND v_order.courier_id IS NOT NULL THEN
   UPDATE public.restaurant_ops_couriers SET availability='available'
   WHERE id=v_order.courier_id AND company_id=p_company_id;
  END IF;
  INSERT INTO public.restaurant_ops_order_events(company_id,order_id,event_type,actor_id,actor_role,previous_status,next_status,details)
  VALUES(p_company_id,p_order_id,'status_changed',p_actor_id,p_actor_role,
-  CASE WHEN p_next_status='preparing' THEN 'confirmed'
-       WHEN p_next_status='ready' THEN 'preparing'
-       WHEN p_next_status='out_for_delivery' THEN 'ready'
-       WHEN p_next_status='completed' THEN CASE WHEN v_order.fulfillment_mode='pickup' THEN 'ready' ELSE 'out_for_delivery' END
-       ELSE 'unknown' END,
+  v_previous_status,
   p_next_status,jsonb_build_object('reason',coalesce(p_reason,'')));
  INSERT INTO public.restaurant_ops_outbox(company_id,order_id,kind,payload)
  VALUES(p_company_id,p_order_id,'order_status_changed',jsonb_build_object('status',p_next_status));
