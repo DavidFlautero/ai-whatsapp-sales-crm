@@ -1,5 +1,6 @@
 import { updateConversationMetadata } from "../conversations/conversation.repository.js";
 import { classifyRestaurantIntent } from "../agent/restaurant-ops-conversation.service.js";
+import { handleRestaurantCheckoutMessage } from "../restaurant-ops/restaurant-whatsapp-checkout.service.js";
 import { findMessageByExternalId } from "../conversations/conversation.repository.js";
 import { existsSync } from "node:fs";
 import { getDelibocadosChannel, type DelibocadosChannel } from "./delibocados-channel.service.js";
@@ -156,7 +157,14 @@ async function processMessage(
     return;
   }
 
-  const result = await executeCompanyAgent({
+  // Restaurant checkout is deterministic and persists the confirmed order through
+  // a transactional RPC. All other messages continue through the regular AI.
+  const checkout = process.env.DELIBOCADOS_CHECKOUT_TEST === "1"
+    ? await handleRestaurantCheckoutMessage({
+        companyId: "delibocados", phone: input.phone, message: input.text
+      })
+    : { handled: false, text: "", imageUrl: undefined as string | undefined };
+  const result = checkout.handled ? checkout : await executeCompanyAgent({
     companyId: "delibocados",
     phone: input.phone,
     message: input.text,
@@ -207,18 +215,19 @@ async function processMessage(
     throw new Error("DELI_WHAPI_WRONG_SENDER");
   }
 
+  const imageUrl = "imageUrl" in result ? result.imageUrl : undefined;
   const response = await fetch(
-    "https://gate.whapi.cloud/messages/text",
+    imageUrl ? "https://gate.whapi.cloud/messages/image" : "https://gate.whapi.cloud/messages/text",
     {
       method: "POST",
       headers: {
         Authorization: `Bearer ${latest.token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        to: input.phone,
-        body: reply,
-      }),
+      body: JSON.stringify(imageUrl
+        ? { to: input.phone, media: imageUrl, caption: reply }
+        : { to: input.phone, body: reply }),
+
       signal: AbortSignal.timeout(20000),
     }
   );
@@ -243,11 +252,12 @@ async function processMessage(
       sent.id ?? sent.message?.id,
     direction: "outbound",
     channel: "whatsapp",
-    message_type: "text",
+    message_type: imageUrl ? "image" : "text",
     body: reply,
     media: {
-      source: "ai",
+      source: checkout.handled ? "restaurant_checkout" : "ai",
       provider: "whapi",
+      ...(imageUrl ? {url: imageUrl}: {}),
       trigger_message_id: input.sourceMessageId,
     },
     raw_payload: {
