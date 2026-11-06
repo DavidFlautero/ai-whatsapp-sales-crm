@@ -8,7 +8,7 @@ import { transferInstructionsForOrder } from "./restaurant-payment-intake.servic
 import {
   MENU_PAGE_SIZE, spanishNormalize, wantsCartSummary, isCoverageQuestion,
   coverageAnswer, isMenuRequest, isMoreMenuRequest, isPreviousMenuRequest,
-  isAddRequest, isRemoveRequest, parseNumberedProduct, findMenuMentions,
+  isAddRequest, isRemoveRequest, isStandaloneMenuSelection, parseNumberedProduct, findMenuMentions,
   mergeCart, removeFromCart, formatDraftCart, isPlausibleCustomerName,
   type CartLine
 } from "./restaurant-checkout-dialogue.service.js";
@@ -316,6 +316,16 @@ export async function handleRestaurantCheckoutMessage(input: {
     else if(draft.stage==="confirm")draft.stage="payment";
     await persist(input.phone,draft);
     return {handled:true,text:formatDraftCart(draft.items,available)+"\n\n"+stagePrompt(draft.stage)};
+  }
+  // A customer can send another item number while we are asking for their name
+  // or another checkout detail. Never capture it as the person's name.
+  // Numeric replies in zone and pickup-time stages retain their special meaning.
+  if(activeDraft && ["name","mode","notes","payment","confirm"].includes(draft.stage)
+      && isStandaloneMenuSelection(input.message)) {
+    const additional=parseNumberedProduct(input.message,available) ??
+      parseItemSelection(input.message,available);
+    if(!additional)return {handled:true,text:"Ese número no está disponible en el menú. Escribí *MENÚ* o *VER MÁS* para elegir un producto."};
+    return addProduct(additional);
   }
   if(activeDraft && isAddRequest(input.message)) {
     const found=addLines(input.message);
