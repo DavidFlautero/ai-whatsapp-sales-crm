@@ -109,7 +109,7 @@ export async function dispatchDelibocadosTestNotifications(): Promise<TestResult
             order_id: order.id, outbox_id: job.id },
           raw_payload: { provider: "whapi", outbox_id: job.id },
           delivery_status: "sent", occurred_at: new Date().toISOString()
-        }, COMPANY, { trustedSource: "system_notification" });
+        }, COMPANY);
       } catch (error) {
         console.error("[RESTAURANT OUTBOX CRM ERROR]", {
           jobId: job.id, type: error instanceof Error ? error.name : "UNKNOWN"
