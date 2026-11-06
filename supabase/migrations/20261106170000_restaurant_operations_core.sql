@@ -182,7 +182,10 @@ CREATE OR REPLACE FUNCTION public.restaurant_ops_create_order(
  p_address_note text DEFAULT NULL, p_customer_note text DEFAULT NULL,
  p_pickup_due_at timestamptz DEFAULT NULL,
  p_actor_id text DEFAULT 'system', p_actor_role text DEFAULT 'system',
- p_customer_confirmed boolean DEFAULT false
+ p_customer_confirmed boolean DEFAULT false,
+ p_expected_menu_revision integer DEFAULT NULL,
+ p_payment_method text DEFAULT NULL,
+ p_payment_status text DEFAULT 'pending'
 ) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 DECLARE
  v_existing public.restaurant_ops_orders%ROWTYPE;
@@ -214,6 +217,12 @@ BEGIN
  SELECT payload,revision INTO v_catalog,v_revision
  FROM public.restaurant_menu_documents WHERE company_id=p_company_id;
  IF v_catalog IS NULL THEN RAISE EXCEPTION 'RESTAURANT_MENU_NOT_AVAILABLE'; END IF;
+ IF p_expected_menu_revision IS NOT NULL AND v_revision IS DISTINCT FROM p_expected_menu_revision
+ THEN RAISE EXCEPTION 'MENU_REVISION_CHANGED'; END IF;
+ IF p_payment_status NOT IN ('pending','cash_on_delivery')
+   OR (p_payment_status='cash_on_delivery' AND p_payment_method <> 'cash')
+ THEN RAISE EXCEPTION 'INVALID_INITIAL_PAYMENT'; END IF;
+
 
  IF p_fulfillment_mode='delivery' THEN
    IF length(trim(coalesce(p_address,''))) < 8 OR p_zone_id IS NULL
@@ -252,14 +261,14 @@ BEGIN
  INSERT INTO public.restaurant_ops_orders(
    company_id,source,source_key,customer_phone,customer_name,
    fulfillment_mode,subtotal_cop,delivery_fee_cop,zone_id,address,
-   address_note,customer_note,pickup_due_at,menu_revision
+   address_note,customer_note,pickup_due_at,menu_revision,payment_method,payment_status
  ) VALUES (
    p_company_id,p_source,p_source_key,p_customer_phone,trim(p_customer_name),
    p_fulfillment_mode,v_subtotal::integer,v_fee,
    CASE WHEN p_fulfillment_mode='delivery' THEN p_zone_id ELSE NULL END,
    CASE WHEN p_fulfillment_mode='delivery' THEN trim(p_address) ELSE NULL END,
    left(coalesce(p_address_note,''),500),left(coalesce(p_customer_note,''),2000),
-   p_pickup_due_at,v_revision
+   p_pickup_due_at,v_revision,p_payment_method,p_payment_status
  ) ON CONFLICT (company_id,source_key) DO NOTHING RETURNING * INTO v_order;
  IF v_order.id IS NULL THEN
    SELECT * INTO v_order FROM public.restaurant_ops_orders
@@ -398,11 +407,11 @@ BEGIN
 END $$;
 
 -- RPCs callable only by service_role. Server enforces authenticated tenant + roles.
-REVOKE ALL ON FUNCTION public.restaurant_ops_create_order(text,text,text,text,text,text,jsonb,uuid,text,text,text,timestamptz,text,text,boolean) FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public.restaurant_ops_create_order(text,text,text,text,text,text,jsonb,uuid,text,text,text,timestamptz,text,text,boolean,integer,text,text) FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.restaurant_ops_transition_order(text,uuid,integer,text,text,text,text) FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.restaurant_ops_assign_courier(text,uuid,uuid,integer,text,text) FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.restaurant_ops_set_payment(text,uuid,integer,text,text,text,text) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION public.restaurant_ops_create_order(text,text,text,text,text,text,jsonb,uuid,text,text,text,timestamptz,text,text,boolean) TO service_role;
+GRANT EXECUTE ON FUNCTION public.restaurant_ops_create_order(text,text,text,text,text,text,jsonb,uuid,text,text,text,timestamptz,text,text,boolean,integer,text,text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.restaurant_ops_transition_order(text,uuid,integer,text,text,text,text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.restaurant_ops_assign_courier(text,uuid,uuid,integer,text,text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.restaurant_ops_set_payment(text,uuid,integer,text,text,text,text) TO service_role;
