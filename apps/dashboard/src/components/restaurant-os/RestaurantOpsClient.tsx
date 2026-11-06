@@ -22,7 +22,7 @@ type Incident = { id: string; order_id: string; description: string; category: s
 type Product = { id: string; name: string; priceCOP: number; available?: boolean;
   priceNeedsReview?: boolean; category: string };
 type Report = { days: number; truncated: boolean; customers: number;
-  orders: Record<string, number>; kitchen: { commandsSent: number; started: number;
+  orders: Record<string, number>; kitchen: { commandsGenerated: number; printed: number; started: number;
   ready: number; averagePrepMinutes: number | null; overdue: number };
   incidents: { total: number; open: number; resolved: number; critical: number };
   couriers: Array<{ id: string; name: string; vehicle: string; completed: number; assigned: number }> };
@@ -320,7 +320,7 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
 
     {tab === "kitchen" && <section className="rops-card">
       <div className="rops-row"><h2>Pantalla de cocina (KDS)</h2>
-        <Pill>{report?.kitchen.commandsSent || 0} comandas últimos 7 días</Pill></div>
+        <Pill>{report?.kitchen.commandsGenerated || 0} comandas generadas · 7 días</Pill></div>
       <p>Las comandas ingresan al confirmarse un pedido. Tiempo desde preparación y notas visibles.</p>
       <div className="rops-cards">{orders.filter(o =>
         ["confirmed","preparing","ready"].includes(o.status)).map(o =>
@@ -421,7 +421,7 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
           ["Pedidos",report?.orders.total],["Completados",report?.orders.completed],
           ["Cancelados",report?.orders.cancelled],["Retiro en local",report?.orders.pickup],
           ["Domicilios",report?.orders.delivery],["Clientes distintos",report?.customers],
-          ["Comandas emitidas",report?.kitchen.commandsSent],
+          ["Comandas generadas",report?.kitchen.commandsGenerated],["Comandas impresas",report?.kitchen.printed],
           ["Comandas iniciadas",report?.kitchen.started],
           ["Comandas listas",report?.kitchen.ready],
           ["Minutos promedio en cocina",report?.kitchen.averagePrepMinutes],
