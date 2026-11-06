@@ -316,6 +316,8 @@ BEGIN
    (v_order.status='ready' AND v_order.fulfillment_mode='delivery' AND p_next_status='out_for_delivery') OR
    (v_order.status='out_for_delivery' AND p_next_status='completed')
  ) THEN RAISE EXCEPTION 'INVALID_ORDER_TRANSITION'; END IF;
+ IF p_next_status='preparing' AND v_order.payment_status NOT IN ('verified','cash_on_delivery')
+ THEN RAISE EXCEPTION 'PAYMENT_REVIEW_REQUIRED_BEFORE_KITCHEN'; END IF;
  IF p_next_status='cancelled' AND length(trim(coalesce(p_reason,'')))<5
  THEN RAISE EXCEPTION 'CANCELLATION_REASON_REQUIRED'; END IF;
  IF p_next_status IN ('out_for_delivery','completed')
