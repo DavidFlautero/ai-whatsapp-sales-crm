@@ -297,7 +297,7 @@ export async function handleRestaurantCheckoutMessage(input: {
       return {handled:true,text:"El menú cambió desde que cotizamos. Necesito confirmar otra vez el total antes de guardar el pedido. Escribí *EFECTIVO* o *TRANSFERENCIA*."};
     }
     const quote=buildOrderSummary(draft,available,zoneRows);
-    const order=await supabaseRpc<{id:string;number:number;version:number}>("restaurant_ops_create_order",{
+    const order=await supabaseRpc<{id:string;number:number;version:number;total_cop:number}>("restaurant_ops_create_order",{
       p_company_id:COMPANY,p_source:"whatsapp",p_source_key:"wa-"+draft.id,
       p_customer_phone:input.phone,p_customer_name:draft.customerName!,
       p_fulfillment_mode:draft.mode!,p_items:draft.items,
