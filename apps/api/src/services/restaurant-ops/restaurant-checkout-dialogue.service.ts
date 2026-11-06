@@ -58,6 +58,11 @@ export function isAddRequest(input:string):boolean {
 export function isRemoveRequest(input:string):boolean {
   return /^(?:quita(?:me)?|quitar|saca(?:me)?|sacar|elimina(?:me)?|eliminar|borra(?:me)?|borrar|no quiero|sin)\b/.test(spanishNormalize(input));
 }
+export function isStandaloneMenuSelection(input:string):boolean {
+  const m=spanishNormalize(input);
+  return /^\d{1,3}$/.test(m) ||
+    /^(?:\d{1,2}\s*[x×]\s*\d{1,3})(?:\s*[,;]\s*\d{1,2}\s*[x×]\s*\d{1,3})*$/.test(m);
+}
 export function parseNumberedProduct(input:string, menu:MenuProduct[]):CartLine[]|null {
   const m=spanishNormalize(input);
   // One menu item: "11" means one unit of the published menu's item #11.
