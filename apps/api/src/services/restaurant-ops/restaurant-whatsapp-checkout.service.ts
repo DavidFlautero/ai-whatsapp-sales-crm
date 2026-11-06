@@ -4,6 +4,7 @@ import {
 import { getContactByPhone, upsertContact } from "../crm/crm.repository.js";
 import { supabaseRequest, supabaseRpc } from "../db/supabase-rest.client.js";
 import { classifyRestaurantIntent } from "../agent/restaurant-ops-conversation.service.js";
+import { transferInstructionsForOrder } from "./restaurant-payment-intake.service.js";
 
 const COMPANY = "delibocados";
 const MENU_FALLBACK = "https://delibocados.online/menu";
@@ -320,12 +321,23 @@ export async function handleRestaurantCheckoutMessage(input: {
         metadata:{ name_source:"customer",name_confirmed:true,last_restaurant_order_id:order.id }
       },COMPANY);
     } catch { console.warn("[DELI CHECKOUT] CRM enrichment pending", {orderId:order.id}); }
-    return {handled:true,text:"*Pedido #"+order.number+" registrado*.\n"+
-      quote.lines.map(x=>x.quantity+" × "+x.productName).join("\n")+
-      "\nTotal: $"+quote.total.toLocaleString("es-CO")+
-      (draft.mode==="pickup"?"\nRetiro en local. Te avisamos cuando esté listo.":
-        "\nDomicilio registrado. Te avisamos cuando salga a reparto.")+
-      (draft.payment==="transfer"?"\nPago por transferencia pendiente de verificar.":"\nPago en efectivo al recibir.")};
+    const instructions = draft.payment === "transfer"
+      ? await transferInstructionsForOrder({
+          number: order.number,
+          totalCOP: Number(order.total_cop ?? quote.total)
+        }).catch(() => ({
+          text: "La cuenta bancaria no está disponible en este momento. " +
+            "Un encargado te indicará cómo completar el pago; no hagas transferencias a cuentas no verificadas.",
+          humanHandoff: true
+        }))
+      : null;
+    return {handled:true,humanHandoff:instructions?.humanHandoff===true,
+      text:"*Pedido #"+order.number+" registrado*.\n"+
+        quote.lines.map(x=>x.quantity+" × "+x.productName).join("\n")+
+        "\nTotal: $"+quote.total.toLocaleString("es-CO")+
+        (draft.mode==="pickup"?"\nRetiro en local. Te avisamos cuando esté listo.":
+          "\nDomicilio registrado. Te avisamos cuando salga a reparto.")+
+        (instructions?"\n\n"+instructions.text:"\nPago en efectivo al recibir. Pasamos el pedido a cocina.")};
   }
   return {handled:false,text:""};
 }
