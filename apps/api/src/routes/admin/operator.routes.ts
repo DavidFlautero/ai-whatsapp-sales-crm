@@ -1,3 +1,9 @@
+import { requireRoles } from "../../middlewares/auth.middleware.js";
+import {
+  getDelibocadosChannelStatus,
+  saveDelibocadosChannel,
+} from "../../controllers/admin/delibocados-channel.controller.js";
+
 import { getTenantConversations } from "../../controllers/admin/tenant-conversations.controller.js";
 import {
   Router,
@@ -28,3 +34,15 @@ adminOperatorRoutes.post(
 );
 
 adminOperatorRoutes.get("/tenant/conversations", getTenantConversations);
+
+adminOperatorRoutes.get(
+  "/operator/channel",
+  requireRoles("owner", "admin"),
+  getDelibocadosChannelStatus,
+);
+
+adminOperatorRoutes.post(
+  "/operator/channel",
+  requireRoles("owner", "admin"),
+  saveDelibocadosChannel,
+);
