@@ -82,23 +82,32 @@ export function parseNumberedProduct(input:string, menu:MenuProduct[]):CartLine[
   }
   return [...items].map(([productId,quantity])=>({productId,quantity}));
 }
-export function findExplicitMenuProducts(input:string,menu:MenuProduct[]):MenuProduct[] {
+export type ProductMention={product:MenuProduct;start:number;end:number};
+export function findMenuMentions(input:string,menu:MenuProduct[]):ProductMention[] {
   const m=spanishNormalize(input);
-  const all=menu.map(p=>({...p,normalizedName:spanishNormalize(p.name)}))
-    .filter(p=>p.normalizedName.length>=4)
-    .sort((a,b)=>b.normalizedName.length-a.normalizedName.length);
-  const found:{start:number;end:number;p:MenuProduct}[]=[];
-  for(const p of all) {
-    let index=m.indexOf(p.normalizedName);
-    if(index<0 || m.indexOf(p.normalizedName,index+1)>=0)continue;
-    const before=index===0?" ":m[index-1];
-    const after=m[index+p.normalizedName.length]??" ";
-    if(/[a-z0-9]/.test(before)||/[a-z0-9]/.test(after))continue;
-    const end=index+p.normalizedName.length;
-    if(found.some(f=>index<f.end&&end>f.start))continue;
-    found.push({start:index,end,p});
+  const products=menu.map(p=>({p,name:spanishNormalize(p.name)}))
+    .filter(p=>p.name.length>=4)
+    .sort((a,b)=>b.name.length-a.name.length);
+  const found:ProductMention[]=[];
+  for(const {p,name} of products){
+    // A simple final 's' accounts for common plurals such as hamburguesas.
+    const variants=[name,...(/[aeo]$/.test(name)?[name+"s"]:[])];
+    for(const variant of variants.sort((a,b)=>b.length-a.length)){
+      const index=m.indexOf(variant);
+      if(index<0 || m.indexOf(variant,index+variant.length)>=0)continue;
+      const before=index===0?" ":m[index-1];
+      const after=m[index+variant.length]??" ";
+      if(/[a-z0-9]/.test(before)||/[a-z0-9]/.test(after))continue;
+      const end=index+variant.length;
+      if(found.some(f=>index<f.end&&end>f.start))continue;
+      found.push({product:p,start:index,end});
+      break;
+    }
   }
-  return found.sort((a,b)=>a.start-b.start).map(x=>x.p);
+  return found.sort((a,b)=>a.start-b.start);
+}
+export function findExplicitMenuProducts(input:string,menu:MenuProduct[]):MenuProduct[] {
+  return findMenuMentions(input,menu).map(x=>x.product);
 }
 export function mergeCart(
   existing:CartLine[],added:CartLine[]
