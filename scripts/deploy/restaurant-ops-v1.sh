@@ -141,8 +141,19 @@ deploy_restaurant_os() {
   if ! pm2 restart delibocados-whatsapp-next --update-env; then
     echo "ERROR: reinicio Next fallido; revisar PM2"; return 1
   fi
-  if ! curl -fsS --max-time 12 http://127.0.0.1:4000/health >/dev/null; then
-    echo "ALERTA: API no responde /health"; return 1
+  # PM2 reports "online" before Node has finished loading dependencies and binding the socket.
+  local ready=0 attempt
+  for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+    if curl -fsS --max-time 3 http://127.0.0.1:4000/health >/dev/null 2>&1; then
+      ready=1
+      break
+    fi
+    sleep 2
+  done
+  if [[ "$ready" != 1 ]]; then
+    echo "ALERTA: API no responde /health después de los intentos; la IA sigue pausada"
+    echo "Diagnóstico sin secretos: ss -ltnp | grep ':4000'; pm2 logs neuromind-api --lines 35 --nostream"
+    return 1
   fi
   sha="$(git rev-parse --short HEAD)"
   echo "COMMIT: $sha"
