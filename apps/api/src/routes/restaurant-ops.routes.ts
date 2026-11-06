@@ -1,3 +1,4 @@
+import { listContacts } from "../services/crm/crm.repository.js";
 import { dispatchDelibocadosTestNotifications } from "../services/restaurant-ops/restaurant-notifications.service.js";
 import { Router, type Request, type Response } from "express";
 import { z, ZodError } from "zod";
@@ -287,3 +288,36 @@ restaurantOpsRoutes.post("/notifications/dispatch-test",
     return res.json({ok:true,result});
   })
 );
+
+
+restaurantOpsRoutes.get("/customers", safe(async (_req,res) => {
+  const [contacts,orders,incidents] = await Promise.all([
+    listContacts("delibocados"),
+    rows("restaurant_ops_orders",
+      "?company_id=eq.delibocados&select=customer_phone,status,total_cop,created_at&order=created_at.desc&limit=1000"),
+    rows("restaurant_ops_incidents",
+      "?company_id=eq.delibocados&status=eq.open&select=order_id&limit=1000")
+  ]);
+  const aggregate = new Map<string,{orderCount:number;completed:number;spentCOP:number;lastOrder:string|null}>();
+  for(const o of orders) {
+    const ph = String(o.customer_phone??"");
+    const item=aggregate.get(ph) ?? {orderCount:0,completed:0,spentCOP:0,lastOrder:null};
+    item.orderCount++;
+    if(o.status==="completed") {
+      item.completed++;
+      item.spentCOP += Number(o.total_cop)||0;
+    }
+    if(!item.lastOrder)item.lastOrder=String(o.created_at??"");
+    aggregate.set(ph,item);
+  }
+  const customers = contacts.map(c => ({
+    phone:c.phone,name:c.name??null,
+    profileName:c.metadata?.whatsapp_profile_name ?? null,
+    nameConfirmed:c.metadata?.name_confirmed===true,
+    nameSource:c.metadata?.name_source ?? "unknown",
+    status:c.status??"lead",lastSeen:c.last_seen_at??null,
+    ...aggregate.get(c.phone)??{orderCount:0,completed:0,spentCOP:0,lastOrder:null}
+  }));
+  readOnly(res);return res.json({ok:true,customers,
+    partial:orders.length>=1000 || incidents.length>=1000});
+}));
