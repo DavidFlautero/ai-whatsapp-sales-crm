@@ -131,6 +131,7 @@ export function shouldStartCheckout(message: string) {
     return false;
   return /\b(menu|carta|catalogo|hacer un pedido|quiero pedir|quisiera pedir|voy a pedir|pedir comida|quiero una|quiero dos|quiero tres|me regalas|me vendes)\b/.test(m)
     || /^(hola|holaa|buenas|buenos dias|buenas tardes|buenas noches)[.!?\s]*$/.test(m)
+    || /\b(quiero|quisiera|deme|me das|me vendes)\s+\d+\b/.test(m)
     || classifyRestaurantIntent(message) === "pickup" || classifyRestaurantIntent(message) === "delivery";
 }
 function safeMenuUrl(value: string) {
@@ -219,6 +220,18 @@ export async function handleRestaurantCheckoutMessage(input: {
   if (!previous || ["cancelled","completed"].includes(previous.stage)) {
     if (previous && !shouldStartCheckout(input.message)) {
       return { handled:false,text:"" };
+    }
+    const direct = parseNaturalItemSelection(input.message,available);
+    if (direct) {
+      draft.items=direct;
+      draft.stage="name";
+      await persist(input.phone,draft);
+      return {handled:true,text:"Anoté "+
+        direct.map(line=>{
+          const product=available.find(p=>p.id===line.productId);
+          return line.quantity+" × "+(product?.name??"producto");
+        }).join(", ")+
+        ". ¿A nombre de quién registramos el pedido? Después confirmaremos el total."};
     }
     await persist(input.phone,draft);
     const share = await preferredMenuShare();
