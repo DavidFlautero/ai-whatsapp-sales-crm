@@ -63,6 +63,7 @@ import { whatsappRoutes } from "./whatsapp.routes.js";
 import { customersRoutes } from "./customers.routes.js";
 import { crmRoutes } from "./crm.routes.js";
 import { ordersRoutes } from "./orders.routes.js";
+import { restaurantOpsRoutes } from "./restaurant-ops.routes.js";
 import { stockRoutes } from "./stock.routes.js";
 import { adminStatusRoutes } from "./admin/status.routes.js";
 import { adminDataRoutes } from "./admin/data.routes.js";
@@ -203,6 +204,14 @@ router.use(
     source: "dashboard",
   }),
   crmRoutes,
+);
+
+router.use(
+  "/admin/restaurant-ops",
+  requireAuth,
+  requireRoles("owner","admin","supervisor"),
+  resolveAccessContext({ mode: "company", source: "dashboard" }),
+  restaurantOpsRoutes
 );
 
 router.use(
