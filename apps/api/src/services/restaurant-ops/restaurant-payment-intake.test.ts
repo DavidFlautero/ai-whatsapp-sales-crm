@@ -22,10 +22,10 @@ test("an unavailable or old order never accepts a new receipt",()=>{
 });
 test("COP transfer instructions reuse tenant configured account, not Argentine banking labels",()=>{
   const result=transferInstructions({
-    id:"account",company_id:"delibocados",currency:"COP",
-    active:true,is_default:true,account_type:"bank_account",
+    company_id:"delibocados",currency:"COP",
+    active:true,account_type:"bank_account",
     institution_name:"Banco de prueba",holder_name:"Comercio",
-    account_number:"123456",display_name:"Principal"
+    account_number:"123456"
   },200,19000);
   assert.match(result,/19\.000 COP/);
   assert.match(result,/Banco de prueba/);
