@@ -43,6 +43,9 @@ jobs:
       - name: Create isolated reference tables and menu fixture
         run: |
           psql -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE anon;
+          CREATE ROLE authenticated;
+          CREATE ROLE service_role;
           CREATE TABLE public.commerce_companies(id text PRIMARY KEY);
           CREATE TABLE public.commerce_schema_migrations(version text PRIMARY KEY, description text);
           CREATE TABLE public.restaurant_menu_documents(
