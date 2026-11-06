@@ -1,3 +1,4 @@
+import { buildRestaurantOperationsContext } from "./restaurant-ops-conversation.service.js";
 import {
   getCompanyCatalog,
 } from "./company-catalog.service.js";
@@ -101,6 +102,14 @@ export async function executeCompanyAgent(
       "No inventes ingredientes, variantes ni disponibilidad.";
   }
 
+  const restaurantContext =
+    input.companyId === "delibocados"
+    && process.env.DELIBOCADOS_OPERATIONS_AI_CONTEXT === "1"
+      ? await buildRestaurantOperationsContext({
+          companyId: input.companyId, phone: input.phone, message: input.message
+        })
+      : "";
+
   const prompt =
     await buildConfiguredCompanyPrompt({
       companyId: input.companyId,
@@ -110,6 +119,7 @@ export async function executeCompanyAgent(
       knowledgeContext: [
         knowledgeContext,
         catalogContext,
+        restaurantContext,
       ].filter(Boolean).join("\n\n"),
     });
 

@@ -1,3 +1,4 @@
+import { queueDelibocadosLiveReply } from "./delibocados-live-reply.service.js";
 import {
   resolveMessageMedia,
 } from "../messages/message-media.service.js";
@@ -13,6 +14,9 @@ import {
 type AudioJob = {
   messageId: string;
   companyId: string;
+  contactPhone?: string;
+  sourceMessageId?: string;
+  occurredAt?: string;
 };
 
 async function processAudio(job: AudioJob): Promise<void> {
@@ -51,6 +55,19 @@ async function processAudio(job: AudioJob): Promise<void> {
     transcription,
     job.companyId,
   );
+
+  // La respuesta automática siempre pasa por stop-file, testPhone y modo humano.
+  // No procesamos voz de otras empresas con el agente de Delibocados.
+  if (job.companyId === "delibocados" && job.contactPhone &&
+      job.sourceMessageId && job.occurredAt) {
+    queueDelibocadosLiveReply({
+      companyId: "delibocados",
+      phone: job.contactPhone,
+      sourceMessageId: job.sourceMessageId,
+      text: transcription,
+      occurredAt: job.occurredAt
+    });
+  }
 
   console.log("[WHAPI AUDIO TRANSCRIBED]", {
     messageId: job.messageId,

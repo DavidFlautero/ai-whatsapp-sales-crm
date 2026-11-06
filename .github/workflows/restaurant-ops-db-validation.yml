@@ -1,0 +1,67 @@
+name: Restaurant OS database validation
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/20261106170000_restaurant_operations_core.sql"
+      - "apps/api/src/scripts/restaurant-ops-schema-smoke.sql"
+      - ".github/workflows/restaurant-ops-db-validation.yml"
+  workflow_dispatch:
+
+jobs:
+  postgres-order-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: restaurant_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d restaurant_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: restaurant_ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: PostgreSQL client
+        run: |
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Create isolated reference tables and menu fixture
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE anon;
+          CREATE ROLE authenticated;
+          CREATE ROLE service_role;
+          CREATE TABLE public.commerce_companies(id text PRIMARY KEY);
+          CREATE TABLE public.commerce_schema_migrations(version text PRIMARY KEY, description text);
+          CREATE TABLE public.restaurant_menu_documents(
+            company_id text PRIMARY KEY,
+            revision integer NOT NULL,
+            payload jsonb NOT NULL
+          );
+          INSERT INTO public.commerce_companies(id) VALUES('delibocados');
+          INSERT INTO public.restaurant_menu_documents(company_id,revision,payload)
+          VALUES('delibocados',1,'{"products":[
+            {"id":"burger","name":"Hamburguesa","priceCOP":18000,"available":true},
+            {"id":"soda","name":"Gaseosa","priceCOP":5000,"available":true},
+            {"id":"unavailable","name":"No disponible","priceCOP":3000,"available":false}
+          ]}'::jsonb);
+          SQL
+      - name: Apply restaurant migration
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261106170000_restaurant_operations_core.sql
+      - name: Test real database operations and audit
+        run: psql -v ON_ERROR_STOP=1 -f apps/api/src/scripts/restaurant-ops-schema-smoke.sql
