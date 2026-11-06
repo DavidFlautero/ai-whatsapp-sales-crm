@@ -1,5 +1,6 @@
 import { queueWhapiAudioTranscription } from "../services/whapi/whapi-audio-processing.service.js";
 import { captureRestaurantWhatsappName } from "../services/crm/restaurant-whatsapp-profile.service.js";
+import { captureRestaurantPaymentProof } from "../services/restaurant-ops/restaurant-payment-intake.service.js";
 import { queueDelibocadosLiveReply } from "../services/whapi/delibocados-live-reply.service.js";
 import { Router } from "express";
 import { readFileSync } from "node:fs";
@@ -189,6 +190,36 @@ delibocadosTenantWhapiRoutes.post("/webhook", async (req, res) => {
         duplicates++;
       } else {
         saved++;
+
+        if (
+          !fromMe &&
+          (messageType === "image" || messageType === "document") &&
+          result.message?.id
+        ) {
+          try {
+            const receipt = await captureRestaurantPaymentProof({
+              companyId: COMPANY,
+              phone,
+              internalMessageId: result.message.id,
+              externalMessageId: externalId,
+              kind: messageType,
+              caption: body === "[" + messageType + "]" ? "" : body
+            });
+            if (receipt.reason !== "NO_PENDING_TRANSFER") {
+              console.log("[DELIBOCADOS PAYMENT INTAKE]", {
+                last4: phone.slice(-4),
+                received: receipt.received,
+                reason: receipt.reason,
+                orderNumber: receipt.orderNumber ?? null
+              });
+            }
+          } catch (error) {
+            // Whapi webhook remains durable even if payment classification is delayed.
+            console.warn("[DELIBOCADOS PAYMENT INTAKE ERROR]", {
+              type: error instanceof Error ? error.name : "UNKNOWN"
+            });
+          }
+        }
 
         if (
           !fromMe &&
