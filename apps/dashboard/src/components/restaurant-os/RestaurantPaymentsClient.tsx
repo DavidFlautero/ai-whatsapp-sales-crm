@@ -121,7 +121,11 @@ export default function RestaurantPaymentsClient() {
             {proof.rejection_reason&&<p><b>Rechazo:</b> {proof.rejection_reason}</p>}
           </div>
           <div className="rops-actions">
-            <a href="/panel/operador">Revisar comprobante en Conversaciones</a>
+            <a href={"/dashboard-api/messages/"+encodeURIComponent(proof.source_message_id)+"/media"}
+              target="_blank" rel="noopener noreferrer">
+              Abrir comprobante original
+            </a>
+            <a href="/panel/operador">Abrir conversación del cliente</a>
             {proof.status==="pending_review"&&proof.order&&<>
               <button type="button" disabled={busy!==null}
                 onClick={()=>void review(proof,"approve")}>Aprobar tras comprobar ingreso</button>
