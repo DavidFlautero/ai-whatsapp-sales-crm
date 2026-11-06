@@ -72,15 +72,15 @@ BEGIN
   WHERE company_id=p_company_id AND id=p_order_id FOR UPDATE;
  IF NOT FOUND OR v_order.customer_phone<>p_customer_phone
  THEN RAISE EXCEPTION 'ORDER_NOT_FOUND_FOR_CUSTOMER'; END IF;
- IF v_order.payment_method<>'transfer' OR v_order.status='cancelled'
-   OR v_order.payment_status NOT IN ('pending','proof_submitted')
- THEN RAISE EXCEPTION 'ORDER_NOT_AWAITING_TRANSFER'; END IF;
  SELECT * INTO v_proof FROM public.restaurant_ops_payment_proofs
   WHERE company_id=p_company_id AND source_message_id=p_source_message_id;
  IF FOUND THEN
    IF v_proof.order_id<>p_order_id THEN RAISE EXCEPTION 'PROOF_ALREADY_ASSOCIATED'; END IF;
    RETURN to_jsonb(v_proof);
  END IF;
+ IF v_order.payment_method<>'transfer' OR v_order.status='cancelled'
+   OR v_order.payment_status NOT IN ('pending','proof_submitted')
+ THEN RAISE EXCEPTION 'ORDER_NOT_AWAITING_TRANSFER'; END IF;
  IF EXISTS(
    SELECT 1 FROM public.restaurant_ops_payment_proofs
    WHERE company_id=p_company_id AND order_id=p_order_id AND status='pending_review'
@@ -201,6 +201,23 @@ GRANT EXECUTE ON FUNCTION public.restaurant_ops_submit_payment_proof(text,uuid,t
  TO service_role;
 GRANT EXECUTE ON FUNCTION public.restaurant_ops_review_payment_proof(text,uuid,text,text,text,text)
  TO service_role;
+-- Courier assignment emits a durable customer notification and an auditable dispatch event.
+CREATE OR REPLACE FUNCTION public.restaurant_ops_notify_courier_assignment()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $
+BEGIN
+ IF NEW.company_id='delibocados' AND NEW.event_type='courier_assigned' THEN
+   INSERT INTO public.restaurant_ops_outbox(company_id,order_id,kind,payload)
+   VALUES(NEW.company_id,NEW.order_id,'courier_assigned',
+     jsonb_build_object('courier_id',NEW.details->>'courier_id'));
+ END IF;
+ RETURN NEW;
+END $;
+DROP TRIGGER IF EXISTS restaurant_ops_courier_assignment_notify
+ ON public.restaurant_ops_order_events;
+CREATE TRIGGER restaurant_ops_courier_assignment_notify
+ AFTER INSERT ON public.restaurant_ops_order_events
+ FOR EACH ROW EXECUTE FUNCTION public.restaurant_ops_notify_courier_assignment();
+
 INSERT INTO public.commerce_schema_migrations(version,description)
  VALUES('20261106200000','Restaurant payment proof review, verification, kitchen hold and audit')
  ON CONFLICT(version) DO NOTHING;
