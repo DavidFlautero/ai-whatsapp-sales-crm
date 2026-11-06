@@ -8,7 +8,7 @@ type Tab = "orders" | "kitchen" | "dispatch" | "zones" | "incidents" | "reports"
 type Item = { id: string; product_id: string; product_name: string; quantity: number;
   unit_price_cop: number; line_total_cop: number; instructions: string };
 type Order = { id: string; number: number; customer_name: string; customer_phone: string;
-  fulfillment_mode: "pickup" | "delivery"; status: Status; payment_status: string;
+  fulfillment_mode: "pickup" | "delivery"; status: Status; payment_status: string; payment_method?: string;
   version: number; created_at: string; preparing_at?: string; ready_at?: string;
   customer_note?: string; address?: string; zone_id?: string; courier_id?: string;
   total_cop: number; subtotal_cop: number; delivery_fee_cop: number;
@@ -242,8 +242,12 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
             {couriers.filter(c => c.active && c.availability === "available").map(c =>
               <option key={c.id} value={c.id}>{c.name} · {c.vehicle === "bike" ? "Bici" : "Moto"}</option>)}
           </select>}
-        {order.payment_status !== "verified" && order.payment_status !== "refunded" &&
-          <button disabled={busy} className="rops-secondary" onClick={() => void verifyPayment(order)}>Verificar pago</button>}
+        {order.payment_method === "transfer" && !["verified","refunded"].includes(order.payment_status) &&
+          <a href="/panel/pagos">Revisar transferencia</a>}
+        {order.payment_method !== "transfer" &&
+          order.payment_status === "cash_on_delivery" &&
+          <button disabled={busy} className="rops-secondary"
+            onClick={() => void verifyPayment(order)}>Confirmar efectivo recibido</button>}
         {!kitchen && ["confirmed","preparing"].includes(order.status) &&
           <button disabled={busy} className="rops-danger-btn" onClick={() => void cancel(order)}>Cancelar</button>}
         <a href={"/panel/operador"}>Conversación</a>
@@ -323,11 +327,16 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
     {tab === "kitchen" && <section className="rops-card">
       <div className="rops-row"><h2>Pantalla de cocina (KDS)</h2>
         <Pill>{report?.kitchen.commandsGenerated || 0} comandas generadas · 7 días</Pill></div>
-      <p>Las comandas ingresan al confirmarse un pedido. Tiempo desde preparación y notas visibles.</p>
+      <p>Solo los pedidos con efectivo al recibir o transferencia verificada entran a cocina.
+        Los pagos pendientes permanecen retenidos en la cola financiera.</p>
+      <p><b>Esperando pago:</b> {orders.filter(o => o.status === "confirmed" &&
+        !["verified","cash_on_delivery"].includes(o.payment_status)).length}</p>
       <div className="rops-cards">{orders.filter(o =>
-        ["confirmed","preparing","ready"].includes(o.status)).map(o =>
+        ["confirmed","preparing","ready"].includes(o.status) &&
+        ["verified","cash_on_delivery"].includes(o.payment_status)).map(o =>
           <OrderCard key={o.id} order={o} kitchen/>)}</div>
-      {!orders.some(o => ["confirmed","preparing","ready"].includes(o.status)) &&
+      {!orders.some(o => ["confirmed","preparing","ready"].includes(o.status) &&
+        ["verified","cash_on_delivery"].includes(o.payment_status)) &&
         <p className="rops-empty">Sin comandas activas.</p>}
     </section>}
 
