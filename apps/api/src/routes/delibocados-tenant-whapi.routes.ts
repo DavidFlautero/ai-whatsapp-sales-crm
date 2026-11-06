@@ -73,6 +73,7 @@ delibocadosTenantWhapiRoutes.post("/webhook", async (req, res) => {
   let saved = 0;
   let duplicates = 0;
   let ignored = 0;
+  let paymentIntakeFailures = 0;
 
   try {
     for (const message of messages) {
@@ -186,11 +187,6 @@ delibocadosTenantWhapiRoutes.post("/webhook", async (req, res) => {
         }
       }
 
-      if (result.duplicate) {
-        duplicates++;
-      } else {
-        saved++;
-
         if (
           !fromMe &&
           (messageType === "image" || messageType === "document") &&
@@ -214,12 +210,18 @@ delibocadosTenantWhapiRoutes.post("/webhook", async (req, res) => {
               });
             }
           } catch (error) {
-            // Whapi webhook remains durable even if payment classification is delayed.
+            // The same message is safe to retry: saving and proof submission are idempotent.
+            paymentIntakeFailures++;
             console.warn("[DELIBOCADOS PAYMENT INTAKE ERROR]", {
               type: error instanceof Error ? error.name : "UNKNOWN"
             });
           }
         }
+
+      if (result.duplicate) {
+        duplicates++;
+      } else {
+        saved++;
 
         if (
           !fromMe &&
@@ -264,6 +266,13 @@ delibocadosTenantWhapiRoutes.post("/webhook", async (req, res) => {
       ignored
     });
 
+    if (paymentIntakeFailures > 0) {
+      res.status(503).json({
+        ok: false, error: "PAYMENT_INTAKE_RETRY_REQUIRED",
+        saved, duplicates, ignored
+      });
+      return;
+    }
     res.json({
       ok: true,
       companyId: COMPANY,
