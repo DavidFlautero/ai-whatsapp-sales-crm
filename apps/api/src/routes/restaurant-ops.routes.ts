@@ -158,6 +158,50 @@ restaurantOpsRoutes.post("/orders/:id/payment",requireRoles("owner","admin","sup
   });
   return res.json({ok:true,order});
  }));
+const bankAccountInput=z.object({
+  institutionName:str.min(2).max(120),
+  holderName:str.min(2).max(180),
+  accountType:z.enum(["bank_account","virtual_wallet"]),
+  accountNumber:str.max(80).nullable().optional(),
+  alias:str.max(120).nullable().optional(),
+  instructions:str.max(1000).nullable().optional(),
+  active:z.boolean().default(false)
+}).strict();
+
+restaurantOpsRoutes.get("/payments/account",requireRoles("owner","admin"),
+  safe(async (_req,res)=>{
+    const account=await rows("restaurant_ops_payment_accounts",
+      "?company_id=eq.delibocados&select=*&limit=1");
+    readOnly(res);return res.json({ok:true,account:account[0]??null});
+  })
+);
+restaurantOpsRoutes.post("/payments/account",requireRoles("owner","admin"),
+  safe(async (req,res)=>{
+    const v=bankAccountInput.parse(req.body);
+    if(!v.accountNumber?.trim()&&!v.alias?.trim())return res.status(422)
+      .json({ok:false,error:"BANK_DESTINATION_REQUIRED"});
+    const a=actor(req);
+    const account=await supabaseRequest<Row[]>({
+      table:"restaurant_ops_payment_accounts",
+      method:"POST",
+      query:"?on_conflict=company_id",
+      prefer:"resolution=merge-duplicates,return=representation",
+      body:[{
+        company_id:"delibocados",
+        institution_name:v.institutionName,
+        holder_name:v.holderName,
+        account_type:v.accountType,
+        account_number:v.accountNumber||null,
+        alias:v.alias||null,
+        instructions:v.instructions||null,
+        currency:"COP",active:v.active,
+        updated_by:a.id,updated_at:new Date().toISOString()
+      }]
+    });
+    return res.json({ok:true,account:account[0]??null});
+  })
+);
+
 type RestaurantPaymentProof = {
   id: string; order_id: string; source_message_id: string; status: string;
   customer_phone: string; created_at: string; reviewed_at?: string | null;
