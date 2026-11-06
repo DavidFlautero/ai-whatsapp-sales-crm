@@ -27,6 +27,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Typecheck API
         run: pnpm --filter @ventas/api typecheck
+      - name: Test restaurant intent routing
+        run: pnpm --filter @ventas/api exec tsx --test src/services/agent/restaurant-ops-conversation.test.ts
       - name: Typecheck dashboard
         run: pnpm --filter @ventas/dashboard typecheck
       - name: Build isolated Delibocados dashboard
