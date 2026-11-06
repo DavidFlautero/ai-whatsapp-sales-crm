@@ -1,6 +1,7 @@
 import { updateConversationMetadata } from "../conversations/conversation.repository.js";
 import { classifyRestaurantIntent } from "../agent/restaurant-ops-conversation.service.js";
 import { handleRestaurantCheckoutMessage } from "../restaurant-ops/restaurant-whatsapp-checkout.service.js";
+import { handleNaturalRestaurantTurn } from "../restaurant-ops/restaurant-natural-agent.service.js";
 import { findMessageByExternalId } from "../conversations/conversation.repository.js";
 import { existsSync } from "node:fs";
 import { getDelibocadosChannel, type DelibocadosChannel } from "./delibocados-channel.service.js";
@@ -162,11 +163,18 @@ async function processMessage(
 
   // Restaurant checkout is deterministic and persists the confirmed order through
   // a transactional RPC. All other messages continue through the regular AI.
-  const checkout = (liveMode || process.env.DELIBOCADOS_CHECKOUT_TEST === "1")
-    ? await handleRestaurantCheckoutMessage({
-        companyId: "delibocados", phone: input.phone, message: input.text
+  const intelligentTest = !liveMode && config.testPhone === input.phone &&
+    process.env.DELIBOCADOS_AGENT_V2_TEST === "1";
+  const checkout = intelligentTest
+    ? await handleNaturalRestaurantTurn({
+        companyId:"delibocados",phone:input.phone,
+        message:input.text,currentMessageId:stored.id
       })
-    : { handled: false, text: "", imageUrl: undefined as string | undefined };
+    : (liveMode || process.env.DELIBOCADOS_CHECKOUT_TEST === "1")
+      ? await handleRestaurantCheckoutMessage({
+          companyId:"delibocados",phone:input.phone,message:input.text
+        })
+      : { handled:false,text:"",imageUrl:undefined as string|undefined };
   const result = checkout.handled ? checkout : await executeCompanyAgent({
     companyId: "delibocados",
     phone: input.phone,
