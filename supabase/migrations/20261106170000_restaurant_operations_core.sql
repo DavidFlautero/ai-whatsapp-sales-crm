@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS public.restaurant_ops_outbox (
  order_id uuid NOT NULL,
  kind text NOT NULL,
  payload jsonb NOT NULL DEFAULT '{}'::jsonb,
- status text NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','sent','failed','suppressed')),
+ status text NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','processing','sent','failed','suppressed')),
  attempts integer NOT NULL DEFAULT 0,
  created_at timestamptz NOT NULL DEFAULT now(),
  sent_at timestamptz,
@@ -397,6 +397,45 @@ GRANT EXECUTE ON FUNCTION public.restaurant_ops_create_order(text,text,text,text
 GRANT EXECUTE ON FUNCTION public.restaurant_ops_transition_order(text,uuid,integer,text,text,text,text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.restaurant_ops_assign_courier(text,uuid,uuid,integer,text,text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.restaurant_ops_set_payment(text,uuid,integer,text,text,text,text) TO service_role;
+
+
+-- Delivery-safe test mode: lock and claim only recent rows addressed to the
+-- channel's configured test number. Old, production or unrelated messages are not claimed.
+CREATE OR REPLACE FUNCTION public.restaurant_ops_claim_test_outbox(
+ p_company_id text, p_test_phone text, p_max integer DEFAULT 5
+) RETURNS TABLE(id uuid, order_id uuid, kind text, attempts integer)
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $
+BEGIN
+ IF p_company_id <> 'delibocados'
+    OR coalesce(p_test_phone,'') !~ '^[0-9]{8,15}
+VALUES('20261106170000','Restaurant operations: confirmed orders, kitchen, dispatch, incidents, audit and outbox')
+ON CONFLICT(version) DO NOTHING;
+COMMIT;
+
+    OR p_max NOT BETWEEN 1 AND 10 THEN
+   RAISE EXCEPTION 'OUTBOX_CLAIM_NOT_ALLOWED';
+ END IF;
+ RETURN QUERY
+ WITH to_claim AS (
+   SELECT o.id
+   FROM public.restaurant_ops_outbox o
+   JOIN public.restaurant_ops_orders r
+     ON r.company_id=o.company_id AND r.id=o.order_id
+   WHERE o.company_id=p_company_id AND r.customer_phone=p_test_phone
+     AND o.status IN ('pending','failed') AND o.attempts<3
+     AND o.created_at >= now()-interval '15 minutes'
+   ORDER BY o.created_at,o.id
+   FOR UPDATE OF o SKIP LOCKED
+   LIMIT p_max
+ ) UPDATE public.restaurant_ops_outbox o
+ SET status='processing',attempts=o.attempts+1
+ FROM to_claim c WHERE o.id=c.id
+ RETURNING o.id,o.order_id,o.kind,o.attempts;
+END $;
+REVOKE ALL ON FUNCTION public.restaurant_ops_claim_test_outbox(text,text,integer)
+ FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.restaurant_ops_claim_test_outbox(text,text,integer)
+ TO service_role;
 
 INSERT INTO public.commerce_schema_migrations(version,description)
 VALUES('20261106170000','Restaurant operations: confirmed orders, kitchen, dispatch, incidents, audit and outbox')
