@@ -135,9 +135,9 @@ delibocadosTenantWhapiRoutes.post("/webhook", async (req, res) => {
       // Es un nombre provisional: nunca pisa los datos confirmados del CRM.
       if (!fromMe) {
         const candidate = typeof message?.from_name === "string"
-          ? message.from_name.trim().replace(/\\s+/g, " ").slice(0, 120)
+          ? message.from_name.trim().replace(/\s+/g, " ").slice(0, 120)
           : "";
-        if (candidate.length >= 2 && !/[<>\\r\\n]/.test(candidate)) {
+        if (candidate.length >= 2 && !/[<>\r\n]/.test(candidate)) {
           const existing = await getContactByPhone(phone, COMPANY);
           if (!existing?.name?.trim()) {
             await upsertContact({
