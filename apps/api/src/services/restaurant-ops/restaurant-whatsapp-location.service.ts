@@ -73,12 +73,26 @@ export async function handleRestaurantWhatsAppPin(input:ReceivedLocation):Promis
     createdAt:new Date().toISOString(),quotedFeeCOP:quote.zone.feeCOP,
     routeMeters:quote.drivingDistanceMeters!,routeMinutes:quote.drivingDurationMinutes!
   };
-  await updateConversationMetadata(input.phone,{restaurant_delivery_pin_v1:safe},COMPANY);
   const conversation=await getConversationByPhone(input.phone,COMPANY);
   const checkout=conversation?.metadata?.restaurant_checkout_v1 as
-    {stage?:string;mode?:string}|undefined;
+    {stage?:string;mode?:string;createdAt?:string;
+      zoneId?:string;address?:string;payment?:string}|undefined;
   const hasDeliveryDraft=checkout?.mode==="delivery" &&
-    ["zone","address"].includes(checkout.stage??"");
+    ["zone","address","notes","payment","confirm"].includes(checkout.stage??"") &&
+    Boolean(checkout.createdAt) &&
+    Date.now()-Date.parse(checkout.createdAt??"") < 2*3600000;
+
+  const updatedCheckout=hasDeliveryDraft&&checkout ? {
+    ...checkout,
+    stage:"address",
+    zoneId:quote.zone.id,
+    address:undefined,
+    payment:undefined
+  } : null;
+  await updateConversationMetadata(input.phone,{
+    restaurant_delivery_pin_v1:safe,
+    ...(updatedCheckout?{restaurant_checkout_v1:updatedCheckout}:{})
+  },COMPANY);
   return {handled:true,text:deliveryPinSummary(quote)+
     "\n\n"+(hasDeliveryDraft?
       "Ya guardé este punto para el domicilio de tu pedido. "+
