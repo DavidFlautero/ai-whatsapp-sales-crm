@@ -9,7 +9,7 @@ export type MenuProduct = {
   available?: boolean;
   priceNeedsReview?: boolean;
 };
-export type CartLine = { productId: string; quantity: number };
+export type CartLine = { productId: string; quantity: number; instructions?: string };
 
 export function spanishNormalize(input: string) {
   return input.toLocaleLowerCase("es-CO")
@@ -117,14 +117,24 @@ export function findExplicitMenuProducts(input:string,menu:MenuProduct[]):MenuPr
 export function mergeCart(
   existing:CartLine[],added:CartLine[]
 ):CartLine[]|null {
-  const map=new Map<string,number>();
-  for(const line of existing)map.set(line.productId,line.quantity);
-  for(const line of added) {
-    const total=(map.get(line.productId)??0)+line.quantity;
-    if(total>25||total<1)return null;
-    map.set(line.productId,total);
+  // Lines with distinct preparation instructions must NEVER be collapsed.
+  // Example: 2 hamburgers -> 1 standard + 1 "sin vegetales".
+  const all:CartLine[]=existing.map(x=>({...x}));
+  for(const line of added){
+    if(!Number.isInteger(line.quantity)||line.quantity<1||line.quantity>25)return null;
+    if(line.instructions && (line.instructions.length>500 ||
+      /[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(line.instructions)))return null;
+    const same=all.find(x=>x.productId===line.productId &&
+      (x.instructions??"")===(line.instructions??""));
+    if(same) {
+      if(same.quantity+line.quantity>25)return null;
+      same.quantity+=line.quantity;
+    } else all.push({...line});
+    if(all.filter(x=>x.productId===line.productId)
+      .reduce((n,x)=>n+x.quantity,0)>25)return null;
+    if(all.length>60)return null;
   }
-  return [...map].map(([productId,quantity])=>({productId,quantity}));
+  return all;
 }
 export function removeFromCart(existing:CartLine[], ids:string[]):CartLine[] {
   const unwanted=new Set(ids);
@@ -141,7 +151,8 @@ export function formatDraftCart(cart:CartLine[],menu:MenuProduct[]):string {
       return "• "+line.quantity+" × "+(p?.name??"Producto no disponible")+" — requiere revisión";
     }
     subtotal+=line.quantity*Number(p.priceCOP);
-    return "• "+line.quantity+" × "+p.name+" — $"+
+    return "• "+line.quantity+" × "+p.name+
+      (line.instructions ? " ("+line.instructions+")":"")+" — $"+
       (line.quantity*Number(p.priceCOP)).toLocaleString("es-CO");
   });
   return "*Tu pedido actual:*\n"+lines.join("\n")+

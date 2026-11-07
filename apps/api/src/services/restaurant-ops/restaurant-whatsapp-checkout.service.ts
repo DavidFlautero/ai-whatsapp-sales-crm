@@ -24,7 +24,7 @@ export type CheckoutDraft = {
   id: string;
   stage: "items" | "name" | "mode" | "zone" | "address" | "pickup_time" | "notes" | "payment" | "confirm" | "human_review" | "completed" | "cancelled";
   menuRevision: number;
-  items: { productId: string; quantity: number }[];
+  items: CartLine[];
   customerName?: string;
   mode?: "pickup" | "delivery";
   zoneId?: string;
@@ -138,7 +138,8 @@ export function buildOrderSummary(draft: CheckoutDraft, menu: Item[], zones: Zon
     lines, subtotal, fee, total: subtotal + fee,
     text: [
       "*Resumen de tu pedido en Delibocados*",
-      ...lines.map(x => "• " + x.quantity + " × " + x.productName + " — $" +
+      ...lines.map(x => "• " + x.quantity + " × " + x.productName +
+        (x.instructions?" ("+x.instructions+")":"")+" — $" +
         (x.unitPrice*x.quantity).toLocaleString("es-CO")),
       "Cliente: " + draft.customerName,
       ...(draft.pickupDueAt ? ["Retiro solicitado: " + new Date(draft.pickupDueAt).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",timeZone:"America/Bogota"})+" (sujeto a confirmación de cocina)"] : []),
@@ -555,7 +556,8 @@ export async function handleRestaurantCheckoutMessage(input: {
       : null;
     return {handled:true,humanHandoff:instructions?.humanHandoff===true,
       text:"*Pedido #"+order.number+" registrado*.\n"+
-        quote.lines.map(x=>x.quantity+" × "+x.productName).join("\n")+
+        quote.lines.map(x=>x.quantity+" × "+x.productName+
+          (x.instructions?" ("+x.instructions+")":"")).join("\n")+
         "\nTotal: $"+quote.total.toLocaleString("es-CO")+
         (draft.mode==="pickup"?"\nRetiro en local. Te avisamos cuando esté listo.":
           "\nDomicilio registrado. Te avisamos cuando salga a reparto.")+

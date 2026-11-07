@@ -8,6 +8,7 @@ import {
   handleRestaurantCustomerSupport,loadCustomerHistory
 } from "./restaurant-customer-support.service.js";
 import { handleRestaurantProductFollowup } from "./restaurant-product-followup.service.js";
+import {handleRestaurantLineModification} from "./restaurant-line-modification.service.js";
 import {
   detectRestaurantException,restaurantExceptionResponse,
   RESTAURANT_CONVERSATION_GUIDANCE
@@ -113,6 +114,12 @@ export async function handleNaturalRestaurantTurn(input:{
     phone:input.phone,message:input.message
   });
   if(choice.handled)return choice;
+  // Unit-level preparation changes and catalog-verified combos are safe tools.
+  // They must run before unsupported-change human handoff classification.
+  const lineChange=await handleRestaurantLineModification({
+    phone:input.phone,message:input.message
+  });
+  if(lineChange.handled)return lineChange;
   const suggestPopularity=/recomiendas|recomenda|recomendacion|recomendar|mas vendido|mas popular|que me sugieres|que me sugeris|favorito/i.test(input.message);
   const [conversation,history,menus,zones,customerOrders,businessContext,insights,customerHistory]=await Promise.all([
     getConversationByPhone(input.phone,COMPANY),
