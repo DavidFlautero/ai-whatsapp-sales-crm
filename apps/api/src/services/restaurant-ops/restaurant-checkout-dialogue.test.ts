@@ -90,6 +90,10 @@ test("menu navigation and safe name capture",()=>{
   assert.equal(isPlausibleCustomerName("David Fernando"),true);
   assert.equal(isPlausibleCustomerName("María del Carmen"),true);
   assert.equal(isPlausibleCustomerName("quiero agregar una arepa mixta"),false);
+  assert.equal(isPlausibleCustomerName("sí"),false);
+  assert.equal(isPlausibleCustomerName("si"),false);
+  assert.equal(isPlausibleCustomerName("ok"),false);
+  assert.equal(isPlausibleCustomerName("claro"),false);
   assert.equal(isPlausibleCustomerName("decime que tengo en el pedido"),false);
   assert.equal(shouldStartCheckout("quiero un chorizo"),true);
   assert.equal(shouldStartCheckout("haces pedidos a bogota"),false);
