@@ -5,7 +5,8 @@ import { getContactByPhone, upsertContact } from "../crm/crm.repository.js";
 import { supabaseRequest, supabaseRpc } from "../db/supabase-rest.client.js";
 import { classifyRestaurantIntent } from "../agent/restaurant-ops-conversation.service.js";
 import { transferInstructionsForOrder } from "./restaurant-payment-intake.service.js";
-import {quoteVerifiedDeliveryAddress} from "./restaurant-delivery-routing.service.js";
+import {quoteVerifiedDeliveryAddress,quoteVerifiedDeliveryPoint} from "./restaurant-delivery-routing.service.js";
+import {freshVerifiedPin} from "./restaurant-whatsapp-location.service.js";
 import {
   MENU_PAGE_SIZE, spanishNormalize, wantsCartSummary, isCoverageQuestion,
   coverageAnswer, isMenuRequest, isMoreMenuRequest, isPreviousMenuRequest,
@@ -401,6 +402,37 @@ export async function handleRestaurantCheckoutMessage(input: {
   }
   if (draft.stage==="address") {
     const value=input.message.trim();
+    const pin=freshVerifiedPin(conversation?.metadata?.restaurant_delivery_pin_v1);
+    if(pin){
+      // The WhatsApp coordinate is the delivery destination; the following text
+      // is a door/house reference, NOT an independently geocoded address.
+      if(value.length<8||value.length>250 || /^(?:si|sí|ok|dale|listo)$/i.test(value))
+        return {handled:true,text:"Ya verifiqué tu pin. Para encontrar la puerta, "+
+          "decime la calle/número o una referencia clara de la casa, edificio o apartamento."};
+      if(/\bbogot[aá]\b/i.test(value))
+        return {handled:true,text:"El pin compartido es el destino del domicilio. "+
+          "La referencia menciona Bogotá, fuera de nuestra cobertura. "+
+          "Por favor verificá la ubicación o consultá con el encargado."};
+      const quotation=await quoteVerifiedDeliveryPoint({lat:pin.lat,lng:pin.lng})
+        .catch(()=>null);
+      if(!quotation?.covered || !quotation.zone ||
+         quotation.zone.id!==pin.zoneId)
+        return {handled:true,text:"La zona del pin no pudo volver a verificarse. "+
+          "Compartí una nueva ubicación o pedí que un encargado confirme el domicilio."};
+      const gpsUrl="https://maps.google.com/?q="+pin.lat.toFixed(7)+","+pin.lng.toFixed(7);
+      draft.zoneId=quotation.zone.id;
+      draft.address="Destino por ubicación WhatsApp: "+gpsUrl+
+        " | Referencia de entrega: "+value;
+      draft.stage="notes";
+      await persist(input.phone,draft);
+      return {handled:true,text:"Tomaremos el pin compartido como punto de entrega y "+
+        "esta referencia para encontrar la puerta: "+value+". "+
+        "Zona *"+quotation.zone.name+"*, domicilio *$"+
+        quotation.zone.feeCOP.toLocaleString("es-CO")+" COP*. "+
+        "La ruta desde el restaurante es de "+
+        ((quotation.drivingDistanceMeters??0)/1000).toFixed(2)+
+        " km. ¿Tenés alguna indicación o alergia alimentaria? Respondé *NO* si ninguna."};
+    }
     if (value.length < 12 || value.length > 300)
       return {handled:true,text:"Decime calle, número, barrio y ciudad (Funza o Mosquera) para comprobar el domicilio."};
     let quotation;
