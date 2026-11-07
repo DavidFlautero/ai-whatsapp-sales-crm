@@ -215,7 +215,25 @@ export async function handleRestaurantCustomerSupport(input:{
   }
 
   if(claim.stage==="item" && claim.orderId && claim.orderNumber){
-    const order=history.orders.find(o=>o.id===claim.orderId);
+    let order=history.orders.find(o=>o.id===claim.orderId);
+    if(!order){
+      const older=await supabaseRequest<Order[]>({
+        table:"restaurant_ops_orders",
+        query:"?company_id=eq.delibocados&customer_phone=eq."+
+          encodeURIComponent(input.phone)+"&id=eq."+encodeURIComponent(claim.orderId)+
+          "&select=id,number,customer_phone,customer_name,status,payment_status,payment_method,fulfillment_mode,address,zone_id,courier_id,created_at,total_cop&limit=1"
+      });
+      order=older[0];
+      if(order){
+        history.orders.push(order);
+        const more=await supabaseRequest<Line[]>({
+          table:"restaurant_ops_order_items",
+          query:"?company_id=eq.delibocados&order_id=eq."+encodeURIComponent(order.id)+
+            "&select=order_id,product_id,product_name,quantity,unit_price_cop&limit=100"
+        });
+        history.lines.push(...more);
+      }
+    }
     if(!order){
       await saveClaim(input.phone,null);
       return {handled:true,humanHandoff:true,text:"No puedo verificar el pedido de este reclamo. Lo debe revisar un encargado."};
