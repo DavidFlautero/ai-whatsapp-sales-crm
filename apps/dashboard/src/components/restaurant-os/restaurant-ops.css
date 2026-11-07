@@ -71,3 +71,18 @@
 .rops-footnote{color:#71818a;font-size:12px;margin-top:25px}
 @media(max-width:1100px){.rops-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.rops-report-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:650px){.rops{padding:13px}.rops-heading{align-items:flex-start;flex-direction:column}.rops-header-actions{width:100%}.rops-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.rops-report-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rops-form-grid,.rops-product-list{grid-template-columns:1fr}.rops-card{padding:15px}.rops-cards{grid-template-columns:1fr}}
+
+
+/* Native Delibocados AI business configuration */
+.rops-hours-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:20px 0}
+.rops-hour-row{display:grid;grid-template-columns:minmax(105px,1fr) 115px 14px 115px;align-items:center;gap:9px;border:1px solid #e2e9ed;border-radius:12px;padding:10px 13px}
+.rops-hour-row .rops-check{margin:0}
+.rops-hour-row input[type=time],.rops-settings-field textarea{border:1px solid #bdcbd4;border-radius:9px;background:#fff;padding:10px;color:#213d49;max-width:100%}
+.rops-hour-row input:disabled{background:#f4f6f7;color:#a9b4b9}
+.rops-settings-field{display:flex;flex-direction:column;gap:9px;font-size:13px;font-weight:650;margin-top:13px}
+.rops-settings-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:15px 0 20px}
+.rops-settings-metrics>div{display:flex;flex-direction:column;gap:5px;border:1px solid #dce6eb;border-radius:13px;padding:16px}
+.rops-settings-metrics b{font-size:28px;color:#174e60}
+.rops-settings-metrics span{color:#637580;font-size:12px}
+@media(max-width:1080px){.rops-hours-grid{grid-template-columns:1fr}}
+@media(max-width:630px){.rops-hour-row{grid-template-columns:1fr 1fr;gap:10px}.rops-hour-row>span{display:none}.rops-settings-metrics{grid-template-columns:1fr}}

@@ -17,8 +17,11 @@ type Courier = { id: string; name: string; phone: string; vehicle: "bike" | "mot
   availability: "offline" | "available" | "busy"; active: boolean };
 type Zone = { id: string; name: string; fee_cop: number; eta_minutes: number;
   active: boolean; priority: number };
-type Incident = { id: string; order_id: string; description: string; category: string;
-  severity: string; status: string; resolution?: string; created_at: string };
+type Incident = { id:string;order_id:string;description:string;category:string;
+  severity:string;status:string;resolution?:string;created_at:string;
+  source?:string;customer_phone?:string;reported_item_name?:string|null;
+  received_item_description?:string|null;
+};
 type Product = { id: string; name: string; priceCOP: number; available?: boolean;
   priceNeedsReview?: boolean; category: string };
 type Report = { days: number; truncated: boolean; customers: number;
@@ -404,7 +407,13 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
       <p>Toda incidencia queda asociada al pedido y exige un motivo de resolución.</p>
       <div className="rops-cards">{incidents.map(i => <article key={i.id} className="rops-order">
         <div className="rops-row"><strong>{i.category} · {i.severity}</strong><StatusLabel status={i.status}/></div>
-        <p>{i.description}</p><small>Pedido: {i.order_id.slice(0, 8)} · {new Date(i.created_at).toLocaleString("es-CO")}</small>
+        <p>{i.description}</p>
+        {i.reported_item_name&&<p><b>Producto afectado:</b> {i.reported_item_name}</p>}
+        {i.received_item_description&&<p><b>Cliente informó:</b> {i.received_item_description}</p>}
+        <small>Pedido: #{orders.find(o=>o.id===i.order_id)?.number??i.order_id.slice(0,8)}
+          {" · "}{i.source==="whatsapp"?"WhatsApp":"Interno"}
+          {i.customer_phone?" · "+i.customer_phone:""}
+          {" · "}{new Date(i.created_at).toLocaleString("es-CO")}</small>
         {i.status === "open" && <button className="rops-secondary" disabled={busy} onClick={() => {
           const resolution = window.prompt("¿Cómo se solucionó? (mínimo 5 caracteres)");
           if(resolution && resolution.trim().length >= 5)void act(

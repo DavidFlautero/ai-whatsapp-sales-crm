@@ -5,6 +5,13 @@ import { Router, type Request, type Response } from "express";
 import { z, ZodError } from "zod";
 import { requireRoles } from "../middlewares/auth.middleware.js";
 import { supabaseRequest, supabaseRpc } from "../services/db/supabase-rest.client.js";
+import {
+  getBusinessProfile,validOpeningHours,getRestaurantOrderInsights,
+  type OpeningHours
+} from "../services/restaurant-ops/restaurant-agent-business.service.js";
+import { analyzeRecentRestaurantQuestions } from "../services/restaurant-ops/restaurant-agent-learning.service.js";
+import { loadCustomerHistory } from "../services/restaurant-ops/restaurant-customer-support.service.js";
+import {quoteVerifiedDeliveryAddress} from "../services/restaurant-ops/restaurant-delivery-routing.service.js";
 
 export const restaurantOpsRoutes = Router();
 type Row = Record<string, unknown>;
@@ -104,6 +111,99 @@ function patch(table: string, query: string, body: object) {
     prefer: "return=representation" });
 }
 const readOnly = (res: Response) => res.setHeader("Cache-Control", "no-store");
+
+const daySchema=z.object({
+  enabled:z.boolean(),open:z.string().max(5),close:z.string().max(5)
+}).strict();
+const businessProfileInput=z.object({
+  businessName:str.min(2).max(120),
+  description:z.string().max(1500),
+  locationAddress:z.string().max(250),
+  publicPhone:z.string().max(40),
+  city:str.min(2).max(100),
+  coverageSummary:z.string().max(1000),
+  openingHours:z.record(z.string(),daySchema),
+  specialHoursNote:z.string().max(700),
+  tone:z.enum(["natural","formal","friendly"]),
+  extraInstructions:z.string().max(2000),
+  learningEnabled:z.boolean(),
+  originLat:z.number().finite().min(-90).max(90).nullable(),
+  originLng:z.number().finite().min(-180).max(180).nullable(),
+  originVerified:z.boolean()
+}).strict();
+
+restaurantOpsRoutes.get("/agent/business",requireRoles("owner","admin"),safe(async (_req,res)=>{
+  const [profile,zones,couriers,stats]=await Promise.all([
+    getBusinessProfile(),
+    rows("restaurant_ops_zones","?company_id=eq.delibocados&select=id,name,fee_cop,eta_minutes,active,priority&order=priority.asc&limit=100"),
+    rows("restaurant_ops_couriers","?company_id=eq.delibocados&select=id,name,phone,vehicle,availability,active&order=created_at.asc&limit=100"),
+    getRestaurantOrderInsights()
+  ]);
+  readOnly(res);return res.json({ok:true,profile,zones,couriers,stats});
+}));
+restaurantOpsRoutes.post("/agent/business",requireRoles("owner","admin"),safe(async(req,res)=>{
+  const v=businessProfileInput.parse(req.body);
+  if(!validOpeningHours(v.openingHours as OpeningHours))
+    return res.status(422).json({ok:false,error:"INVALID_OPENING_HOURS"});
+  if(v.originVerified && (v.originLat===null||v.originLng===null))
+    return res.status(422).json({ok:false,error:"ORIGIN_COORDINATES_REQUIRED"});
+  const a=actor(req);
+  const rowsSaved=await supabaseRequest<Row[]>({
+    table:"restaurant_agent_business_profiles",method:"POST",
+    query:"?on_conflict=company_id",prefer:"resolution=merge-duplicates,return=representation",
+    body:[{
+      company_id:"delibocados",business_name:v.businessName,
+      description:v.description,location_address:v.locationAddress,
+      public_phone:v.publicPhone,city:v.city,
+      timezone:"America/Bogota",coverage_summary:v.coverageSummary,
+      opening_hours:v.openingHours,special_hours_note:v.specialHoursNote,
+      tone:v.tone,extra_instructions:v.extraInstructions,
+      learning_enabled:v.learningEnabled,
+      origin_lat:v.originLat,origin_lng:v.originLng,origin_verified:v.originVerified,
+      updated_by:a.id,updated_at:new Date().toISOString()
+    }]
+  });
+  return res.json({ok:true,profile:rowsSaved[0]??null});
+}));
+restaurantOpsRoutes.post("/delivery/quote-address",requireRoles("owner","admin","supervisor"),
+  safe(async(req,res)=>{
+    const v=z.object({address:str.min(8).max(300)}).strict().parse(req.body);
+    const quote=await quoteVerifiedDeliveryAddress(v.address);
+    readOnly(res);return res.json({ok:true,quote});
+  })
+);
+
+restaurantOpsRoutes.get("/agent/learnings",requireRoles("owner","admin"),safe(async(_req,res)=>{
+  const lessons=await rows("restaurant_agent_learnings",
+    "?company_id=eq.delibocados&select=*&order=created_at.desc&limit=200");
+  readOnly(res);return res.json({ok:true,lessons});
+}));
+restaurantOpsRoutes.post("/agent/learnings/analyze",requireRoles("owner","admin"),safe(async(_req,res)=>{
+  const profile=await getBusinessProfile();
+  if(!profile?.learning_enabled)
+    return res.status(403).json({ok:false,error:"LEARNING_MUST_BE_ENABLED_BY_OWNER"});
+  const result=await analyzeRecentRestaurantQuestions();
+  return res.json({ok:true,result});
+}));
+restaurantOpsRoutes.post("/agent/learnings/:id/review",requireRoles("owner","admin"),safe(async(req,res)=>{
+  const id=uuid.parse(req.params.id);
+  const v=z.object({
+    decision:z.enum(["approved","rejected"]),
+    question:str.min(8).max(300),
+    answer:str.min(8).max(900)
+  }).strict().parse(req.body);
+  if(v.decision==="approved" &&
+    /pendiente de verificar y responder por el encargado/i.test(v.answer))
+    return res.status(422).json({ok:false,error:"LEARNING_ANSWER_NEEDS_REVIEW"});
+  const a=actor(req);
+  const updated=await patch("restaurant_agent_learnings",
+    "?company_id=eq.delibocados&id=eq."+id+"&status=eq.proposed",{
+      status:v.decision,question:v.question,answer:v.answer,
+      reviewed_by:a.id,reviewed_at:new Date().toISOString()
+    });
+  if(!updated.length)return res.status(409).json({ok:false,error:"LEARNING_ALREADY_REVIEWED"});
+  return res.json({ok:true,lesson:updated[0]});
+}));
 
 restaurantOpsRoutes.get("/orders", safe(async (_req,res) => {
   const orders = await rows("restaurant_ops_orders",
@@ -387,6 +487,14 @@ restaurantOpsRoutes.post("/notifications/dispatch-test",
   })
 );
 
+
+restaurantOpsRoutes.get("/customers/:phone/history",requireRoles("owner","admin","supervisor"),
+  safe(async(req,res)=>{
+    const customerPhone=phone.parse(req.params.phone);
+    const history=await loadCustomerHistory(customerPhone,30);
+    readOnly(res);return res.json({ok:true,...history});
+  })
+);
 
 restaurantOpsRoutes.get("/customers", safe(async (_req,res) => {
   const [contacts,orders,incidents] = await Promise.all([

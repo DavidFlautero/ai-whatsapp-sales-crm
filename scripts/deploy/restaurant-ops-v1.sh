@@ -124,11 +124,48 @@ deploy_restaurant_os() {
     echo "BLOQUEADO: estado de migración de pagos inesperado"
     return 1
   fi
+  if [[ ! -f supabase/migrations/20261107103000_restaurant_agent_business_learning.sql ]]; then
+    echo "BLOQUEADO: falta migración del perfil del agente"
+    return 1
+  fi
+  already="$(docker exec "$db" psql -U postgres -d "$database" -At -v ON_ERROR_STOP=1 \
+    -c "SELECT count(*) FROM public.commerce_schema_migrations WHERE version='20261107103000'" 2>/dev/null)"
+  if [[ "$already" == 0 ]]; then
+    if ! docker exec -i "$db" psql -U postgres -d "$database" \
+      -X -v ON_ERROR_STOP=1 \
+      < supabase/migrations/20261107103000_restaurant_agent_business_learning.sql; then
+      echo "BLOQUEADO: migración de agente fallida; la IA sigue pausada"
+      return 1
+    fi
+  elif [[ "$already" != 1 ]]; then
+    echo "BLOQUEADO: estado de migración de agente inesperado"
+    return 1
+  fi
+  if [[ ! -f supabase/migrations/20261107124500_restaurant_customer_history_claims.sql ]]; then
+    echo "BLOQUEADO: falta migración del historial de clientes"
+    return 1
+  fi
+  already="$(docker exec "$db" psql -U postgres -d "$database" -At -v ON_ERROR_STOP=1 \
+    -c "SELECT count(*) FROM public.commerce_schema_migrations WHERE version='20261107124500'" 2>/dev/null)"
+  if [[ "$already" == 0 ]]; then
+    if ! docker exec -i "$db" psql -U postgres -d "$database" \
+      -X -v ON_ERROR_STOP=1 \
+      < supabase/migrations/20261107124500_restaurant_customer_history_claims.sql; then
+      echo "BLOQUEADO: migración de historial y reclamos fallida"
+      return 1
+    fi
+  elif [[ "$already" != 1 ]]; then
+    echo "BLOQUEADO: estado inesperado de migración de historial"
+    return 1
+  fi
   check="$(docker exec "$db" psql -U postgres -d "$database" -At -v ON_ERROR_STOP=1 \
     -c "SELECT (to_regclass('public.restaurant_ops_orders') IS NOT NULL
        AND to_regclass('public.restaurant_ops_kitchen_tickets') IS NOT NULL
        AND to_regclass('public.restaurant_ops_couriers') IS NOT NULL
-       AND to_regclass('public.restaurant_ops_payment_proofs') IS NOT NULL)" 2>/dev/null)"
+       AND to_regclass('public.restaurant_ops_payment_proofs') IS NOT NULL
+       AND to_regclass('public.restaurant_agent_business_profiles') IS NOT NULL
+       AND to_regclass('public.restaurant_agent_learnings') IS NOT NULL
+       AND to_regclass('public.restaurant_ops_customer_order_profiles') IS NOT NULL)" 2>/dev/null)"
   if [[ "$check" != t ]]; then
     echo "BLOQUEADO: no se localizaron tablas nuevas"; return 1
   fi
@@ -161,6 +198,7 @@ deploy_restaurant_os() {
   echo "API: OK"
   echo "IA AUTOMATICA: PAUSADA"
   echo "Pagos: bandeja de comprobantes instalada"
+  echo "Agente: horarios, zonas, reparto y aprendizaje supervisado listos para configurar"
   echo "Toteat/POS360: sin envíos automáticos"
   echo "Siguiente verificación: abrir /panel/pedidos con sesión"
   echo "=== DESPLIEGUE TECNICO COMPLETADO ==="
