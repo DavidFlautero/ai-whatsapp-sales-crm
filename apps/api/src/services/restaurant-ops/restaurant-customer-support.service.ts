@@ -1,6 +1,6 @@
 import {getConversationByPhone,updateConversationMetadata} from "../conversations/conversation.repository.js";
 import {supabaseRequest} from "../db/supabase-rest.client.js";
-import {spanishNormalize,findMenuMentions,type MenuProduct} from "./restaurant-checkout-dialogue.service.js";
+import {spanishNormalize} from "./restaurant-checkout-dialogue.service.js";
 
 const COMPANY="delibocados";
 const TWO_DAYS=48*60*60*1000;
@@ -181,7 +181,26 @@ export async function handleRestaurantCustomerSupport(input:{
         (history.orders.length? "Tenés registrados: "+
           history.orders.slice(0,5).map(x=>"#"+x.number).join(", ")+".":"No veo pedidos vinculados a este número.")};
     }
-    const order=history.orders.find(o=>o.number===number);
+    let order=history.orders.find(o=>o.number===number);
+    if(!order) {
+      // Older orders remain searchable by number, not only the last 12.
+      const older=await supabaseRequest<Order[]>({
+        table:"restaurant_ops_orders",
+        query:"?company_id=eq.delibocados&customer_phone=eq."+
+          encodeURIComponent(input.phone)+"&number=eq."+number+
+          "&select=id,number,customer_phone,customer_name,status,payment_status,payment_method,fulfillment_mode,address,zone_id,courier_id,created_at,total_cop&limit=1"
+      });
+      order=older[0];
+      if(order){
+        history.orders.push(order);
+        const more=await supabaseRequest<Line[]>({
+          table:"restaurant_ops_order_items",
+          query:"?company_id=eq.delibocados&order_id=eq."+encodeURIComponent(order.id)+
+            "&select=order_id,product_id,product_name,quantity,unit_price_cop&limit=100"
+        });
+        history.lines.push(...more);
+      }
+    }
     if(!order)return {handled:true,text:"No encuentro el pedido #"+number+
       " asociado a tu WhatsApp. Revisá el número o pedí ayuda al encargado; no puedo acceder a pedidos de otra persona."};
     claim={...claim,stage:"item",orderId:order.id,orderNumber:order.number};
@@ -202,23 +221,24 @@ export async function handleRestaurantCustomerSupport(input:{
       return {handled:true,humanHandoff:true,text:"No puedo verificar el pedido de este reclamo. Lo debe revisar un encargado."};
     }
     const orderLines=history.lines.filter(x=>x.order_id===order.id);
-    const product=findOrderedLine(input.message,orderLines);
-    if(!product)return {handled:true,text:"Para registrar el reclamo sobre el pedido #"+order.number+
+    const allOrder=normalizeSupport(input.message)==="todo el pedido";
+    const product=allOrder?null:findOrderedLine(input.message,orderLines);
+    if(!product&&!allOrder)return {handled:true,text:"Para registrar el reclamo sobre el pedido #"+order.number+
       ", ¿cuál producto de tu pedido fue el afectado? Tengo: "+
       orderLines.map(x=>x.product_name).join(", ")+
       ". Si todo el pedido vino mal, escribí *TODO EL PEDIDO*."};
     const description=[
       "Reclamo recibido por WhatsApp del cliente del pedido #"+order.number+".",
-      "Producto afectado: "+product.product_name+".",
+      "Producto afectado: "+(product?.product_name??"Todo el pedido")+".",
       claim.receivedDescription?"Descripción original: "+claim.receivedDescription+".":"",
       "Último mensaje: "+input.message.trim().slice(0,350)+"."
     ].filter(Boolean).join(" ").slice(0,1950);
     const existing=history.incidents.find(x=>x.order_id===order.id&&x.status==="open"&&
-      x.reported_item_name===product.product_name);
+      x.reported_item_name===(product?.product_name??"Todo el pedido"));
     if(existing){
       await saveClaim(input.phone,null);
       return {handled:true,humanHandoff:true,
-        text:"Ya hay un reclamo abierto para "+product.product_name+" en el pedido #"+
+        text:"Ya hay un reclamo abierto para "+(product?.product_name??"todo el pedido")+" en el pedido #"+
           order.number+". No voy a duplicarlo; el encargado debe revisarlo."};
     }
     const inserted=await supabaseRequest<Array<{id:string}>>({
@@ -229,8 +249,8 @@ export async function handleRestaurantCustomerSupport(input:{
         company_id:COMPANY,order_id:order.id,
         customer_phone:input.phone,category:claim.category,
         severity:claim.category==="wrong_item"?"high":"normal",
-        description,reported_item_id:product.product_id,
-        reported_item_name:product.product_name,
+        description,reported_item_id:product?.product_id??null,
+        reported_item_name:product?.product_name??"Todo el pedido",
         received_item_description:claim.receivedDescription??null,
         source_message_id:input.currentMessageId??claim.id,
         source:"whatsapp",
@@ -240,7 +260,7 @@ export async function handleRestaurantCustomerSupport(input:{
     await saveClaim(input.phone,null);
     return {handled:true,humanHandoff:true,
       text:"Registré tu reclamo del pedido #"+order.number+
-        " por *"+product.product_name+"*. "+
+        " por *"+(product?.product_name??"todo el pedido")+"*. "+
         (inserted[0]?.id?"Caso #"+inserted[0].id.slice(0,8)+". ":"")+
         "Un encargado debe revisarlo y decirte cómo se soluciona; no voy a prometer un reembolso o reemplazo sin autorización."};
   }
