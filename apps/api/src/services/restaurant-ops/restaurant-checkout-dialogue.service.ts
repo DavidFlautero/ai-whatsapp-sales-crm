@@ -154,6 +154,6 @@ export function isPlausibleCustomerName(input:string):boolean {
   if(name.length<2||name.length>80||name.split(" ").length>5)return false;
   if(!/^[\p{L}][\p{L} .'-]+$/u.test(name))return false;
   const normalized=spanishNormalize(name);
-  if(/\b(?:quiero|agrega|agregar|anadir|ponme|pedido|carrito|menu|cuanto|tengo|dime|decime|domicilio|retiro|pagar|efectivo|transferencia|chorizo|arepa)\b/.test(normalized))return false;
+  if(/\b(?:si|ok|okay|vale|dale|claro|listo|perfecto|confirmo|confirmar|quiero|agrega|agregar|anadir|ponme|pedido|carrito|menu|cuanto|tengo|dime|decime|domicilio|retiro|pagar|efectivo|transferencia|chorizo|arepa)\b/.test(normalized))return false;
   return true;
 }
