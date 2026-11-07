@@ -7,6 +7,7 @@ import { classifyRestaurantIntent } from "../agent/restaurant-ops-conversation.s
 import { transferInstructionsForOrder } from "./restaurant-payment-intake.service.js";
 import {quoteVerifiedDeliveryAddress,quoteVerifiedDeliveryPoint} from "./restaurant-delivery-routing.service.js";
 import {freshVerifiedPin} from "./restaurant-whatsapp-location.service.js";
+import {isSplitPaymentRequest,parseExactTransferCOP,splitPaymentQuote,splitQuoteMessage} from "./restaurant-split-payment.service.js";
 import {
   MENU_PAGE_SIZE, spanishNormalize, wantsCartSummary, isCoverageQuestion,
   coverageAnswer, isMenuRequest, isMoreMenuRequest, isPreviousMenuRequest,
@@ -22,14 +23,15 @@ type MenuDoc = { revision: number; payload: { products?: Item[] } };
 type Zone = { id: string; name: string; fee_cop: number; eta_minutes: number; active: boolean };
 export type CheckoutDraft = {
   id: string;
-  stage: "items" | "name" | "mode" | "zone" | "address" | "pickup_time" | "notes" | "payment" | "confirm" | "human_review" | "completed" | "cancelled";
+  stage: "items" | "name" | "mode" | "zone" | "address" | "pickup_time" | "notes" | "payment" | "split_amount" | "split_confirm" | "confirm" | "human_review" | "completed" | "cancelled";
   menuRevision: number;
   items: CartLine[];
   customerName?: string;
   mode?: "pickup" | "delivery";
   zoneId?: string;
   address?: string;
-  payment?: "cash" | "transfer";
+  payment?: "cash" | "transfer" | "mixed";
+  splitTransferCOP?: number;
   customerNote?: string;
   pickupDueAt?: string;
   createdAt: string;
@@ -111,7 +113,9 @@ function stagePrompt(stage:CheckoutDraft["stage"]):string {
     case "address": return "Pasame la dirección completa del domicilio.";
     case "pickup_time":return "¿En cuántos minutos pasás a buscarlo? *AHORA* o 10–180.";
     case "notes":return "¿Tenés indicaciones o alergias? Respondé *NO* si ninguna.";
-    case "payment":return "¿Pagás *EFECTIVO* o *TRANSFERENCIA*?";
+    case "payment":return "¿Pagás *EFECTIVO*, *TRANSFERENCIA* o *MIXTO* (parte por transferencia y resto en efectivo)?";
+    case "split_amount":return "¿Cuántos pesos COP exactos transferís? Por ejemplo *40000 COP*.";
+    case "split_confirm":return "Confirmá el reparto con *CONFIRMAR DIVISIÓN*.";
     case "confirm":return "Por los cambios, necesitamos revisar el total otra vez. Respondé *EFECTIVO* o *TRANSFERENCIA*.";
     default:return "Decime qué más querés pedir.";
   }
@@ -150,7 +154,13 @@ export function buildOrderSummary(draft: CheckoutDraft, menu: Item[], zones: Zon
         "Dirección: " + draft.address,
         "Domicilio: $" + fee.toLocaleString("es-CO")
       ] : []),
-      "Forma de pago: " + (draft.payment === "cash" ? "Efectivo al recibir" : "Transferencia (pendiente de verificar)"),
+      "Forma de pago: " + (draft.payment === "cash" ? "Efectivo al recibir" :
+        draft.payment==="mixed" && splitPaymentQuote(subtotal+fee,Number(draft.splitTransferCOP)) ?
+          ("Mixto: $"+Number(draft.splitTransferCOP).toLocaleString("es-CO")+
+          " por transferencia PENDIENTE DE VERIFICAR + $"+
+          (subtotal+fee-Number(draft.splitTransferCOP)).toLocaleString("es-CO")+
+          " en efectivo al recibir") :
+          "Transferencia (pendiente de verificar)"),
       "*Total: $" + (subtotal+fee).toLocaleString("es-CO") + "*",
       "Respondé *CONFIRMAR PEDIDO* para registrarlo o *CANCELAR PEDIDO* para descartarlo."
     ].join("\n")
@@ -499,18 +509,67 @@ export async function handleRestaurantCheckoutMessage(input: {
     }
     draft.customerNote = normalized==="no" ? "" : comment;
     draft.stage="payment"; await persist(input.phone,draft);
-    return {handled:true,text:"¿Pagás *EFECTIVO* al recibir o *TRANSFERENCIA*? El comprobante se verifica por separado."};
+    return {handled:true,text:"¿Pagás *EFECTIVO*, *TRANSFERENCIA* o *MIXTO* (una parte transferida y el resto en efectivo)? El comprobante siempre se verifica."};
   }
   if (draft.stage==="human_review") {
     return {handled:true,text:"Tu solicitud requiere la atención de una persona. Todavía no se registró un pedido."};
   }
   if (draft.stage==="payment") {
+    if(isSplitPaymentRequest(input.message)){
+      const total=buildOrderSummary(draft,available,zoneRows).total;
+      const amount=parseExactTransferCOP(input.message);
+      const split=amount===null?null:splitPaymentQuote(total,amount);
+      if(split){
+        draft.payment="mixed";draft.splitTransferCOP=amount!;
+        draft.stage="split_confirm";
+        await persist(input.phone,draft);
+        return {handled:true,text:splitQuoteMessage(total,amount!)};
+      }
+      draft.stage="split_amount";draft.payment="mixed";draft.splitTransferCOP=undefined;
+      await persist(input.phone,draft);
+      return {handled:true,text:"Claro, podés dividir el pago. "+
+        "Decime cuántos *pesos colombianos exactos* vas a transferir. "+
+        "Por ejemplo *40000 COP* (no solo '40', para no confundir $40 con $40.000)."};
+    }
     if (!/^(efectivo|transferencia)$/.test(normalized))
-      return {handled:true,text:"Elegí una forma de pago: *EFECTIVO* o *TRANSFERENCIA*."};
+      return {handled:true,text:"Elegí *EFECTIVO*, *TRANSFERENCIA* o *MIXTO*."};
     draft.payment=normalized==="efectivo"?"cash":"transfer";
+    draft.splitTransferCOP=undefined;
     const summary=buildOrderSummary(draft,available,zoneRows);
     draft.stage="confirm";draft.menuRevision=doc.revision;await persist(input.phone,draft);
     return {handled:true,text:summary.text};
+  }
+  if (draft.stage==="split_amount") {
+    const amount=parseExactTransferCOP(input.message);
+    const total=buildOrderSummary(draft,available,zoneRows).total;
+    const split=amount===null?null:splitPaymentQuote(total,amount);
+    if(!split){
+      return {handled:true,text:"Necesito un monto exacto menor que el total y que deje "+
+        "algo en efectivo. Escribí por ejemplo *40000 COP* o *40 mil COP*; "+
+        "no interpreto '40' como 40 mil."};
+    }
+    draft.payment="mixed";draft.splitTransferCOP=amount!;
+    draft.stage="split_confirm";await persist(input.phone,draft);
+    return {handled:true,text:splitQuoteMessage(total,amount!)};
+  }
+  if (draft.stage==="split_confirm") {
+    if(normalized!=="confirmar division") {
+      if(/^(cambiar monto|cambiar|modificar monto)$/.test(normalized)){
+        draft.stage="split_amount";await persist(input.phone,draft);
+        return {handled:true,text:"¿Cuántos pesos COP exactos vas a transferir? "+
+          "Ejemplo: *40000 COP*."};
+      }
+      return {handled:true,text:"Revisá ambos importes y respondé "+
+        "*CONFIRMAR DIVISIÓN*, o *CAMBIAR MONTO*."};
+    }
+    const total=buildOrderSummary(draft,available,zoneRows).total;
+    if(!splitPaymentQuote(total,Number(draft.splitTransferCOP)))
+      return {handled:true,humanHandoff:true,
+        text:"Los importes ya no coinciden con el total del pedido. "+
+          "Un encargado debe revisarlo antes de registrarlo."};
+    draft.payment="mixed";draft.stage="confirm";
+    draft.menuRevision=doc.revision;await persist(input.phone,draft);
+    return {handled:true,text:buildOrderSummary(draft,available,zoneRows).text};
   }
   if (draft.stage==="confirm") {
     if (normalized!=="confirmar pedido")
@@ -520,7 +579,9 @@ export async function handleRestaurantCheckoutMessage(input: {
       return {handled:true,text:"El menú cambió desde que cotizamos. Necesito confirmar otra vez el total antes de guardar el pedido. Escribí *EFECTIVO* o *TRANSFERENCIA*."};
     }
     const quote=buildOrderSummary(draft,available,zoneRows);
-    const order=await supabaseRpc<{id:string;number:number;version:number;total_cop:number}>("restaurant_ops_create_order",{
+    const order=await supabaseRpc<{id:string;number:number;version:number;total_cop:number}>(
+      draft.payment==="mixed"?"restaurant_ops_create_split_order":"restaurant_ops_create_order",{
+
       p_company_id:COMPANY,p_source:"whatsapp",p_source_key:"wa-"+draft.id,
       p_customer_phone:input.phone,p_customer_name:draft.customerName!,
       p_fulfillment_mode:draft.mode!,p_items:draft.items,
@@ -530,8 +591,10 @@ export async function handleRestaurantCheckoutMessage(input: {
       p_pickup_due_at:draft.mode==="pickup"?draft.pickupDueAt:null,
       p_actor_id:"whatsapp_checkout",p_actor_role:"system",
       p_customer_confirmed:true,p_expected_menu_revision:draft.menuRevision,
-      p_payment_method:draft.payment==="cash"?"cash":"transfer",
-      p_payment_status:draft.payment==="cash"?"cash_on_delivery":"pending"
+      ...(draft.payment==="mixed"?
+        {p_transfer_cop:draft.splitTransferCOP}:
+        {p_payment_method:draft.payment==="cash"?"cash":"transfer",
+         p_payment_status:draft.payment==="cash"?"cash_on_delivery":"pending"})
     });
     draft.stage="completed";draft.orderNumber=order.number;
     await persist(input.phone,draft);
@@ -544,10 +607,11 @@ export async function handleRestaurantCheckoutMessage(input: {
         metadata:{ name_source:"customer",name_confirmed:true,last_restaurant_order_id:order.id }
       },COMPANY);
     } catch { console.warn("[DELI CHECKOUT] CRM enrichment pending", {orderId:order.id}); }
-    const instructions = draft.payment === "transfer"
+    const instructions = draft.payment === "transfer" || draft.payment==="mixed"
       ? await transferInstructionsForOrder({
           number: order.number,
-          totalCOP: Number(order.total_cop ?? quote.total)
+          totalCOP: draft.payment==="mixed"?
+            Number(draft.splitTransferCOP):Number(order.total_cop ?? quote.total)
         }).catch(() => ({
           text: "La cuenta bancaria no está disponible en este momento. " +
             "Un encargado te indicará cómo completar el pago; no hagas transferencias a cuentas no verificadas.",
@@ -561,6 +625,11 @@ export async function handleRestaurantCheckoutMessage(input: {
         "\nTotal: $"+quote.total.toLocaleString("es-CO")+
         (draft.mode==="pickup"?"\nRetiro en local. Te avisamos cuando esté listo.":
           "\nDomicilio registrado. Te avisamos cuando salga a reparto.")+
+        (draft.payment==="mixed"?"\nPago dividido: $"+
+          Number(draft.splitTransferCOP).toLocaleString("es-CO")+
+          " por transferencia pendiente de verificar + $"+
+          (quote.total-Number(draft.splitTransferCOP)).toLocaleString("es-CO")+
+          " en efectivo. *Cocina espera la verificación bancaria*." : "")+
         (instructions?"\n\n"+instructions.text:"\nPago en efectivo al recibir. Pasamos el pedido a cocina.")};
   }
   return {handled:false,text:""};
