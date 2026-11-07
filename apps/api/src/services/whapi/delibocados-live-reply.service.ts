@@ -2,6 +2,8 @@ import { updateConversationMetadata } from "../conversations/conversation.reposi
 import { classifyRestaurantIntent } from "../agent/restaurant-ops-conversation.service.js";
 import { handleRestaurantCheckoutMessage } from "../restaurant-ops/restaurant-whatsapp-checkout.service.js";
 import { handleNaturalRestaurantTurn } from "../restaurant-ops/restaurant-natural-agent.service.js";
+import { handleRestaurantWhatsAppPin } from "../restaurant-ops/restaurant-whatsapp-location.service.js";
+import type { IncomingWhapiPoint } from "./whapi-location-parser.service.js";
 import { findMessageByExternalId } from "../conversations/conversation.repository.js";
 import { existsSync } from "node:fs";
 import { getDelibocadosChannel, type DelibocadosChannel } from "./delibocados-channel.service.js";
@@ -24,6 +26,7 @@ type Incoming = {
   phone: string;
   sourceMessageId: string;
   text: string;
+  location?: IncomingWhapiPoint;
   occurredAt?: string;
 };
 
@@ -98,8 +101,7 @@ async function processMessage(
   const liveMode = process.env.DELIBOCADOS_CHECKOUT_LIVE === "1";
   if (
     !liveMode &&
-    config.testPhone &&
-    input.phone !== config.testPhone
+    (!config.testPhone || input.phone !== config.testPhone)
   ) {
     return;
   }
@@ -165,7 +167,17 @@ async function processMessage(
   // a transactional RPC. All other messages continue through the regular AI.
   const intelligentTest = !liveMode && config.testPhone === input.phone &&
     process.env.DELIBOCADOS_AGENT_V2_TEST === "1";
-  const checkout = intelligentTest
+  // Do not feed a GPS object as the literal text "[location]" to the LLM.
+  // Test-only pin handling is deterministic and never creates an order.
+  if(input.location && !intelligentTest)return;
+  const checkout = input.location
+    ? await handleRestaurantWhatsAppPin({
+        phone:input.phone,
+        point:{lat:input.location.lat,lng:input.location.lng},
+        live:input.location.live,
+        sourceMessageId:input.sourceMessageId
+      })
+    : intelligentTest
     ? await handleNaturalRestaurantTurn({
         companyId:"delibocados",phone:input.phone,
         message:input.text,currentMessageId:stored.id
@@ -208,8 +220,7 @@ async function processMessage(
 
   if (
     !liveMode &&
-    latest.testPhone &&
-    latest.testPhone !== input.phone
+    (!latest.testPhone || latest.testPhone !== input.phone)
   ) {
     return;
   }
