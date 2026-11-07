@@ -26,6 +26,7 @@ const ALIASES: Record<string, CanonicalMessageType> = {
   voice: "audio",
   ptt: "audio",
   voice_message: "audio",
+  live_location: "location",
   gif: "video",
   sticker: "image",
   buttons_response: "interactive",

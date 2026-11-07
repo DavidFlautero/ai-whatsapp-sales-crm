@@ -2,7 +2,7 @@ import {supabaseRequest} from "../db/supabase-rest.client.js";
 import {getBusinessProfile} from "./restaurant-agent-business.service.js";
 import {containsPoint,polygonSchema} from "./restaurant-zones.service.js";
 
-type Point={lat:number;lng:number};
+export type Point={lat:number;lng:number};
 type Zone={
   id:string;name:string;fee_cop:number;eta_minutes:number;
   priority:number;geojson:unknown;active:boolean;
@@ -122,5 +122,57 @@ export async function quoteVerifiedDeliveryAddress(address:string):Promise<Deliv
     drivingDistanceMeters:route.meters,drivingDurationMinutes:route.minutes,
     // Candidates are limited to those marked available; not a GPS assignment.
     suggestedCouriers:couriers.map(c=>({id:c.id,name:c.name,vehicle:c.vehicle}))
+  };
+}
+
+
+/**
+ * Shared WhatsApp pin: uses provider-supplied WGS84 coordinates directly.
+ * Never infer location from WhatsApp profile or from a pasted map screenshot.
+ */
+export async function quoteVerifiedDeliveryPoint(destination:Point):Promise<DeliveryQuote> {
+  const {lat,lng}=destination;
+  if(!Number.isFinite(lat)||!Number.isFinite(lng)||
+     lat < -90||lat > 90||lng < -180||lng > 180)
+    return {covered:false,reason:"COORDENADAS_INVALIDAS"};
+  if(process.env.DELIBOCADOS_DELIVERY_GEO_ENABLED!=="1")
+    return {covered:false,reason:"GEOGRAFIA_AUTOMATICA_DESACTIVADA"};
+  const key=process.env.GOOGLE_MAPS_API_KEY?.trim();
+  if(!key)return {covered:false,reason:"GOOGLE_MAPS_KEY_PENDIENTE"};
+  const profile=await getBusinessProfile();
+  const from=profile?.origin_verified &&
+    Number.isFinite(profile.origin_lat) && Number.isFinite(profile.origin_lng)
+      ? {lat:Number(profile.origin_lat),lng:Number(profile.origin_lng)} : null;
+  if(!from)return {covered:false,reason:"UBICACION_LOCAL_NO_VERIFICADA"};
+
+  const zones=await supabaseRequest<Zone[]>({
+    table:"restaurant_ops_zones",
+    query:"?company_id=eq.delibocados&active=eq.true"+
+      "&select=id,name,fee_cop,eta_minutes,priority,geojson,active"+
+      "&order=priority.asc&limit=80"
+  });
+  const zone=zones.find(z=>{
+    const verified=polygonSchema.safeParse(z.geojson);
+    return verified.success && containsPoint(verified.data,lng,lat);
+  });
+  if(!zone)return {covered:false,reason:"FUERA_DE_ZONAS_VERIFICADAS"};
+
+  // Real road distance, not great-circle distance from a fixed point.
+  const route=await routeDistance(from,{lat,lng},key);
+  if(!route)return {covered:false,reason:"RUTA_VIAL_NO_VERIFICADA"};
+  const couriers=await supabaseRequest<Courier[]>({
+    table:"restaurant_ops_couriers",
+    query:"?company_id=eq.delibocados&active=eq.true"+
+      "&availability=eq.available&select=id,name,vehicle,availability,active&limit=30"
+  });
+  return {
+    covered:true,
+    zone:{id:zone.id,name:zone.name,feeCOP:zone.fee_cop,
+      estimatedMinutes:zone.eta_minutes},
+    drivingDistanceMeters:route.meters,
+    drivingDurationMinutes:route.minutes,
+    suggestedCouriers:couriers.map(c=>({
+      id:c.id,name:c.name,vehicle:c.vehicle
+    }))
   };
 }
