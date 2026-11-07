@@ -8,6 +8,7 @@ type Order = {
   id: string; number: number; status: string; fulfillment_mode: "pickup" | "delivery";
   customer_phone: string;
   payment_status: string;
+  payment_method: string;
   source: string;
 };
 type PayloadRow = {
@@ -32,6 +33,19 @@ export function notificationText(order: Order, kind: string, payload: Record<str
         ". Está en revisión. Te avisaremos cuando se verifique el ingreso." : null;
   }
   if(kind==="payment_verified") {
+    if(order.payment_method==="mixed" &&
+       payload.stage==="partial_transfer_approved" &&
+       order.payment_status==="cash_on_delivery") {
+      const due=Number(payload.cash_due_cop);
+      if(!Number.isSafeInteger(due)||due<=0)return null;
+      return "Delibocados: confirmamos la transferencia parcial del pedido #"+
+        number+". Quedan $"+due.toLocaleString("es-CO")+
+        " COP en efectivo al recibir. El pedido ya puede pasar a cocina.";
+    }
+    if(order.payment_method==="mixed"&&payload.stage==="split_settled"&&
+       order.payment_status==="verified")
+      return "Delibocados: el pago dividido del pedido #"+number+
+        " quedó conciliado y sin saldo pendiente. ¡Gracias!";
     return order.payment_status==="verified"
       ? "Delibocados: verificamos el pago del pedido #"+number+
         ". Ya está en la cola de cocina. ¡Gracias!" : null;
@@ -101,7 +115,7 @@ async function dispatch(mode:"test"|"live"): Promise<TestResult> {
           table: "restaurant_ops_orders",
           query: "?company_id=eq.delibocados&id=eq." + encodeURIComponent(job.order_id) +
             (mode==="test" ? "&customer_phone=eq."+encodeURIComponent(config.testPhone) : "") +
-            "&select=id,number,status,fulfillment_mode,customer_phone,payment_status,source&limit=1"
+            "&select=id,number,status,fulfillment_mode,customer_phone,payment_status,payment_method,source&limit=1"
         }),
         supabaseRequest<PayloadRow[]>({
           table: "restaurant_ops_outbox",
