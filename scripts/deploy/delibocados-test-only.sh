@@ -60,7 +60,7 @@ delibocados_test_only() {
   # Reiniciar primero CON la pausa puesta. No habilitar live de ninguna clase.
   if ! DELIBOCADOS_AGENT_V2_TEST=1 \
        DELIBOCADOS_CHECKOUT_TEST=1 \
-       DELIBOCADOS_ORDER_NOTIFICATIONS_TEST=1 \
+       DELIBOCADOS_ORDER_NOTIFICATIONS_TEST=0 \
        DELIBOCADOS_CHECKOUT_LIVE=0 \
        DELIBOCADOS_ORDER_NOTIFICATIONS_LIVE=0 \
        pm2 restart neuromind-api --update-env; then
@@ -78,7 +78,7 @@ if (!app) {
   const good=env.status==="online" &&
     env.DELIBOCADOS_AGENT_V2_TEST==="1" &&
     env.DELIBOCADOS_CHECKOUT_TEST==="1" &&
-    env.DELIBOCADOS_ORDER_NOTIFICATIONS_TEST==="1" &&
+    env.DELIBOCADOS_ORDER_NOTIFICATIONS_TEST!=="1" &&
     env.DELIBOCADOS_CHECKOUT_LIVE!=="1" &&
     env.DELIBOCADOS_ORDER_NOTIFICATIONS_LIVE!=="1";
   console.log(good ? "TEST_ONLY" : "INVALID");
@@ -110,7 +110,7 @@ JS
   echo "=== PRUEBA ACTIVADA ==="
   echo "Respuestas IA: SOLO testPhone de Whapi, terminado en $confirmed"
   echo "Motor IA: conversación natural V2 + historial y reclamos por cliente"
-  echo "Notificaciones de pedidos: SOLO testPhone"
+  echo "Notificaciones automáticas: APAGADAS hasta probar estados con el encargado"
   echo "Respuestas públicas: DESHABILITADAS"
   echo "REPAUSA INMEDIATA: touch /root/delibocados-ai.stop"
   echo "VER LOGS: pm2 logs neuromind-api --lines 80"
