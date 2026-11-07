@@ -230,7 +230,7 @@ export default function RestaurantPaymentsClient() {
               <p><b>Transferencia que debe verificarse:</b> {money(proof.split.transfer_due_cop)}</p>
               <p><b>Efectivo pendiente de recaudo:</b> {money(proof.split.cash_due_cop-proof.split.cash_collected_cop)}</p>
               <p><b>Transferencia comprobada:</b> {money(proof.split.transfer_verified_cop)}</p>
-            </>
+            </>}
             <p><b>Cliente:</b> {proof.order?.customer_phone??"—"}</p>
             <p><b>Pago:</b> {proof.order?.payment_status??"—"}</p>
             <p><b>Documento:</b> recibido por WhatsApp, almacenado en la conversación.</p>
