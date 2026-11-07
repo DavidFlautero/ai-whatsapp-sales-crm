@@ -34,7 +34,8 @@ test("COP transfer instructions reuse tenant configured account, not Argentine b
 });
 test("notification status follows real payment and kitchen progression",()=>{
   const base={id:"1",number:200,source:"whatsapp",status:"confirmed",
-    payment_status:"pending",fulfillment_mode:"pickup" as const,customer_phone:"573001234567"};
+    payment_status:"pending",payment_method:"transfer",
+    fulfillment_mode:"pickup" as const,customer_phone:"573001234567"};
   assert.equal(notificationText(base,"order_confirmed",{}),null);
   assert.match(notificationText({...base,payment_status:"proof_submitted"},"payment_proof_received",{})??"",/revisi/);
   assert.match(notificationText({...base,payment_status:"verified"},"payment_verified",{})??"",/cocina/);

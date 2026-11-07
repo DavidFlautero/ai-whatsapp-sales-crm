@@ -38,10 +38,10 @@ async function main() {
 
   const migrations = await supabaseRequest<{ version: string }[]>({
     table: "commerce_schema_migrations",
-    query: "?version=in.(20261106170000,20261106200000,20261107103000,20261107124500)&select=version",
+    query: "?version=in.(20261106170000,20261106200000,20261107103000,20261107124500,20261107190000)&select=version",
   });
   const installed = new Set(migrations.map(x => x.version));
-  if (["20261106170000","20261106200000","20261107103000","20261107124500"]
+  if (["20261106170000","20261106200000","20261107103000","20261107124500","20261107190000"]
       .some(version=>!installed.has(version))) {
     throw new Error("RESTAURANT_OPERATIONS_MIGRATIONS_NOT_INSTALLED");
   }

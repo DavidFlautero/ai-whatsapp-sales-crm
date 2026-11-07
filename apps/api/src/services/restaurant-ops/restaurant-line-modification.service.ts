@@ -162,7 +162,9 @@ export async function handleRestaurantLineModification(input:{
     if(!adjusted)return {handled:true,text:"No encuentro suficientes unidades estándar de "+
       line.name+" para ese cambio. "+formatDraftCart(draft.items,menu)};
     draft.items=adjusted;draft.pendingUnit=undefined;
-    if(draft.stage==="confirm")draft.stage="payment";
+    if(["confirm","split_amount","split_confirm"].includes(draft.stage)){
+      draft.stage="payment";draft.payment=undefined;draft.splitTransferCOP=undefined;
+    }
     await save();
     return {handled:true,text:"Anoté el cambio solo para "+
       pendingUnit.quantity+" × "+line.name+".\n"+formatDraftCart(draft.items,menu)+
@@ -185,7 +187,9 @@ export async function handleRestaurantLineModification(input:{
         " unidades sin modificaciones de "+target.name+
         ". Revisemos el carrito antes de avanzar.\n"+formatDraftCart(draft.items,menu)};
     draft.items=adjusted;draft.pendingUnit=undefined;
-    if(draft.stage==="confirm")draft.stage="payment";
+    if(["confirm","split_amount","split_confirm"].includes(draft.stage)){
+      draft.stage="payment";draft.payment=undefined;draft.splitTransferCOP=undefined;
+    }
     await save();
     return {handled:true,text:"Listo, registré *"+modification.instruction+
       "* solamente en "+modification.quantity+" × "+target.name+
@@ -212,7 +216,9 @@ export async function handleRestaurantLineModification(input:{
     if(!adjusted)return {handled:true,text:"No pude hacer el cambio sin alterar "+
       "las otras unidades. No modifiqué el carrito."};
     draft.items=adjusted;draft.pendingCombo=undefined;
-    if(draft.stage==="confirm")draft.stage="payment";
+    if(["confirm","split_amount","split_confirm"].includes(draft.stage)){
+      draft.stage="payment";draft.payment=undefined;draft.splitTransferCOP=undefined;
+    }
     await save();
     return {handled:true,text:"Cambié "+qty+" × "+baseProduct.name+
       " por "+qty+" × "+comboProduct.name+
@@ -241,7 +247,9 @@ export async function handleRestaurantLineModification(input:{
     const adjusted=applyComboChoice(draft.items,target.id,matching.id,1);
     if(!adjusted)return {handled:true,text:"No pude aplicar el combo de forma segura."};
     draft.items=adjusted;
-    if(draft.stage==="confirm")draft.stage="payment";
+    if(["confirm","split_amount","split_confirm"].includes(draft.stage)){
+      draft.stage="payment";draft.payment=undefined;draft.splitTransferCOP=undefined;
+    }
     await save();
     return {handled:true,text:"Cambié "+target.name+" por *"+
       matching.name+"* según el menú.\n"+formatDraftCart(draft.items,menu)};

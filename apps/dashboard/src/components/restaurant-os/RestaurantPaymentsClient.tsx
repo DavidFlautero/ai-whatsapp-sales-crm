@@ -4,13 +4,15 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import "./restaurant-ops.css";
 
 type Order = {
-  number: number; customer_name: string; customer_phone: string;
-  total_cop: number; payment_status: string; status: string;
+  id:string;number:number;version:number;customer_name:string;customer_phone:string;
+  total_cop:number;payment_status:string;payment_method:string;status:string;
 };
 type Proof = {
   id: string; order_id: string; source_message_id: string; status: string;
   created_at: string; reviewed_at?: string; reviewed_by?: string;
   rejection_reason?: string; order: Order | null;
+  split:{order_id:string;transfer_due_cop:number;cash_due_cop:number;
+    transfer_verified_cop:number;cash_collected_cop:number}|null;
 };
 type BankAccount={
  institution_name:string;holder_name:string;
@@ -103,7 +105,8 @@ export default function RestaurantPaymentsClient() {
     if(decision==="approve") {
       const confirmed=window.confirm(
         "Pedido #"+number+". ¿Comprobaste en la cuenta bancaria que ingresaron exactamente "+
-        money(proof.order.total_cop)+"? Una captura NO demuestra que se recibió el dinero."
+        money(proof.split?.transfer_due_cop??proof.order.total_cop)+
+        "? Una captura NO demuestra que se recibió el dinero."
       );
       if(!confirmed)return;
     } else {
@@ -125,6 +128,29 @@ export default function RestaurantPaymentsClient() {
         :"Comprobante rechazado. Pedido #"+number+" pendiente de un nuevo comprobante.");
       await refresh();
     }catch(e){setError(e instanceof Error?e.message:"No se pudo revisar el pago");}
+    finally{setBusy(null);}
+  }
+  async function collectSplitCash(proof:Proof) {
+    if(!proof.order||!proof.split||proof.order.payment_status!=="cash_on_delivery")return;
+    const balance=proof.split.cash_due_cop;
+    if(!window.confirm("Pedido #"+proof.order.number+
+      ". Confirmá que recibiste físicamente "+money(balance)+
+      " COP en efectivo. ¿Registrar recaudo completo?"))return;
+    setBusy("cash-"+proof.id);setError("");setNotice("");
+    try{
+      const response=await fetch(url+"/splits/"+
+        encodeURIComponent(proof.order.id)+"/collect-cash",{
+          method:"POST",credentials:"same-origin",cache:"no-store",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({version:proof.order.version,amountCOP:balance})
+        });
+      const result=await response.json();
+      if(!response.ok||!result.ok)
+        throw new Error(result.error||"SPLIT_CASH_COLLECTION_FAILED");
+      setNotice("Pedido #"+proof.order.number+
+        ": efectivo registrado y pago dividido conciliado.");
+      await refresh();
+    }catch(e){setError(e instanceof Error?e.message:"No se registró el efectivo");}
     finally{setBusy(null);}
   }
   return <main className="rops">
@@ -199,7 +225,12 @@ export default function RestaurantPaymentsClient() {
             </span>
           </div>
           <div className="rops-order-body">
-            <p><b>Total requerido:</b> {money(proof.order?.total_cop??0)}</p>
+            <p><b>Total del pedido:</b> {money(proof.order?.total_cop??0)}</p>
+            {proof.split&&<>
+              <p><b>Transferencia que debe verificarse:</b> {money(proof.split.transfer_due_cop)}</p>
+              <p><b>Efectivo pendiente de recaudo:</b> {money(proof.split.cash_due_cop-proof.split.cash_collected_cop)}</p>
+              <p><b>Transferencia comprobada:</b> {money(proof.split.transfer_verified_cop)}</p>
+            </>}
             <p><b>Cliente:</b> {proof.order?.customer_phone??"—"}</p>
             <p><b>Pago:</b> {proof.order?.payment_status??"—"}</p>
             <p><b>Documento:</b> recibido por WhatsApp, almacenado en la conversación.</p>
@@ -211,6 +242,13 @@ export default function RestaurantPaymentsClient() {
               Abrir comprobante original
             </a>
             <a href="/panel/operador">Abrir conversación del cliente</a>
+            {proof.split&&proof.order?.payment_status==="cash_on_delivery" &&
+              proof.split.transfer_verified_cop===proof.split.transfer_due_cop &&
+              proof.split.cash_collected_cop===0 &&
+              <button type="button" disabled={busy!==null}
+                onClick={()=>void collectSplitCash(proof)}>
+                Registrar efectivo recibido: {money(proof.split.cash_due_cop)}
+              </button>}
             {proof.status==="pending_review"&&proof.order&&<>
               <button type="button" disabled={busy!==null}
                 onClick={()=>void review(proof,"approve")}>Aprobar tras comprobar ingreso</button>

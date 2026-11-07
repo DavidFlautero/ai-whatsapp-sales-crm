@@ -7,6 +7,8 @@ on:
       - "supabase/migrations/20261106200000_restaurant_payment_review.sql"
       - "supabase/migrations/20261107103000_restaurant_agent_business_learning.sql"
       - "supabase/migrations/20261107124500_restaurant_customer_history_claims.sql"
+      - "supabase/migrations/20261107190000_restaurant_verified_split_payments.sql"
+      - "apps/api/src/scripts/restaurant-split-payment-smoke.sql"
       - "apps/api/src/scripts/restaurant-customer-history-smoke.sql"
       - "apps/api/src/scripts/restaurant-payment-review-smoke.sql"
       - "apps/api/src/scripts/restaurant-ops-schema-smoke.sql"
@@ -82,3 +84,7 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261107124500_restaurant_customer_history_claims.sql
       - name: Verify persisted customer order profile and idempotent complaints
         run: psql -v ON_ERROR_STOP=1 -f apps/api/src/scripts/restaurant-customer-history-smoke.sql
+      - name: Apply verified split payments
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261107190000_restaurant_verified_split_payments.sql
+      - name: Verify split bank proof, hold and exact cash settlement
+        run: psql -v ON_ERROR_STOP=1 -f apps/api/src/scripts/restaurant-split-payment-smoke.sql
