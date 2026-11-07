@@ -377,6 +377,7 @@ const restaurantGroups: MenuGroup[] = [
       { label: "Repartidores", href: "/panel/reparto", icon: "truck" },
       { label: "Zonas de domicilio", href: "/panel/zonas", icon: "building" },
       { label: "Incidencias", href: "/panel/incidencias", icon: "alert" },
+      { label: "Reclamos de clientes", href: "/panel/reclamos", icon: "message-circle" },
       { label: "Informes", href: "/panel/informes", icon: "chart" },
       { label: "Menú y catálogo", href: "/panel/menu", icon: "file" },
       { label: "Clientes", href: "/panel/clientes", icon: "customer" },
