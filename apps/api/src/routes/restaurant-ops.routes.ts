@@ -10,6 +10,7 @@ import {
   type OpeningHours
 } from "../services/restaurant-ops/restaurant-agent-business.service.js";
 import { analyzeRecentRestaurantQuestions } from "../services/restaurant-ops/restaurant-agent-learning.service.js";
+import { loadCustomerHistory } from "../services/restaurant-ops/restaurant-customer-support.service.js";
 
 export const restaurantOpsRoutes = Router();
 type Row = Record<string, unknown>;
@@ -471,6 +472,14 @@ restaurantOpsRoutes.post("/notifications/dispatch-test",
   })
 );
 
+
+restaurantOpsRoutes.get("/customers/:phone/history",requireRoles("owner","admin","supervisor"),
+  safe(async(req,res)=>{
+    const customerPhone=phone.parse(req.params.phone);
+    const history=await loadCustomerHistory(customerPhone,30);
+    readOnly(res);return res.json({ok:true,...history});
+  })
+);
 
 restaurantOpsRoutes.get("/customers", safe(async (_req,res) => {
   const [contacts,orders,incidents] = await Promise.all([
