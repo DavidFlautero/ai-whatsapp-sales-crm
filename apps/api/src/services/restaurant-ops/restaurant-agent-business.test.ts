@@ -11,7 +11,8 @@ const profile={
   timezone:"America/Bogota" as const,
   coverage_summary:"Funza y Mosquera, no Bogotá",
   opening_hours:{},special_hours_note:"",tone:"natural" as const,
-  extra_instructions:"",learning_enabled:false,updated_at:""
+  extra_instructions:"",learning_enabled:false,
+  origin_lat:null,origin_lng:null,origin_verified:false,updated_at:""
 } satisfies BusinessProfile;
 
 test("unknown opening hours are not invented",()=>{
