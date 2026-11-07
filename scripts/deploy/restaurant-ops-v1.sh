@@ -158,6 +158,22 @@ deploy_restaurant_os() {
     echo "BLOQUEADO: estado inesperado de migración de historial"
     return 1
   fi
+  if [[ ! -f supabase/migrations/20261107190000_restaurant_verified_split_payments.sql ]]; then
+    echo "BLOQUEADO: falta migración de pagos divididos";return 1
+  fi
+  already="$(docker exec "$db" psql -U postgres -d "$database" -At -v ON_ERROR_STOP=1 \
+    -c "SELECT count(*) FROM public.commerce_schema_migrations WHERE version='20261107190000'" 2>/dev/null)"
+  if [[ "$already" == 0 ]]; then
+    if ! docker exec -i "$db" psql -U postgres -d "$database" \
+      -X -v ON_ERROR_STOP=1 \
+      < supabase/migrations/20261107190000_restaurant_verified_split_payments.sql; then
+      echo "BLOQUEADO: migración de pagos divididos fallida; IA sigue pausada"
+      return 1
+    fi
+  elif [[ "$already" != 1 ]]; then
+    echo "BLOQUEADO: estado inesperado de migración de pagos divididos"
+    return 1
+  fi
   check="$(docker exec "$db" psql -U postgres -d "$database" -At -v ON_ERROR_STOP=1 \
     -c "SELECT (to_regclass('public.restaurant_ops_orders') IS NOT NULL
        AND to_regclass('public.restaurant_ops_kitchen_tickets') IS NOT NULL
@@ -165,7 +181,8 @@ deploy_restaurant_os() {
        AND to_regclass('public.restaurant_ops_payment_proofs') IS NOT NULL
        AND to_regclass('public.restaurant_agent_business_profiles') IS NOT NULL
        AND to_regclass('public.restaurant_agent_learnings') IS NOT NULL
-       AND to_regclass('public.restaurant_ops_customer_order_profiles') IS NOT NULL)" 2>/dev/null)"
+       AND to_regclass('public.restaurant_ops_customer_order_profiles') IS NOT NULL
+       AND to_regclass('public.restaurant_ops_split_payments') IS NOT NULL)" 2>/dev/null)"
   if [[ "$check" != t ]]; then
     echo "BLOQUEADO: no se localizaron tablas nuevas"; return 1
   fi
@@ -198,6 +215,7 @@ deploy_restaurant_os() {
   echo "API: OK"
   echo "IA AUTOMATICA: PAUSADA"
   echo "Pagos: bandeja de comprobantes instalada"
+  echo "Pagos divididos: verificaciones bancarias y efectivo auditado"
   echo "Agente: horarios, zonas, reparto y aprendizaje supervisado listos para configurar"
   echo "Toteat/POS360: sin envíos automáticos"
   echo "Siguiente verificación: abrir /panel/pedidos con sesión"
