@@ -216,7 +216,13 @@ BEGIN
  INSERT INTO public.restaurant_ops_outbox(company_id,order_id,kind,payload)
  VALUES(p_company_id,v_order.id,
   CASE WHEN p_decision='approve' THEN 'payment_verified' ELSE 'payment_rejected' END,
-  jsonb_build_object('proof_id',v_proof.id,'reason',coalesce(p_reason,'')));
+  jsonb_build_object('proof_id',v_proof.id,'reason',coalesce(p_reason,''),
+    'stage',CASE WHEN v_order.payment_method='mixed' AND p_decision='approve'
+      THEN 'partial_transfer_approved' ELSE 'standard' END,
+    'transfer_due_cop',(SELECT transfer_due_cop FROM public.restaurant_ops_split_payments
+      WHERE company_id=p_company_id AND order_id=v_order.id),
+    'cash_due_cop',(SELECT cash_due_cop FROM public.restaurant_ops_split_payments
+      WHERE company_id=p_company_id AND order_id=v_order.id)));
  RETURN jsonb_build_object('proof',to_jsonb(v_proof),'order_id',v_order.id,
    'payment_status',CASE WHEN p_decision='approve' AND v_order.payment_method='mixed'
      THEN 'cash_on_delivery' WHEN p_decision='approve' THEN 'verified' ELSE 'pending' END);
