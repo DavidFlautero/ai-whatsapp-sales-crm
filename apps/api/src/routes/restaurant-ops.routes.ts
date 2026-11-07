@@ -319,10 +319,15 @@ restaurantOpsRoutes.get("/payments", requireRoles("owner","admin"), safe(async (
   const orderIds=[...new Set(proofs.map(p=>p.order_id))];
   const orders=orderIds.length?await rows("restaurant_ops_orders",
     "?company_id=eq.delibocados&id=in.("+orderIds.map(encodeURIComponent).join(",")+")"+
-    "&select=id,number,customer_name,customer_phone,total_cop,payment_method,payment_status,status"): [];
+    "&select=id,number,version,customer_name,customer_phone,total_cop,payment_method,payment_status,status"): [];
+  const splits=orderIds.length?await rows("restaurant_ops_split_payments",
+    "?company_id=eq.delibocados&order_id=in.("+orderIds.map(encodeURIComponent).join(",")+")"+
+    "&select=order_id,transfer_due_cop,cash_due_cop,transfer_verified_cop,cash_collected_cop"): [];
   const index=new Map(orders.map(x=>[String(x.id),x]));
+  const splitIndex=new Map(splits.map(x=>[String(x.order_id),x]));
   readOnly(res);return res.json({
-    ok:true,proofs:proofs.map(p=>({...p,order:index.get(p.order_id)??null}))
+    ok:true,proofs:proofs.map(p=>({...p,order:index.get(p.order_id)??null,
+      split:splitIndex.get(p.order_id)??null}))
   });
 }));
 restaurantOpsRoutes.post("/payments/:id/review",requireRoles("owner","admin"),
@@ -343,6 +348,37 @@ restaurantOpsRoutes.post("/payments/:id/review",requireRoles("owner","admin"),
    });
    return res.json({ok:true,review});
  }));
+
+restaurantOpsRoutes.get("/payments/splits",requireRoles("owner","admin","supervisor"),
+  safe(async(_req,res)=>{
+    const splits=await rows("restaurant_ops_split_payments",
+      "?company_id=eq.delibocados&select=*&order=created_at.desc&limit=100");
+    const ids=splits.map(x=>String(x.order_id));
+    const orders=ids.length?await rows("restaurant_ops_orders",
+      "?company_id=eq.delibocados&id=in.("+ids.map(encodeURIComponent).join(",")+")"+
+      "&select=id,number,version,status,payment_status,payment_method,customer_phone,total_cop"): [];
+    const orderIndex=new Map(orders.map(x=>[String(x.id),x]));
+    readOnly(res);return res.json({ok:true,splits:splits.map(x=>({
+      ...x,order:orderIndex.get(String(x.order_id))??null
+    }))});
+  })
+);
+restaurantOpsRoutes.post("/payments/splits/:orderId/collect-cash",
+  requireRoles("owner","admin","supervisor"),safe(async(req,res)=>{
+    const orderId=uuid.parse(req.params.orderId);
+    const payload=z.object({
+      version:z.number().int().positive(),
+      amountCOP:z.number().int().positive()
+    }).strict().parse(req.body);
+    const a=actor(req);
+    const result=await supabaseRpc<Row>("restaurant_ops_collect_split_cash",{
+      p_company_id:"delibocados",
+      p_order_id:orderId,p_expected_version:payload.version,
+      p_amount_cop:payload.amountCOP,p_actor_id:a.id,p_actor_role:a.role
+    });
+    return res.json({ok:true,settlement:result});
+  })
+);
 
 restaurantOpsRoutes.get("/kitchen",safe(async (_req,res) => {
   const tickets=await rows("restaurant_ops_kitchen_tickets",
