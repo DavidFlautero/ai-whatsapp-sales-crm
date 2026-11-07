@@ -40,8 +40,12 @@ export function detectIngredientRemoval(input:string):IngredientRemoval|null{
   if(!part)return null;
   if(!/\b(?:una|uno|dos|tres|de esas|de esos|la primera|la segunda|sin|quitar|quita)\b/.test(source))
     return null;
-  const amount=source.match(/\b(?:dos|2|tres|3)\b/);
-  const qty=amount ? /^(?:dos|2)$/.test(amount[0])?2:3 : 1;
+  // Only the quantity immediately attached to the modification applies.
+  // "dos hamburguesas, una de esas sin vegetales" changes ONE burger.
+  const before=source.slice(0,part.index).trim();
+  const amount=before.match(/\b(una|uno|dos|2|tres|3)(?:\s+de\s+(?:esas|esos|ellas|ellos|las|los))?\s*$/);
+  const qty=amount ? /^(?:dos|2)$/.test(amount[1])?2:
+    /^(?:tres|3)$/.test(amount[1])?3:1 : 1;
   return {instruction:INGREDIENTS[part[1]],quantity:qty};
 }
 
