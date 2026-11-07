@@ -56,6 +56,9 @@ BEGIN
    p_expected_menu_revision=>p_expected_menu_revision,
    p_payment_method=>'mixed',p_payment_status=>'pending'
  );
+ IF v_order->>'payment_method'<>'mixed' THEN
+   RAISE EXCEPTION 'SPLIT_IDEMPOTENCY_CONFLICT';
+ END IF;
  v_id:=(v_order->>'id')::uuid;
  v_total:=(v_order->>'total_cop')::integer;
  IF p_transfer_cop>=v_total THEN RAISE EXCEPTION 'SPLIT_REQUIRES_POSITIVE_CASH_BALANCE'; END IF;
