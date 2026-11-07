@@ -12,6 +12,22 @@ CREATE UNIQUE INDEX IF NOT EXISTS restaurant_ops_incident_source_idx
 CREATE INDEX IF NOT EXISTS restaurant_ops_incident_phone_idx
  ON public.restaurant_ops_incidents(company_id,customer_phone,created_at DESC);
 
+-- Restaurant dispatch starts from operator-verified coordinates, never a guessed address.
+ALTER TABLE public.restaurant_agent_business_profiles
+ ADD COLUMN IF NOT EXISTS origin_lat double precision,
+ ADD COLUMN IF NOT EXISTS origin_lng double precision,
+ ADD COLUMN IF NOT EXISTS origin_verified boolean NOT NULL DEFAULT false;
+DO $
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='restaurant_origin_coordinates_valid') THEN
+   ALTER TABLE public.restaurant_agent_business_profiles
+   ADD CONSTRAINT restaurant_origin_coordinates_valid
+   CHECK (NOT origin_verified OR (
+     origin_lat BETWEEN -90 AND 90 AND origin_lng BETWEEN -180 AND 180
+   ));
+ END IF;
+END $;
+
 -- Every order remains the source of truth: no duplicate storage of private addresses.
 CREATE OR REPLACE VIEW public.restaurant_ops_customer_order_profiles
  WITH (security_invoker = true) AS
