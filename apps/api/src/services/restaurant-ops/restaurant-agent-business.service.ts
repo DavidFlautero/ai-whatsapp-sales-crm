@@ -111,3 +111,30 @@ export async function getRestaurantOrderInsights():Promise<{sampleOrders:number;
     name,quantity:item.quantity,orders:item.orders.size
   })).sort((a,b)=>b.quantity-a.quantity).slice(0,12)};
 }
+
+/** Past completed orders only; no guessing preferences from casual chat. */
+export async function getCustomerVerifiedHistory(phone:string):Promise<{
+  completedOrders:number;topProducts:Array<{name:string;quantity:number}>
+}> {
+  if(!/^[0-9]{8,15}$/.test(phone))return {completedOrders:0,topProducts:[]};
+  const orders=await supabaseRequest<Array<{id:string}>>({
+    table:"restaurant_ops_orders",
+    query:"?company_id=eq.delibocados&customer_phone=eq."+encodeURIComponent(phone)+
+      "&status=eq.completed&select=id&order=created_at.desc&limit=20"
+  });
+  if(!orders.length)return {completedOrders:0,topProducts:[]};
+  const items=await supabaseRequest<Array<{product_name:string;quantity:number}>>({
+    table:"restaurant_ops_order_items",
+    query:"?company_id=eq.delibocados&order_id=in.("+
+      orders.map(o=>encodeURIComponent(o.id)).join(",")+")"+
+      "&select=product_name,quantity&limit=300"
+  });
+  const map=new Map<string,number>();
+  for(const item of items){
+    if(Number.isInteger(item.quantity)&&item.quantity>0)
+      map.set(item.product_name,(map.get(item.product_name)??0)+item.quantity);
+  }
+  return {completedOrders:orders.length,
+    topProducts:[...map].map(([name,quantity])=>({name,quantity}))
+      .sort((a,b)=>b.quantity-a.quantity).slice(0,6)};
+}
