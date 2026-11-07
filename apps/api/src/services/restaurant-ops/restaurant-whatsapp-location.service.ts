@@ -22,8 +22,11 @@ export function freshVerifiedPin(value:unknown,now=Date.now()):VerifiedDeliveryP
     !Number.isFinite(Date.parse(p.createdAt))||
     Date.parse(p.createdAt)>now+60000||now-Date.parse(p.createdAt)>PIN_TTL_MS)
     return null;
-  if(!Number.isInteger(p.quotedFeeCOP)||p.quotedFeeCOP<0 ||
+  if(typeof p.quotedFeeCOP!=="number" ||
+     !Number.isInteger(p.quotedFeeCOP)||p.quotedFeeCOP<0 ||
+     typeof p.routeMeters!=="number" ||
      !Number.isInteger(p.routeMeters)||p.routeMeters<0 ||
+     typeof p.routeMinutes!=="number" ||
      !Number.isInteger(p.routeMinutes)||p.routeMinutes<0)return null;
   return p as VerifiedDeliveryPin;
 }
