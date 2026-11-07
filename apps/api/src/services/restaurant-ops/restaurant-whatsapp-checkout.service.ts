@@ -5,6 +5,7 @@ import { getContactByPhone, upsertContact } from "../crm/crm.repository.js";
 import { supabaseRequest, supabaseRpc } from "../db/supabase-rest.client.js";
 import { classifyRestaurantIntent } from "../agent/restaurant-ops-conversation.service.js";
 import { transferInstructionsForOrder } from "./restaurant-payment-intake.service.js";
+import {quoteVerifiedDeliveryAddress} from "./restaurant-delivery-routing.service.js";
 import {
   MENU_PAGE_SIZE, spanishNormalize, wantsCartSummary, isCoverageQuestion,
   coverageAnswer, isMenuRequest, isMoreMenuRequest, isPreviousMenuRequest,
@@ -400,10 +401,31 @@ export async function handleRestaurantCheckoutMessage(input: {
   }
   if (draft.stage==="address") {
     const value=input.message.trim();
-    if (value.length < 8 || value.length > 500)
-      return {handled:true,text:"Necesito una dirección más completa para poder gestionar el domicilio."};
-    draft.address=value;draft.stage="notes";await persist(input.phone,draft);
-    return {handled:true,text:"¿Tenés indicaciones especiales o alergias alimentarias? Respondé *NO* si ninguna."};
+    if (value.length < 12 || value.length > 300)
+      return {handled:true,text:"Decime calle, número, barrio y ciudad (Funza o Mosquera) para comprobar el domicilio."};
+    let quotation;
+    try { quotation=await quoteVerifiedDeliveryAddress(value); }
+    catch {
+      return {handled:true,humanHandoff:true,text:"No pude verificar la ruta de domicilio. Un encargado debe confirmar cobertura y tarifa; todavía no registramos el pedido."};
+    }
+    if(!quotation.covered || !quotation.zone){
+      if(quotation.reason==="DIRECCION_INCOMPLETA_O_SIN_CIUDAD" ||
+         quotation.reason==="DIRECCION_NO_GEOCODIFICADA_CON_PRECISION")
+        return {handled:true,text:"No logré ubicar la dirección con seguridad. ¿Podés indicarme calle, número, barrio y si es en Funza o Mosquera? Si no aparece, debe ayudar un encargado."};
+      return {handled:true,humanHandoff:true,
+        text:"No puedo confirmar cobertura de esa dirección: "+
+          (quotation.reason??"zona sin verificar")+
+          ". Un encargado debe comprobarla antes de aceptar el domicilio."};
+    }
+    draft.zoneId=quotation.zone.id;
+    draft.address=quotation.formattedAddress??value;
+    draft.stage="notes";await persist(input.phone,draft);
+    return {handled:true,text:"Verifiqué la dirección en "+quotation.zone.name+
+      ". Tarifa domicilio: $"+quotation.zone.feeCOP.toLocaleString("es-CO")+
+      ". Distancia vial desde el local: "+
+      ((quotation.drivingDistanceMeters??0)/1000).toFixed(2)+
+      " km (estimación en auto, no seguimiento del repartidor). "+
+      "¿Tenés indicaciones especiales o alergias alimentarias? Respondé *NO* si ninguna."};
   }
   if (draft.stage==="pickup_time") {
     const value = normalized;
