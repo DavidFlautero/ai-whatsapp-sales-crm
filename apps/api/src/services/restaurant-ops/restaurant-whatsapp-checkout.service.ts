@@ -365,9 +365,17 @@ export async function handleRestaurantCheckoutMessage(input: {
       return {handled:true,text:"Decime tu nombre para identificar el pedido, por favor."};
     draft.customerName=value;
     draft.stage=draft.mode==="pickup" ? "pickup_time" : draft.mode==="delivery" ? "zone" : "mode";
+    const savedPin=freshVerifiedPin(conversation?.metadata?.restaurant_delivery_pin_v1);
+    if(draft.stage==="zone" && savedPin &&
+       zoneRows.some(z=>z.id===savedPin.zoneId)){
+      draft.zoneId=savedPin.zoneId;
+      draft.stage="address";
+    }
     await persist(input.phone,draft);
     return {handled:true,text:draft.stage==="pickup_time" ?
       "¿En cuántos minutos pensás pasar a buscarlo? Respondé *AHORA* o un número entre 10 y 180. La hora queda sujeta a confirmación de cocina." :
+      draft.stage==="address" ?
+        "Ya tengo tu ubicación verificada. ¿Cuál es la calle/número y la referencia para encontrar la puerta?" :
       draft.stage==="zone" ? (zoneRows.length ?
         "¿En cuál zona estás? " + zoneRows.map((z,i)=> (i+1)+". "+z.name+" ($"+z.fee_cop.toLocaleString("es-CO")+")").join(" · ") :
         "Todavía no tenemos zonas verificadas. Para domicilio debe confirmar un encargado; si preferís retirar, respondé *RETIRO*.") :
@@ -381,7 +389,15 @@ export async function handleRestaurantCheckoutMessage(input: {
     }
     if (/^(domicilio|delivery|envio)$/.test(normalized)) {
       draft.mode="delivery";draft.stage="zone";
+      const savedPin=freshVerifiedPin(conversation?.metadata?.restaurant_delivery_pin_v1);
+      if(savedPin&&zoneRows.some(z=>z.id===savedPin.zoneId)){
+        draft.zoneId=savedPin.zoneId;
+        draft.stage="address";
+      }
       await persist(input.phone,draft);
+      if(draft.stage==="address")
+        return {handled:true,text:"Ya verifiqué tu ubicación compartida. "+
+          "Pasame la calle/número y una referencia para encontrar la puerta."};
       return {handled:true,text:zoneRows.length ?
         "Elegí la zona de domicilio:\n"+zoneRows.map((z,i)=>(i+1)+". "+z.name+" — $"+z.fee_cop.toLocaleString("es-CO")).join("\n") :
         "No tenemos zonas activas verificadas. Un encargado debe confirmar el domicilio."};
