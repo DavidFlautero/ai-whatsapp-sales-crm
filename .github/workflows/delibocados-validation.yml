@@ -28,7 +28,7 @@ jobs:
       - name: Typecheck API
         run: pnpm --filter @ventas/api typecheck
       - name: Test restaurant intent routing
-        run: pnpm --filter @ventas/api exec tsx --test src/services/agent/restaurant-ops-conversation.test.ts src/services/restaurant-ops/restaurant-zones.test.ts src/services/restaurant-ops/restaurant-whatsapp-checkout.test.ts src/services/restaurant-ops/restaurant-checkout-dialogue.test.ts src/services/restaurant-ops/restaurant-payment-intake.test.ts src/services/restaurant-ops/restaurant-natural-agent.test.ts src/services/restaurant-ops/restaurant-agent-business.test.ts src/services/restaurant-ops/restaurant-customer-support.test.ts src/services/restaurant-ops/restaurant-whatsapp-location.test.ts
+        run: pnpm --filter @ventas/api exec tsx --test src/services/agent/restaurant-ops-conversation.test.ts src/services/restaurant-ops/restaurant-zones.test.ts src/services/restaurant-ops/restaurant-whatsapp-checkout.test.ts src/services/restaurant-ops/restaurant-checkout-dialogue.test.ts src/services/restaurant-ops/restaurant-payment-intake.test.ts src/services/restaurant-ops/restaurant-natural-agent.test.ts src/services/restaurant-ops/restaurant-agent-business.test.ts src/services/restaurant-ops/restaurant-customer-support.test.ts src/services/restaurant-ops/restaurant-whatsapp-location.test.ts src/services/restaurant-ops/restaurant-customer-exception.test.ts
       - name: Typecheck dashboard
         run: pnpm --filter @ventas/dashboard typecheck
       - name: Build isolated Delibocados dashboard

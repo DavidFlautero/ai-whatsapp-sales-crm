@@ -42,6 +42,7 @@ export type CheckoutReply = {
   text: string;
   imageUrl?: string;
   humanHandoff?: boolean;
+  handoffReason?: string;
 };
 export function normalize(value: string) {
   return value.toLocaleLowerCase("es-CO").normalize("NFD")
