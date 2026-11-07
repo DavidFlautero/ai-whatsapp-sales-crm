@@ -6,6 +6,8 @@ on:
       - "supabase/migrations/20261106170000_restaurant_operations_core.sql"
       - "supabase/migrations/20261106200000_restaurant_payment_review.sql"
       - "supabase/migrations/20261107103000_restaurant_agent_business_learning.sql"
+      - "supabase/migrations/20261107124500_restaurant_customer_history_claims.sql"
+      - "apps/api/src/scripts/restaurant-customer-history-smoke.sql"
       - "apps/api/src/scripts/restaurant-payment-review-smoke.sql"
       - "apps/api/src/scripts/restaurant-ops-schema-smoke.sql"
       - ".github/workflows/restaurant-ops-db-validation.yml"
@@ -76,3 +78,7 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261107103000_restaurant_agent_business_learning.sql
       - name: Verify isolated agent settings and learning tables
         run: psql -v ON_ERROR_STOP=1 -f apps/api/src/scripts/restaurant-agent-business-smoke.sql
+      - name: Apply customer history and complaint schema
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261107124500_restaurant_customer_history_claims.sql
+      - name: Verify persisted customer order profile and idempotent complaints
+        run: psql -v ON_ERROR_STOP=1 -f apps/api/src/scripts/restaurant-customer-history-smoke.sql
