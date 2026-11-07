@@ -10,7 +10,8 @@ type Profile={
   public_phone:string;city:string;coverage_summary:string;
   opening_hours:Hours;special_hours_note:string;
   tone:"natural"|"formal"|"friendly";extra_instructions:string;
-  learning_enabled:boolean;updated_at?:string;
+  learning_enabled:boolean;origin_lat:number|null;origin_lng:number|null;
+  origin_verified:boolean;updated_at?:string;
 };
 type Zone={id:string;name:string;fee_cop:number;eta_minutes:number;active:boolean};
 type Courier={id:string;name:string;phone:string;vehicle:"bike"|"motorbike";availability:string;active:boolean};
@@ -26,7 +27,8 @@ const defaultProfile:Profile={
   public_phone:"",city:"Funza",
   coverage_summary:"Sectores verificados de Funza y Mosquera. No Bogotá.",
   opening_hours:{},special_hours_note:"",
-  tone:"natural",extra_instructions:"",learning_enabled:false
+  tone:"natural",extra_instructions:"",learning_enabled:false,
+  origin_lat:null,origin_lng:null,origin_verified:false
 };
 const money=(value:number)=>new Intl.NumberFormat("es-CO",{
   style:"currency",currency:"COP",maximumFractionDigits:0
@@ -97,6 +99,24 @@ export default function RestaurantAgentSettingsClient(){
   const [notice,setNotice]=useState("");
   const [busy,setBusy]=useState(false);
   const [loaded,setLoaded]=useState(false);
+  const [testAddress,setTestAddress]=useState("");
+  const [quote,setQuote]=useState<{
+    covered:boolean;reason?:string;formattedAddress?:string;
+    drivingDistanceMeters?:number;drivingDurationMinutes?:number;
+    zone?:{name:string;feeCOP:number;estimatedMinutes:number};
+    suggestedCouriers?:Array<{name:string;vehicle:string}>;
+  }|null>(null);
+  const [quoteBusy,setQuoteBusy]=useState(false);
+  async function testDelivery(){
+    setQuoteBusy(true);setError("");setQuote(null);
+    try{
+      const data=await jsonRequest<{ok:true;quote:NonNullable<typeof quote>}>(
+        "delivery/quote-address",{address:testAddress});
+      setQuote(data.quote);
+    }catch(err){setError(err instanceof Error?err.message:"No se pudo verificar dirección");}
+    finally{setQuoteBusy(false);}
+  }
+
 
   const load=useCallback(async()=>{
     try{
@@ -133,7 +153,9 @@ export default function RestaurantAgentSettingsClient(){
         city:profile.city,coverageSummary:profile.coverage_summary,
         openingHours:profile.opening_hours,specialHoursNote:profile.special_hours_note,
         tone:profile.tone,extraInstructions:profile.extra_instructions,
-        learningEnabled:profile.learning_enabled
+        learningEnabled:profile.learning_enabled,
+        originLat:profile.origin_lat,originLng:profile.origin_lng,
+        originVerified:profile.origin_verified
       });
       setProfile(saved.profile);
       setNotice("Configuración guardada. El agente de pruebas usará los datos verificados.");
@@ -262,6 +284,50 @@ export default function RestaurantAgentSettingsClient(){
             </span></td>
           </tr>)}
         </tbody></table></div>
+        <div className="rops-form-grid">
+          <label>Latitud exacta del restaurante
+            <input type="number" step="any" min="-90" max="90" placeholder="Sin confirmar"
+              value={profile.origin_lat??""}
+              onChange={e=>update("origin_lat",e.target.value===""?null:Number(e.target.value))}/>
+          </label>
+          <label>Longitud exacta del restaurante
+            <input type="number" step="any" min="-180" max="180" placeholder="Sin confirmar"
+              value={profile.origin_lng??""}
+              onChange={e=>update("origin_lng",e.target.value===""?null:Number(e.target.value))}/>
+          </label>
+          <label className="rops-check rops-wide">
+            <input type="checkbox" checked={profile.origin_verified}
+              onChange={e=>update("origin_verified",e.target.checked)}/>
+            Confirmo que estas coordenadas son las del restaurante real
+          </label>
+        </div>
+        <p>La distancia vial exige un servicio de mapas configurado en la VPS y polígonos de entrega verificados.</p>
+        <div className="rops-mini-form">
+          <h3>Comprobar dirección y repartidores disponibles</h3>
+          <input style={{minWidth:"min(100%,390px)"}} value={testAddress} type="text"
+            placeholder="Calle y número, barrio, Funza o Mosquera"
+            aria-label="Dirección que se quiere comprobar"
+            onChange={e=>setTestAddress(e.target.value)}/>
+          <button type="button" disabled={quoteBusy||testAddress.trim().length<12}
+            onClick={()=>void testDelivery()}>
+            {quoteBusy?"Comprobando…":"Verificar ruta"}
+          </button>
+          {quote&&<p style={{width:"100%"}}>
+            {quote.covered
+              ?"Dirección verificada: "+quote.formattedAddress+
+                ". Zona: "+quote.zone?.name+
+                ". Domicilio: "+money(quote.zone?.feeCOP??0)+
+                ". Distancia vial desde el restaurante: "+
+                  ((quote.drivingDistanceMeters??0)/1000).toFixed(2)+" km"+
+                ". Duración estimada en automóvil: "+quote.drivingDurationMinutes+
+                " min. Repartidores disponibles: "+
+                  (quote.suggestedCouriers?.map(c=>c.name+" ("+
+                    (c.vehicle==="bike"?"bicicleta":"moto")+")").join(", ")||"ninguno")+
+                ". La asignación requiere validación operativa."
+              :"Domicilio no confirmado: "+(quote.reason??"sin detalles")+
+                ". No se puede prometer cobertura ni asignar automáticamente."}
+          </p>}
+        </div>
       </section>
       <section className="rops-card">
         <div className="rops-row"><h2>5. Equipo de reparto</h2>
