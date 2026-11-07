@@ -274,7 +274,8 @@ async function processMessage(
       companyId: "delibocados",
       contactPhone: input.phone,
       status: "human",
-      reason: "Alergia o seguridad alimentaria: revisión de ingredientes"
+      reason: ("handoffReason" in checkout && checkout.handoffReason) ||
+        "Revisión humana del pedido (alergias, pagos o cambios especiales)"
     });
   }
 
