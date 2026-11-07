@@ -18,6 +18,9 @@ export type BusinessProfile={
   tone:"natural"|"formal"|"friendly";
   extra_instructions:string;
   learning_enabled:boolean;
+  origin_lat:number|null;
+  origin_lng:number|null;
+  origin_verified:boolean;
   updated_at:string;
 };
 export type Learning={
