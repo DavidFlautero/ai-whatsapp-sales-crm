@@ -8,6 +8,7 @@ import { timingSafeEqual } from "node:crypto";
 
 import { saveMessage } from "../services/whapi/whapi-durable-message.service.js";
 import { normalizeWhapiMessageType } from "../services/whapi/whapi-message-normalizer.js";
+import { parseIncomingWhapiPoint } from "../services/whapi/whapi-location-parser.service.js";
 
 export const delibocadosTenantWhapiRoutes = Router();
 
@@ -239,6 +240,29 @@ delibocadosTenantWhapiRoutes.post("/webhook", async (req, res) => {
           });
         }
 
+
+          if (
+            !fromMe &&
+            messageType === "location" &&
+            result.message?.id
+          ) {
+            const location=parseIncomingWhapiPoint(message);
+            if(location){
+              queueDelibocadosLiveReply({
+                occurredAt:occurredAt&&!Number.isNaN(occurredAt.getTime())
+                  ? occurredAt.toISOString():undefined,
+                companyId:COMPANY,
+                phone,
+                sourceMessageId:externalId,
+                text:"[Ubicación compartida por WhatsApp]",
+                location
+              });
+            } else {
+              console.warn("[DELIBOCADOS WHAPI] Invalid location payload",{
+                last4:phone.slice(-4)
+              });
+            }
+          }
 
           if (
             !fromMe &&
