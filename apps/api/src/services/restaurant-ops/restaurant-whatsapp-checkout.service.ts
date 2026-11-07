@@ -311,7 +311,9 @@ export async function handleRestaurantCheckoutMessage(input: {
     if(!combined)return {handled:true,text:"La cantidad supera el máximo permitido por producto (25). Decime cuántas unidades querés."};
     draft.pendingBulk=undefined;draft.items=combined;draft.menuRevision=doc.revision;
     if(draft.stage==="items")draft.stage="name";
-    if(draft.stage==="confirm")draft.stage="payment";
+    if(["confirm","split_amount","split_confirm"].includes(draft.stage)){
+      draft.stage="payment";draft.payment=undefined;draft.splitTransferCOP=undefined;
+    }
     await persist(input.phone,draft);
     return {handled:true,text:formatDraftCart(draft.items,available)+"\n\n"+stagePrompt(draft.stage)};
   };
@@ -327,7 +329,9 @@ export async function handleRestaurantCheckoutMessage(input: {
     draft.items=removeFromCart(draft.items,ids);
     draft.pendingBulk=undefined;draft.menuRevision=doc.revision;
     if(!draft.items.length)draft.stage="items";
-    else if(draft.stage==="confirm")draft.stage="payment";
+    else if(["confirm","split_amount","split_confirm"].includes(draft.stage)){
+      draft.stage="payment";draft.payment=undefined;draft.splitTransferCOP=undefined;
+    }
     await persist(input.phone,draft);
     return {handled:true,text:formatDraftCart(draft.items,available)+"\n\n"+stagePrompt(draft.stage)};
   }
