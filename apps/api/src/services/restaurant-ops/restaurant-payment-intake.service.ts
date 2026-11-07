@@ -70,7 +70,7 @@ function requestedNumber(caption: string) {
 }
 export function choosePaymentOrder(orders: TransferOrder[], caption: string) {
   const candidates=orders.filter(x =>
-    x.payment_method==="transfer" && x.status==="confirmed" &&
+    ["transfer","mixed"].includes(x.payment_method) && x.status==="confirmed" &&
     (x.payment_status==="pending" || x.payment_status==="proof_submitted") &&
     Date.now()-Date.parse(x.created_at)<48*3600*1000);
   const number=requestedNumber(caption);
@@ -96,7 +96,7 @@ export async function captureRestaurantPaymentProof(input: {
   const orders=await supabaseRequest<TransferOrder[]>({
     table:"restaurant_ops_orders",
     query:"?company_id=eq.delibocados&customer_phone=eq."+encodeURIComponent(input.phone)+
-      "&payment_method=eq.transfer&payment_status=in.(pending,proof_submitted)"+
+      "&payment_method=in.(transfer,mixed)&payment_status=in.(pending,proof_submitted)"+
       "&status=eq.confirmed&select=id,number,customer_phone,payment_method,payment_status,status,total_cop,created_at"+
       "&order=created_at.desc&limit=20"
   });
