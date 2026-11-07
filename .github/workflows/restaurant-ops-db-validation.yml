@@ -5,6 +5,7 @@ on:
     paths:
       - "supabase/migrations/20261106170000_restaurant_operations_core.sql"
       - "supabase/migrations/20261106200000_restaurant_payment_review.sql"
+      - "supabase/migrations/20261107103000_restaurant_agent_business_learning.sql"
       - "apps/api/src/scripts/restaurant-payment-review-smoke.sql"
       - "apps/api/src/scripts/restaurant-ops-schema-smoke.sql"
       - ".github/workflows/restaurant-ops-db-validation.yml"
@@ -71,3 +72,7 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261106200000_restaurant_payment_review.sql
       - name: Test transfer proof review, holds and audit
         run: psql -v ON_ERROR_STOP=1 -f apps/api/src/scripts/restaurant-payment-review-smoke.sql
+      - name: Apply native restaurant agent configuration schema
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261107103000_restaurant_agent_business_learning.sql
+      - name: Verify isolated agent settings and learning tables
+        run: psql -v ON_ERROR_STOP=1 -f apps/api/src/scripts/restaurant-agent-business-smoke.sql
