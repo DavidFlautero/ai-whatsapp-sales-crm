@@ -11,6 +11,7 @@ import {
 } from "../services/restaurant-ops/restaurant-agent-business.service.js";
 import { analyzeRecentRestaurantQuestions } from "../services/restaurant-ops/restaurant-agent-learning.service.js";
 import { loadCustomerHistory } from "../services/restaurant-ops/restaurant-customer-support.service.js";
+import {quoteVerifiedDeliveryAddress} from "../services/restaurant-ops/restaurant-delivery-routing.service.js";
 
 export const restaurantOpsRoutes = Router();
 type Row = Record<string, unknown>;
@@ -125,7 +126,10 @@ const businessProfileInput=z.object({
   specialHoursNote:z.string().max(700),
   tone:z.enum(["natural","formal","friendly"]),
   extraInstructions:z.string().max(2000),
-  learningEnabled:z.boolean()
+  learningEnabled:z.boolean(),
+  originLat:z.number().finite().min(-90).max(90).nullable(),
+  originLng:z.number().finite().min(-180).max(180).nullable(),
+  originVerified:z.boolean()
 }).strict();
 
 restaurantOpsRoutes.get("/agent/business",requireRoles("owner","admin"),safe(async (_req,res)=>{
@@ -141,6 +145,8 @@ restaurantOpsRoutes.post("/agent/business",requireRoles("owner","admin"),safe(as
   const v=businessProfileInput.parse(req.body);
   if(!validOpeningHours(v.openingHours as OpeningHours))
     return res.status(422).json({ok:false,error:"INVALID_OPENING_HOURS"});
+  if(v.originVerified && (v.originLat===null||v.originLng===null))
+    return res.status(422).json({ok:false,error:"ORIGIN_COORDINATES_REQUIRED"});
   const a=actor(req);
   const rowsSaved=await supabaseRequest<Row[]>({
     table:"restaurant_agent_business_profiles",method:"POST",
@@ -153,11 +159,20 @@ restaurantOpsRoutes.post("/agent/business",requireRoles("owner","admin"),safe(as
       opening_hours:v.openingHours,special_hours_note:v.specialHoursNote,
       tone:v.tone,extra_instructions:v.extraInstructions,
       learning_enabled:v.learningEnabled,
+      origin_lat:v.originLat,origin_lng:v.originLng,origin_verified:v.originVerified,
       updated_by:a.id,updated_at:new Date().toISOString()
     }]
   });
   return res.json({ok:true,profile:rowsSaved[0]??null});
 }));
+restaurantOpsRoutes.post("/delivery/quote-address",requireRoles("owner","admin","supervisor"),
+  safe(async(req,res)=>{
+    const v=z.object({address:str.min(8).max(300)}).strict().parse(req.body);
+    const quote=await quoteVerifiedDeliveryAddress(v.address);
+    readOnly(res);return res.json({ok:true,quote});
+  })
+);
+
 restaurantOpsRoutes.get("/agent/learnings",requireRoles("owner","admin"),safe(async(_req,res)=>{
   const lessons=await rows("restaurant_agent_learnings",
     "?company_id=eq.delibocados&select=*&order=created_at.desc&limit=200");
