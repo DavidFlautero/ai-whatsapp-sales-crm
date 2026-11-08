@@ -133,3 +133,34 @@ async function handler(req:Request,res:Response,checkout:boolean){
 }
 restaurantQrPublicRoutes.post("/context",async(req,res)=>{await handler(req,res,false);});
 restaurantQrPublicRoutes.post("/order",async(req,res)=>{await handler(req,res,true);});
+
+/**
+ * General QR: list ACTIVE tables only after verifying the opaque general token.
+ * No customer identity or raw QR secrets are included in the response.
+ */
+restaurantQrPublicRoutes.post("/tables",async(req,res)=>{
+ if(process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED!=="1")
+   return jsonError(res,503,"QR_CHECKOUT_NOT_ENABLED");
+ if(limited(req,20))return jsonError(res,429,"QR_RATE_LIMIT");
+ if(!req.is("application/json"))return jsonError(res,415,"JSON_REQUIRED");
+ const parsed=z.object({kind:z.literal("general"),
+   token:z.string().min(32).max(200).regex(/^[A-Za-z0-9_-]+$/)}).strict().safeParse(req.body);
+ if(!parsed.success)return jsonError(res,400,"INVALID_INPUT");
+ try{
+   const hash=createHash("sha256").update(parsed.data.token).digest("hex");
+   const generals=await supabaseRequest<General[]>({table:"restaurant_ops_qr_general",
+     query:"?company_id=eq.delibocados&enabled=eq.true"+
+       "&select=enabled,qr_token_sha256&limit=1"});
+   if(generals[0]?.qr_token_sha256!==hash)
+     return jsonError(res,404,"QR_NOT_AVAILABLE");
+   const tables=await supabaseRequest<Array<{id:string;label:string}>>({
+     table:"restaurant_ops_qr_tables",
+     query:"?company_id=eq.delibocados&enabled=eq.true"+
+       "&select=id,label&order=label.asc&limit=80"
+   });
+   res.setHeader("Cache-Control","no-store");
+   return res.json({ok:true,tables});
+ }catch{
+   return jsonError(res,503,"QR_SERVICE_UNAVAILABLE");
+ }
+});
