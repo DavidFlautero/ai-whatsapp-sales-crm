@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
  parseItemSelection, parseNaturalItemSelection, buildOrderSummary, shouldStartCheckout, type CheckoutDraft
 } from "./restaurant-whatsapp-checkout.service.js";
+import { isMenuLinkRequest } from "./restaurant-checkout-dialogue.service.js";
 
 const menu = [
  { id: "burger", name: "Hamburguesa", priceCOP: 18000, available: true },
@@ -63,4 +64,13 @@ test("delivery requires active verified zone and an address",() => {
 test("never offer unverified or unavailable product as a priced order",() => {
  const untrusted={...draft(),items:[{productId:"hidden",quantity:1}]};
  assert.throws(()=>buildOrderSummary(untrusted,menu,[]),/PRODUCT_UNAVAILABLE/);
+});
+
+test("November 8 transcript: exact menu URL request is deterministic",()=>{
+  assert.equal(isMenuLinkRequest("Me dejas ver el menu"),true);
+  assert.equal(isMenuLinkRequest("Pasame el menú"),true);
+  assert.equal(isMenuLinkRequest("El puto menú la URL\\nQuiero agregar un perro caliente"),true);
+  assert.equal(isMenuLinkRequest("Quiero agregar un perro caliente"),false);
+  assert.equal(shouldStartCheckout("Quiero agregar un perro caliente"),true);
+  assert.equal(shouldStartCheckout("2x1"),true);
 });
