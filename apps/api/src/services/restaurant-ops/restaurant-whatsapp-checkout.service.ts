@@ -634,7 +634,7 @@ export async function handleRestaurantCheckoutMessage(input: {
           " por transferencia pendiente de verificar + $"+
           (quote.total-Number(draft.splitTransferCOP)).toLocaleString("es-CO")+
           " en efectivo. *Cocina espera la verificación bancaria*." : "")+
-        (instructions?"\n\n"+instructions.text:"\nPago en efectivo al recibir. Pasamos el pedido a cocina.")};
+        (instructions?"\n\n"+instructions.text:"\nPago en efectivo al recibir. Te avisamos cuando cocina confirme la preparación.")};
   }
   return {handled:false,text:""};
 }
