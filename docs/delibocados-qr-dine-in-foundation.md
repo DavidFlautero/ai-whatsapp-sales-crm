@@ -32,7 +32,8 @@
    new QR links. Do not reuse short, predictable editor identifiers as tokens.
 4. New QR link format:
    `https://panel.delibocados.online/qr-pedido#kind=table&tableId=<server-uuid>&token=<secret>`
-   or `kind=general` plus a mandatory valid tableId.
+   or `https://panel.delibocados.online/qr-pedido#kind=general&token=<general-secret>`
+   (the customer chooses an enabled table, checked server-side).
    Hash fragments are not sent in normal HTTP requests. Protect tokens as
    bearer capabilities; printed QRs can be copied.
 5. Public QR customers provide name, phone and confirm their items/total.
