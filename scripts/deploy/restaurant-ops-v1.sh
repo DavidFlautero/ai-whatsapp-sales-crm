@@ -174,6 +174,20 @@ deploy_restaurant_os() {
     echo "BLOQUEADO: estado inesperado de migración de pagos divididos"
     return 1
   fi
+  if [[ ! -f supabase/migrations/20261108043000_delibocados_approved_origin_address.sql ]]; then
+    echo "BLOQUEADO: falta migración de ubicación Delibocados"; return 1
+  fi
+  already="$(docker exec "$db" psql -U postgres -d "$database" -At -v ON_ERROR_STOP=1 \
+    -c "SELECT count(*) FROM public.commerce_schema_migrations WHERE version='20261108043000'" 2>/dev/null)"
+  if [[ "$already" == 0 ]]; then
+    if ! docker exec -i "$db" psql -U postgres -d "$database" \
+      -X -v ON_ERROR_STOP=1 \
+      < supabase/migrations/20261108043000_delibocados_approved_origin_address.sql; then
+      echo "BLOQUEADO: migración de dirección fallida; IA sigue pausada"; return 1
+    fi
+  elif [[ "$already" != 1 ]]; then
+    echo "BLOQUEADO: estado de migración de dirección inesperado"; return 1
+  fi
   check="$(docker exec "$db" psql -U postgres -d "$database" -At -v ON_ERROR_STOP=1 \
     -c "SELECT (to_regclass('public.restaurant_ops_orders') IS NOT NULL
        AND to_regclass('public.restaurant_ops_kitchen_tickets') IS NOT NULL
