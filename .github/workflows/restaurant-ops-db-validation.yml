@@ -10,6 +10,9 @@ on:
       - "supabase/migrations/20261107190000_restaurant_verified_split_payments.sql"
       - "supabase/migrations/20261108043000_delibocados_approved_origin_address.sql"
       - "supabase/migrations/20261108190000_delibocados_pos_export_outbox.sql"
+      - "supabase/migrations/20261108210000_restaurant_qr_checkout_foundation.sql"
+      - "supabase/migrations/20261108213000_restaurant_pos360_export_queue.sql"
+      - "apps/api/src/scripts/restaurant-qr-dine-in-smoke.sql"
       - "apps/api/src/scripts/restaurant-pos-outbox-smoke.sql"
       - "apps/api/src/scripts/delibocados-approved-address-smoke.sql"
       - "apps/api/src/scripts/restaurant-split-payment-smoke.sql"
@@ -102,3 +105,10 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108190000_delibocados_pos_export_outbox.sql
       - name: Test scoped idempotent export claim and payment hold (no network)
         run: psql -v ON_ERROR_STOP=1 -f apps/api/src/scripts/restaurant-pos-outbox-smoke.sql
+
+      - name: Apply QR table identity and dine-in checkout (disabled by default)
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108210000_restaurant_qr_checkout_foundation.sql
+      - name: Apply QR POS360 export intent ledger (no transport)
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108213000_restaurant_pos360_export_queue.sql
+      - name: Verify real QR checkout, invalid tokens, payment holds and idempotency
+        run: psql -v ON_ERROR_STOP=1 -f apps/api/src/scripts/restaurant-qr-dine-in-smoke.sql

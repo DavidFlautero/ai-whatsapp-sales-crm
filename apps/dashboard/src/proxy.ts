@@ -154,6 +154,8 @@ export async function proxy(
   if (process.env.NEXT_PUBLIC_PANEL_INSTANCE === "delibocados") {
     const p = request.nextUrl.pathname;
     if (p === "/login") return NextResponse.redirect(new URL("/ingresar", request.url));
+    // Public customer QR page, with its checkout API separately fail-closed.
+    if (p === "/qr-pedido") return NextResponse.next();
     if (p === "/ingresar" || p.startsWith("/api/restaurant-auth/")) {
       return NextResponse.next();
     }
