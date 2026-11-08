@@ -40,6 +40,21 @@ BEGIN
  );
  IF v_repeat->>'id'<>v_a->>'id' THEN
    RAISE EXCEPTION 'QR_IDEMPOTENCY_FAILED'; END IF;
+ IF v_a->>'qr_checkout_fingerprint' IS NULL
+ THEN RAISE EXCEPTION 'QR_BASKET_FINGERPRINT_MISSING'; END IF;
+ v_failed:=false;
+ BEGIN
+   PERFORM public.restaurant_ops_create_qr_order(
+     p_company_id=>'delibocados',p_source_key=>'qr-checkout-unique-stage6-a',
+     p_qr_kind=>'table',p_qr_token=>v_token,p_table_id=>v_table_id,
+     p_customer_phone=>'573001234567',p_customer_name=>'Cliente QR',
+     p_items=>'[{"productId":"burger","quantity":3}]'::jsonb,
+     p_expected_menu_revision=>1,p_payment_method=>'cash',
+     p_payment_status=>'cash_on_delivery',p_customer_confirmed=>true
+   );
+ EXCEPTION WHEN OTHERS THEN v_failed:=SQLERRM LIKE '%IDEMPOTENCY_CONFLICT%'; END;
+ IF NOT v_failed THEN RAISE EXCEPTION 'QR_BASKET_REPLAY_CONFLICT_NOT_BLOCKED'; END IF;
+
  IF (SELECT count(*) FROM public.restaurant_ops_orders
    WHERE company_id='delibocados' AND source_key='qr-checkout-unique-stage6-a')<>1
  THEN RAISE EXCEPTION 'QR_DUPLICATE_ORDER'; END IF;
