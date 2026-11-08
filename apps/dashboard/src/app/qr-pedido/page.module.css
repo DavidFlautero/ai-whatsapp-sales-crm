@@ -30,3 +30,6 @@
 .confirm:disabled{background:#9bb7a8;cursor:not-allowed}
 .summary small{display:block;color:#697f73;margin-top:12px;line-height:1.5}
 @media(max-width:740px){.content{grid-template-columns:1fr}.table{grid-column:auto}.hero{padding:28px 24px}.catalog,.summary{padding:18px}}
+
+.tableChoice{display:inline-block;margin:8px;padding:14px 18px;border:1px solid #a9c8b4;border-radius:12px;background:#edf8f0;font:inherit;font-weight:650;color:#164a31;cursor:pointer}
+.tableChoice:hover{background:#d8eddf}
