@@ -8,7 +8,7 @@ type Tab = "orders" | "kitchen" | "dispatch" | "zones" | "incidents" | "reports"
 type Item = { id: string; product_id: string; product_name: string; quantity: number;
   unit_price_cop: number; line_total_cop: number; instructions: string };
 type Order = { id: string; number: number; customer_name: string; customer_phone: string;
-  fulfillment_mode: "pickup" | "delivery"; status: Status; payment_status: string; payment_method?: string;
+  fulfillment_mode: "pickup" | "delivery" | "dine_in"; status: Status; payment_status: string; payment_method?: string;
   version: number; created_at: string; preparing_at?: string; ready_at?: string;
   customer_note?: string; address?: string; zone_id?: string; courier_id?: string;
   total_cop: number; subtotal_cop: number; delivery_fee_cop: number;
@@ -29,6 +29,30 @@ type Report = { days: number; truncated: boolean; customers: number;
   ready: number; averagePrepMinutes: number | null; overdue: number };
   incidents: { total: number; open: number; resolved: number; critical: number };
   couriers: Array<{ id: string; name: string; vehicle: string; completed: number; assigned: number }> };
+
+type KitchenBoardEntry = {
+  orderId:string;number:number;source:string;fulfillment:string;status:string;
+  paymentStatus:string;ticketStatus:string|null;
+  printEvidence:"db_timestamp"|"not_recorded";
+  posProvider:string|null;posExportStatus:string|null;
+  minutesElapsed:number;alerts:string[];
+};
+type KitchenBoard = {
+  entries:KitchenBoardEntry[];
+  summary:{totalRecent:number;active:number;queued:number;working:number;
+    ready:number;paymentHeld:number;missingTicket:number;
+    printTimestampRecorded:number;completedCashUnconfirmed:number;
+    possibleDelays:number;ambiguousPos:number};
+  truncated:boolean;evidenceNotice:string;
+};
+const kitchenAlertLabels:Record<string,string> = {
+  TICKET_FALTANTE:"Sin ticket interno",
+  PAGO_PENDIENTE_DE_REVISION:"Pago en revisión",
+  COBRO_NO_CONFIRMADO_EN_SISTEMA:"Cobro no confirmado en el sistema",
+  COCINA_DESINCRONIZADA:"Estados de cocina no coinciden",
+  DEMORA_POSIBLE:"Posible demora de preparación",
+  POS_ESTADO_INCIERTO:"Estado POS incierto; conciliar antes de reenviar"
+};
 
 const root = "/dashboard-api/restaurant-ops";
 const money = (n: number) => new Intl.NumberFormat("es-CO", {
@@ -83,6 +107,7 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
   const [zones, setZones] = useState<Zone[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [report, setReport] = useState<Report | null>(null);
+  const [kitchenBoard, setKitchenBoard] = useState<KitchenBoard | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [filter, setFilter] = useState("active");
   const [error, setError] = useState("");
@@ -114,15 +139,17 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
   const refresh = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [o, c, z, i, r] = await Promise.all([
+      const [o, c, z, i, r, kb] = await Promise.all([
         api<{ orders: Order[] }>("orders"),
         api<{ couriers: Courier[] }>("couriers"),
         api<{ zones: Zone[] }>("zones"),
         api<{ incidents: Incident[] }>("incidents"),
-        api<{ report: Report }>("report?days=7")
+        api<{ report: Report }>("report?days=7"),
+        api<{ board: KitchenBoard }>("kitchen/board").catch(() => null)
       ]);
       setOrders(o.orders); setCouriers(c.couriers); setZones(z.zones);
-      setIncidents(i.incidents); setReport(r.report); setError("");
+      setIncidents(i.incidents); setReport(r.report);
+      setKitchenBoard(kb?.board ?? null); setError("");
     } catch (e) {
       if (!silent) setError(e instanceof Error ? e.message : "Error de conexión");
     } finally { if (!silent) setLoading(false); }
@@ -161,7 +188,8 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
   function next(order: Order): Status | null {
     if (order.status === "confirmed") return "preparing";
     if (order.status === "preparing") return "ready";
-    if (order.status === "ready") return order.fulfillment_mode === "pickup" ? "completed" : "out_for_delivery";
+    if (order.status === "ready") return order.fulfillment_mode === "pickup" ? "completed" :
+      order.fulfillment_mode === "delivery" ? "out_for_delivery" : null;
     if (order.status === "out_for_delivery") return "completed";
     return null;
   }
@@ -218,7 +246,8 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
     return <article className="rops-order" key={order.id}>
       <div className="rops-order-head">
         <div><strong>#{order.number} · {order.customer_name}</strong>
-          <small>{order.fulfillment_mode === "pickup" ? "Retiro en el local" : "Domicilio"} · Hace {relative(order.created_at)}</small>
+          <small>{order.fulfillment_mode === "pickup" ? "Retiro en el local" :
+             order.fulfillment_mode === "dine_in" ? "Consumo en mesa" : "Domicilio"} · Hace {relative(order.created_at)}</small>
         </div>
         <StatusLabel status={order.status}/>
       </div>
@@ -332,6 +361,36 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
         <Pill>{report?.kitchen.commandsGenerated || 0} comandas generadas · 7 días</Pill></div>
       <p>Solo los pedidos con efectivo al recibir o transferencia verificada entran a cocina.
         Los pagos pendientes permanecen retenidos en la cola financiera.</p>
+      {kitchenBoard ? <>
+        <div className="rops-kitchen-audit-grid" aria-label="Auditoría de cocina">
+          <div><span>Activos</span><strong>{kitchenBoard.summary.active}</strong></div>
+          <div><span>Preparando</span><strong>{kitchenBoard.summary.working}</strong></div>
+          <div><span>Listos</span><strong>{kitchenBoard.summary.ready}</strong></div>
+          <div><span>Pagos retenidos</span><strong>{kitchenBoard.summary.paymentHeld}</strong></div>
+          <div><span>Sin ticket</span><strong>{kitchenBoard.summary.missingTicket}</strong></div>
+          <div><span>Posibles demoras</span><strong>{kitchenBoard.summary.possibleDelays}</strong></div>
+        </div>
+        {kitchenBoard.truncated && <p className="rops-error">
+          Auditoría parcial: se alcanzó el límite de registros; comprobar antes de concluir que no hay incidencias.
+        </p>}
+        {kitchenBoard.summary.completedCashUnconfirmed>0 && <p className="rops-kitchen-alert">
+          {kitchenBoard.summary.completedCashUnconfirmed} pedido(s) completado(s)
+          siguen con cobro en efectivo sin confirmar en el sistema. Revisar caja.
+        </p>}
+        {kitchenBoard.summary.ambiguousPos>0 && <p className="rops-kitchen-alert">
+          {kitchenBoard.summary.ambiguousPos} exportación(es) POS con estado incierto.
+          Conciliar con el proveedor antes de reenviar.
+        </p>}
+        <p className="rops-muted">{kitchenBoard.evidenceNotice}</p>
+        {kitchenBoard.entries.filter(e=>e.alerts.length>0).slice(0,20).map(e=>
+          <div className="rops-kitchen-alert" key={e.orderId}>
+            <strong>Pedido #{e.number}</strong> · {e.alerts.map(a=>kitchenAlertLabels[a]??a).join(" · ")}
+            {e.posProvider && <> · {e.posProvider}: {e.posExportStatus??"sin estado"}</>}
+          </div>
+        )}
+      </> : <p className="rops-muted">
+        Auditoría avanzada pendiente de desplegar/reiniciar la API.
+      </p>}
       <p><b>Esperando pago:</b> {orders.filter(o => o.status === "confirmed" &&
         !["verified","cash_on_delivery"].includes(o.payment_status)).length}</p>
       <div className="rops-cards">{orders.filter(o =>

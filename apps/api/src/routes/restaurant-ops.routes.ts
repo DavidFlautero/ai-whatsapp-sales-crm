@@ -1,6 +1,7 @@
 import { polygonSchema, containsPoint } from "../services/restaurant-ops/restaurant-zones.service.js";
 import { listContacts } from "../services/crm/crm.repository.js";
 import { dispatchDelibocadosTestNotifications } from "../services/restaurant-ops/restaurant-notifications.service.js";
+import { buildKitchenBoard, type KitchenOrder, type KitchenTicket, type KitchenExport } from "../services/restaurant-ops/restaurant-kitchen-board.service.js";
 import { Router, type Request, type Response } from "express";
 import { z, ZodError } from "zod";
 import { requireRoles } from "../middlewares/auth.middleware.js";
@@ -379,6 +380,31 @@ restaurantOpsRoutes.post("/payments/splits/:orderId/collect-cash",
     return res.json({ok:true,settlement:result});
   })
 );
+
+// Operational KDS read model. Never infers a physical printed ticket or settles cash.
+restaurantOpsRoutes.get("/kitchen/board",safe(async (_req,res) => {
+  const [orders,tickets,exports]=await Promise.all([
+    rows("restaurant_ops_orders",
+      "?company_id=eq.delibocados"+
+      "&select=id,number,source,fulfillment_mode,status,payment_status,"+
+      "created_at,preparing_at,ready_at&order=created_at.desc&limit=200"),
+    rows("restaurant_ops_kitchen_tickets",
+      "?company_id=eq.delibocados"+
+      "&select=id,order_id,status,queued_at,started_at,ready_at,printed_at"+
+      "&order=queued_at.desc&limit=500"),
+    rows("restaurant_ops_pos_exports",
+      "?company_id=eq.delibocados"+
+      "&select=order_id,provider,status,attempts,accepted_at"+
+      "&order=created_at.desc&limit=500")
+  ]);
+  const board=buildKitchenBoard(
+    orders as KitchenOrder[],tickets as KitchenTicket[],
+    exports as KitchenExport[],Date.now(),
+    orders.length>=200||tickets.length>=500||exports.length>=500
+  );
+  readOnly(res);
+  return res.json({ok:true,board});
+}));
 
 restaurantOpsRoutes.get("/kitchen",safe(async (_req,res) => {
   const tickets=await rows("restaurant_ops_kitchen_tickets",
