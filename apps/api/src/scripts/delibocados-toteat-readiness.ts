@@ -1,9 +1,12 @@
 /**
- * READ-ONLY diagnostic. Does not send orders, call Toteat, print keys, mutate
- * tables or enable live mode. Run only after applying the POS export migration:
+ * READ-ONLY diagnostic. Does not send orders, print keys, mutate
+ * tables or enable live mode. Optional GET probe to Toteat requires explicit flag:
  * pnpm --filter @ventas/api exec tsx src/scripts/delibocados-toteat-readiness.ts
  */
 import {config} from "dotenv";
+import {
+  parseToteatCredentials,probeToteatReadOnly
+} from "../services/restaurant-ops/restaurant-toteat-readonly.service.js";
 config({path:"../../.env",quiet:true});
 
 type Row=Record<string,unknown>;
@@ -44,6 +47,29 @@ async function main(){
     label("ID restaurante",has("restaurantId","xir"),"Valores ocultos");
     label("ID local",has("localNumber","localId","xil"),"Valores ocultos");
     label("ID usuario",has("userId","xiu"),"Valores ocultos");
+    // A verified encrypted JSON config is necessary but not sufficient for
+    // outbound writes. The optional probe is GET-only and never prints its URL.
+    const parsed=parseToteatCredentials(secret??"");
+    label("Credenciales estructuradas",parsed.ok,
+      parsed.ok?"4 campos presentes y ambiente explícito":"Revisar formato de secreto (sin imprimirlo)");
+    if(parsed.ok){
+      label("Ambiente configurado",true,parsed.value.environment);
+      if(process.env.DELIBOCADOS_TOTEAT_READONLY_PROBE==="1"){
+        const shift=await probeToteatReadOnly(parsed.value,"shiftstatus");
+        label("Toteat /shiftstatus (GET)",shift.connected,
+          shift.status+(shift.httpStatus?" (HTTP "+shift.httpStatus+")":""));
+        if(shift.connected && process.env.DELIBOCADOS_TOTEAT_READONLY_PRODUCTS==="1"){
+          const products=await probeToteatReadOnly(parsed.value,"products");
+          label("Toteat /products (GET)",products.connected,
+            products.status+(products.connected?" | productos activos="+products.productCount:""));
+        }
+        label("Permiso carga órdenes",false,
+          "No se deduce de GET: verificar en panel Toteat > API Config > Pedidos");
+      } else {
+        label("Consulta en vivo",false,
+          "Opcional: DELIBOCADOS_TOTEAT_READONLY_PROBE=1 (GET únicamente)");
+      }
+    }
   }catch{
     label("Secreto cifrado",false,"No se pudo leer con la clave maestra de este proceso");
   }
