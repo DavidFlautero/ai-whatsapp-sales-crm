@@ -38,6 +38,17 @@ export function coverageAnswer(input:string):string {
   }
   return "Realizamos domicilios en sectores de Funza y Mosquera, según las zonas habilitadas. Decime tu sector y dirección para comprobar cobertura y costo; no puedo confirmar un domicilio fuera de una zona verificada.";
 }
+/**
+ * Explicit request to see/share the restaurant's actual menu, including
+ * informal WhatsApp wording. This is handled by the backend, not the LLM.
+ */
+export function isMenuLinkRequest(input:string):boolean {
+  const m=spanishNormalize(input);
+  if(!/\b(?:menu|carta)\b/.test(m))return false;
+  return /\b(?:url|link|enlace|sitio web|pagina web)\b/.test(m) ||
+    /\b(?:pasame|pasa|mandame|manda|enviame|envia|compartime|comparte|muestrame|mostrame|mostrar|dejame ver|dejas ver|quiero ver|quiero mirar|ver el|ver la|ver menu|ver carta)\b/.test(m);
+}
+
 export function isMenuRequest(input:string):boolean {
   const m=spanishNormalize(input);
   return /^(?:menu|carta|ver menu|ver carta|mostrame el menu|muestrame el menu|ver productos|lista de productos)(?: por favor)?[.!?]*$/.test(m);
