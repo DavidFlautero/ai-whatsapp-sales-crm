@@ -27,11 +27,17 @@ test("an individual customization of two products is not applied to both",()=>{
     {cartUnits:1}),null);
   assert.equal(detectRestaurantException("En combo",{cartUnits:2}),null);
 });
-test("a shipped order cannot be altered by guessing a new drink selection",()=>{
-  assert.equal(detectRestaurantException("De litro",
-    {cartUnits:0,recentOrderStatus:"out_for_delivery"}),"post_dispatch_change");
+test("only explicit changes to a dispatched order require a handoff",()=>{
+  assert.equal(detectRestaurantException("Quiero agregar un perro caliente",
+    {cartUnits:0,recentOrderStatus:"completed"}),null);
   assert.equal(detectRestaurantException("Otra bebida",
+    {cartUnits:0,recentOrderStatus:"completed"}),null);
+  assert.equal(detectRestaurantException("De litro",
+    {cartUnits:0,recentOrderStatus:"out_for_delivery"}),null);
+  assert.equal(detectRestaurantException("Agrega un perro caliente al pedido #1",
     {cartUnits:0,recentOrderStatus:"completed"}),"post_dispatch_change");
+  assert.equal(detectRestaurantException("Quiero cambiar el pedido anterior",
+    {cartUnits:0,recentOrderStatus:"out_for_delivery"}),"post_dispatch_change");
   assert.equal(detectRestaurantException("De litro",
     {cartUnits:0,recentOrderStatus:"confirmed"}),null);
 });

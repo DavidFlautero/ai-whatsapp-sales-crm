@@ -4,6 +4,7 @@ import { supabaseRequest } from "../db/supabase-rest.client.js";
 import { formatDraftCart } from "./restaurant-checkout-dialogue.service.js";
 import { getRestaurantAgentContext, getRestaurantOrderInsights, getCustomerVerifiedHistory } from "./restaurant-agent-business.service.js";
 import { handleRestaurantCheckoutMessage, type CheckoutDraft, type CheckoutReply } from "./restaurant-whatsapp-checkout.service.js";
+import { isAddRequest, isMenuLinkRequest, isMenuRequest } from "./restaurant-checkout-dialogue.service.js";
 import {
   handleRestaurantCustomerSupport,loadCustomerHistory
 } from "./restaurant-customer-support.service.js";
@@ -104,12 +105,24 @@ export async function handleNaturalRestaurantTurn(input:{
 }):Promise<CheckoutReply> {
   if(input.companyId!==COMPANY||!/^[0-9]{8,15}$/.test(input.phone))
     return {handled:false,text:""};
+  // An explicit menu request must never be delegated to a probabilistic model.
+  // It may arrive after a completed order or while a customer has an open cart.
+  if(isMenuRequest(input.message)||isMenuLinkRequest(input.message)){
+    return handleRestaurantCheckoutMessage(input);
+  }
   // Order support is a transaction-linked tool. It takes priority over checkout
   // so complaints and "revisá el historial" never reset the customer's cart.
   const support=await handleRestaurantCustomerSupport({
     phone:input.phone,message:input.message,currentMessageId:input.currentMessageId
   });
   if(support.handled)return support;
+  // Explicit requests to add a product are transactional. The model may
+  // converse about dishes, but it must not decide whether to write a cart.
+  // Allergy-related messages stay in the cautious conversational workflow.
+  if(isAddRequest(input.message) &&
+      !/\b(?:alerg\w*|anafilaxia|intolerancia|celiac\w*)\b/i.test(input.message)){
+    return handleRestaurantCheckoutMessage(input);
+  }
 
   // A precise product-choice reply must reuse its original quantity.
   const choice=await handleRestaurantProductFollowup({
