@@ -64,6 +64,7 @@ import { customersRoutes } from "./customers.routes.js";
 import { crmRoutes } from "./crm.routes.js";
 import { ordersRoutes } from "./orders.routes.js";
 import { restaurantOpsRoutes } from "./restaurant-ops.routes.js";
+import { restaurantQrPublicRoutes } from "./restaurant-qr-public.routes.js";
 import { stockRoutes } from "./stock.routes.js";
 import { adminStatusRoutes } from "./admin/status.routes.js";
 import { adminDataRoutes } from "./admin/data.routes.js";
@@ -137,6 +138,8 @@ router.use(
 
 
 router.use("/health", healthRoutes);
+// Off by default. Public QR checkout requires server-validated token/table.
+router.use("/public/delibocados-qr", restaurantQrPublicRoutes);
 router.use(
   "/public/catalog",
   publicCatalogRoutes,
