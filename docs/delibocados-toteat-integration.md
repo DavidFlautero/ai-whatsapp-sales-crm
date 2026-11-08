@@ -90,3 +90,43 @@ En un timeout o desconexión de red, NO reintentar sin reconciliar con Toteat.
 
 La fuente de verificación de Toteat es su documentación:
 https://developers.toteat.com/.
+
+## Comprobación de credenciales reales sin exponerlas (2026-11-08)
+
+El módulo `restaurant-toteat-readonly.service.ts` permite **únicamente GET**
+contra los hosts oficiales `api.toteat.com` (producción) y
+`apidev.toteat.com` (desarrollo). Los parámetros de autenticación son
+`xir`, `xil`, `xiu` y `xapitoken`. No se imprimen el secreto, las URLs
+autenticadas, las respuestas sin filtrar ni los errores de red.
+
+El secreto cifrado del tenant `delibocados` debe ser **JSON** con un
+ambiente explícito (no asumir producción). Formato de estructura, SIN valores:
+```json
+{
+  "environment": "development",
+  "restaurantId": "<id-real>",
+  "localNumber": "<id-real>",
+  "userId": "<id-real>",
+  "apiToken": "<token-real>"
+}
+```
+No copiarlo a GitHub, chat, archivos temporales públicos ni argumentos del
+comando. El modo de lectura no marca la integración como `connected`.
+
+Después de aplicar la migración en la VPS y comprobar configuración:
+```bash
+cd /var/www/control
+DELIBOCADOS_TOTEAT_READONLY_PROBE=1 \
+  pnpm --filter @ventas/api exec tsx src/scripts/delibocados-toteat-readiness.ts
+```
+
+Esta ejecución usa **una** consulta GET a `/shiftstatus` para comprobar
+autenticación de la API. Agregar `DELIBOCADOS_TOTEAT_READONLY_PRODUCTS=1`
+habilita **una** GET a `/products` para contar productos activos sin mostrar
+códigos ni precios. Respetar la limitación oficial de **3 consultas/minuto**
+a `/products` y evitar sondeos repetitivos.
+
+Una respuesta `ok:true` en GET acredita únicamente acceso a ese recurso;
+NO verifica permisos de *Carga de Órdenes Externas*, ni el turno abierto,
+ni que el documento POST sea válido. La impresión física se valida en la sede.
+El cliente de escritura sigue bloqueado hasta confirmar el contrato completo.
