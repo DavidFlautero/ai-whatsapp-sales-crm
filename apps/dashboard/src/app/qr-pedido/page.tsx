@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import styles from "./page.module.css";
 type Product={id:string;name:string;category:string;priceCOP:number};
 type Context={table:{id:string;label:string};revision:number;products:Product[]};
-type Token={kind:"table"|"general";tableId:string;token:string};
+type Token={kind:"table"|"general";tableId?:string;token:string};
+type TableChoice={id:string;label:string};
 type Receipt={id:string;number:number;status:string;paymentStatus:string;totalCOP:number;table:string};
 const money=(value:number)=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",
   maximumFractionDigits:0}).format(value);
@@ -22,6 +23,7 @@ function failure(code:string):string{
 export default function DelibocadosQrCheckoutPage(){
  const [token,setToken]=useState<Token|null>(null);
  const [context,setContext]=useState<Context|null>(null);
+ const [tables,setTables]=useState<TableChoice[]>([]);
  const [cart,setCart]=useState<Record<string,number>>({});
  const [notes,setNotes]=useState<Record<string,string>>({});
  const [name,setName]=useState("");
@@ -34,28 +36,51 @@ export default function DelibocadosQrCheckoutPage(){
  const [receipt,setReceipt]=useState<Receipt|null>(null);
  const [uncertain,setUncertain]=useState(false);
  const [sourceKey,setSourceKey]=useState("");
+ const loadContext=async(t:Token)=>{
+   if(!t.tableId){setError("Seleccioná una mesa.");setLoading(false);return;}
+   try{
+     const res=await fetch("/api/delibocados-qr/context",{
+       method:"POST",credentials:"omit",cache:"no-store",
+       headers:{"Content-Type":"application/json"},body:JSON.stringify(t)
+     });
+     const payload=await res.json();
+     if(!res.ok||!payload.ok)throw new Error(failure(payload.error??"QR_SERVICE_UNAVAILABLE"));
+     setContext({table:payload.table,revision:payload.revision,products:payload.products});
+     setSourceKey(crypto.randomUUID());
+   }catch(e){setError(e instanceof Error?e.message:"No se pudo cargar la carta");}
+   finally{setLoading(false);}
+ };
  useEffect(()=>{
    const hash=new URLSearchParams(window.location.hash.replace(/^#/,""));
    const kind=hash.get("kind"),tableId=hash.get("tableId"),qrToken=hash.get("token");
-   if((kind!=="table"&&kind!=="general")||!tableId||!qrToken){
-     setError("Este enlace QR no incluye una mesa válida.");setLoading(false);return;
+   if((kind!=="table"&&kind!=="general")||!qrToken||
+     (kind==="table"&&!tableId)){
+     setError("Este enlace QR no incluye los datos necesarios.");setLoading(false);return;
    }
-   const t:Token={kind,tableId,token:qrToken};setToken(t);
-   // The browser sends the token in the JSON body, never in URL parameters.
-   const load=async()=>{
-     try{
-       const res=await fetch("/api/delibocados-qr/context",{
-         method:"POST",credentials:"omit",cache:"no-store",
-         headers:{"Content-Type":"application/json"},body:JSON.stringify(t)
-       });
-       const payload=await res.json();
-       if(!res.ok||!payload.ok)throw new Error(failure(payload.error??"QR_SERVICE_UNAVAILABLE"));
-       setContext({table:payload.table,revision:payload.revision,products:payload.products});
-       setSourceKey(crypto.randomUUID());
-     }catch(e){setError(e instanceof Error?e.message:"No se pudo cargar la carta");}
-     finally{setLoading(false);}
-   };void load();
+   const t:Token={kind,tableId:tableId??undefined,token:qrToken};setToken(t);
+   if(t.kind==="general"&&!t.tableId){
+     const loadTables=async()=>{
+       try{
+         const res=await fetch("/api/delibocados-qr/tables",{
+           method:"POST",credentials:"omit",cache:"no-store",
+           headers:{"Content-Type":"application/json"},
+           body:JSON.stringify({kind:"general",token:t.token})
+         });
+         const payload=await res.json();
+         if(!res.ok||!payload.ok)throw new Error(failure(payload.error??"QR_SERVICE_UNAVAILABLE"));
+         if(!payload.tables?.length)throw new Error("No hay mesas disponibles.");
+         setTables(payload.tables);
+       }catch(e){setError(e instanceof Error?e.message:"No se pudieron cargar las mesas");}
+       finally{setLoading(false);}
+     };void loadTables();
+   }else void loadContext(t);
  },[]);
+ const chooseTable=(id:string)=>{
+   if(!token||token.kind!=="general")return;
+   const chosen={...token,tableId:id};
+   setToken(chosen);setTables([]);setError("");setLoading(true);
+   void loadContext(chosen);
+ };
  const selected=useMemo(()=>Object.entries(cart).flatMap(([id,quantity])=>{
    const product=context?.products.find(p=>p.id===id);
    return product&&quantity>0?[{...product,quantity}]:[];
@@ -66,7 +91,7 @@ export default function DelibocadosQrCheckoutPage(){
    setCart(c=>({...c,[id]:Math.max(0,Math.min(25,(c[id]??0)+delta))}));
  };
  const checkout=async()=>{
-   if(!token||!context||!sourceKey||busy||uncertain||receipt)return;
+   if(!token?.tableId||!context||!sourceKey||busy||uncertain||receipt)return;
    if(!selected.length){setError("Elegí al menos un producto.");return;}
    if(name.trim().length<2||!/^[0-9]{8,15}$/.test(phone)){
      setError("Completá tu nombre y teléfono con indicativo de país.");return;
@@ -107,6 +132,12 @@ export default function DelibocadosQrCheckoutPage(){
    </header>
    {loading?<p className={styles.notice}>Cargando carta y verificando mesa…</p>:null}
    {error?<p role="alert" className={styles.error}>{error}</p>:null}
+   {tables.length>0&&!context?<section className={styles.catalog}>
+     <h2>Seleccioná tu mesa</h2>
+     <p>Verificá el número de la mesa antes de pedir.</p>
+     {tables.map(t=><button key={t.id} type="button" className={styles.tableChoice}
+       onClick={()=>chooseTable(t.id)}>{t.label}</button>)}
+   </section>:null}
    {receipt?<section className={styles.receipt}>
      <h2>Pedido #{receipt.number} registrado</h2>
      <p>Mesa: {receipt.table}</p><p>Total: {money(receipt.totalCOP)}</p>
