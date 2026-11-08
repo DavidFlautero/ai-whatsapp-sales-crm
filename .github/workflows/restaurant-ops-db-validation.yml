@@ -9,6 +9,8 @@ on:
       - "supabase/migrations/20261107124500_restaurant_customer_history_claims.sql"
       - "supabase/migrations/20261107190000_restaurant_verified_split_payments.sql"
       - "supabase/migrations/20261108043000_delibocados_approved_origin_address.sql"
+      - "supabase/migrations/20261108190000_delibocados_pos_export_outbox.sql"
+      - "apps/api/src/scripts/restaurant-pos-outbox-smoke.sql"
       - "apps/api/src/scripts/delibocados-approved-address-smoke.sql"
       - "apps/api/src/scripts/restaurant-split-payment-smoke.sql"
       - "apps/api/src/scripts/restaurant-customer-history-smoke.sql"
@@ -70,6 +72,8 @@ jobs:
             {"id":"unavailable","name":"No disponible","priceCOP":3000,"available":false}
           ]}'::jsonb);
           SQL
+      - name: Prepare company integration registry
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261104020000_company_integrations.sql
       - name: Apply restaurant migration
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261106170000_restaurant_operations_core.sql
       - name: Test real database operations and audit
@@ -94,3 +98,7 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108043000_delibocados_approved_origin_address.sql
       - name: Assert address is saved but geofences and GPS are not fabricated
         run: psql -v ON_ERROR_STOP=1 -f apps/api/src/scripts/delibocados-approved-address-smoke.sql
+      - name: Apply durable Toteat POS export ledger
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108190000_delibocados_pos_export_outbox.sql
+      - name: Test scoped idempotent export claim and payment hold (no network)
+        run: psql -v ON_ERROR_STOP=1 -f apps/api/src/scripts/restaurant-pos-outbox-smoke.sql
