@@ -4,6 +4,7 @@ import { supabaseRequest } from "../db/supabase-rest.client.js";
 import { formatDraftCart } from "./restaurant-checkout-dialogue.service.js";
 import { getRestaurantAgentContext, getRestaurantOrderInsights, getCustomerVerifiedHistory } from "./restaurant-agent-business.service.js";
 import { handleRestaurantCheckoutMessage, type CheckoutDraft, type CheckoutReply } from "./restaurant-whatsapp-checkout.service.js";
+import { isMenuLinkRequest, isMenuRequest } from "./restaurant-checkout-dialogue.service.js";
 import {
   handleRestaurantCustomerSupport,loadCustomerHistory
 } from "./restaurant-customer-support.service.js";
@@ -104,6 +105,11 @@ export async function handleNaturalRestaurantTurn(input:{
 }):Promise<CheckoutReply> {
   if(input.companyId!==COMPANY||!/^[0-9]{8,15}$/.test(input.phone))
     return {handled:false,text:""};
+  // An explicit menu request must never be delegated to a probabilistic model.
+  // It may arrive after a completed order or while a customer has an open cart.
+  if(isMenuRequest(input.message)||isMenuLinkRequest(input.message)){
+    return handleRestaurantCheckoutMessage(input);
+  }
   // Order support is a transaction-linked tool. It takes priority over checkout
   // so complaints and "revisá el historial" never reset the customer's cart.
   const support=await handleRestaurantCustomerSupport({
