@@ -57,7 +57,7 @@ export async function saveCompanySecret(
   const encrypted = encryptCompanySecret(
     plaintext,
     context,
-    loadCompanySecretMasterKey(context),
+    loadCompanySecretMasterKey(context.companyId),
   );
 
   await supabaseRequest<StoredSecret[]>({
