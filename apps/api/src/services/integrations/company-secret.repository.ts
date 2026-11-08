@@ -1,7 +1,8 @@
-import { createHash } from "node:crypto";
 import {
   supabaseRequest,
 } from "../db/supabase-rest.client.js";
+
+import { loadCompanySecretMasterKey } from "./company-secret-master-key.service.js";
 
 import {
   encryptCompanySecret,
@@ -17,28 +18,6 @@ type StoredSecret = {
   auth_tag: string;
   key_version: number;
 };
-
-function masterKey(): Buffer {
-  // Prefer a dedicated company key, but allow the already deployed
-  // AES-256-GCM integration master key during the migration.
-  const dedicated =
-    process.env.COMPANY_INTEGRATION_MASTER_KEY_HEX?.trim() ?? "";
-
-  if (dedicated) {
-    if (!/^[a-fA-F0-9]{64}$/.test(dedicated)) {
-      throw new Error("COMPANY_MASTER_KEY_INVALID");
-    }
-    return Buffer.from(dedicated, "hex");
-  }
-
-  const shared = process.env.INTEGRATIONS_MASTER_KEY?.trim() ?? "";
-  if (!shared) {
-    throw new Error("COMPANY_MASTER_KEY_NOT_CONFIGURED");
-  }
-  return /^[a-fA-F0-9]{64}$/.test(shared)
-    ? Buffer.from(shared, "hex")
-    : createHash("sha256").update(shared).digest();
-}
 
 function toDatabase(value: Buffer): string {
   return "\\x" + value.toString("hex");
@@ -78,7 +57,7 @@ export async function saveCompanySecret(
   const encrypted = encryptCompanySecret(
     plaintext,
     context,
-    masterKey(),
+    loadCompanySecretMasterKey(context.companyId),
   );
 
   await supabaseRequest<StoredSecret[]>({
@@ -103,7 +82,7 @@ export async function readCompanySecret(
 ): Promise<string | null> {
   validateContext(context);
 
-  const key = masterKey();
+  const key = loadCompanySecretMasterKey(context.companyId);
 
   const rows = await supabaseRequest<StoredSecret[]>({
     table: "company_integration_secrets",

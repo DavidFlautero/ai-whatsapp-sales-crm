@@ -212,13 +212,32 @@ async function exportCatalog(){
   }
   out("Mapeos VACIOS: revisar códigos de producto del proveedor antes de importar.");
 }
+async function masterKeyReadiness(){
+  const {loadCompanySecretMasterKey}=await import(
+    "../services/integrations/company-secret-master-key.service.js"
+  );
+  const {encryptCompanySecret,decryptCompanySecret}=await import(
+    "../services/integrations/company-secret-crypto.js"
+  );
+  const key=loadCompanySecretMasterKey(COMPANY);
+  const context={companyId:COMPANY,provider:"toteat",keyVersion:1};
+  const marker="delibocados-key-readiness-only";
+  const encoded=encryptCompanySecret(marker,context,key);
+  if(decryptCompanySecret(encoded,context,key)!==marker)
+    throw new Error("COMPANY_MASTER_KEY_SELFTEST_FAILED");
+  out("=== CLAVE MAESTRA DELIBOCADOS ===");
+  out("OK: mismo resolvedor usado por el API y el asistente");
+  out("OK: cifrado AES-256-GCM y descifrado en memoria");
+  out("No se ha guardado ninguna credencial ni cambiado la base de datos.");
+}
 async function main(){
   const cmd=process.argv[2]??"status";
-  if(cmd==="prepare")await setup();
+  if(cmd==="master-check")await masterKeyReadiness();
+  else if(cmd==="prepare")await setup();
   else if(cmd==="status")await status();
   else if(cmd==="toteat-key")await saveToteatKey();
   else if(cmd==="catalog-template")await exportCatalog();
-  else throw new Error("ACCION_INVALIDA_USAR_prepare_status_toteat-key_catalog-template");
+  else throw new Error("ACCION_INVALIDA_USAR_master-check_prepare_status_toteat-key_catalog-template");
 }
 void main().catch((error:unknown)=>{
   // Never log underlying errors: secrets, URLs and vendor payloads remain private.
