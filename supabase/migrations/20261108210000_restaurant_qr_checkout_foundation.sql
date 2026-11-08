@@ -46,7 +46,7 @@ ALTER TABLE public.restaurant_ops_orders
  ADD CONSTRAINT restaurant_ops_dine_in_identity_check CHECK(
    (fulfillment_mode='dine_in'
      AND source='qr' AND qr_table_id IS NOT NULL
-     AND qr_kind IN ('table','general') AND qr_checkout_fingerprint ~ '^[0-9a-f]{64}
+     AND qr_kind IN ('table','general') AND qr_checkout_fingerprint ~ '^[0-9a-f]{64}$'
      AND delivery_fee_cop=0 AND zone_id IS NULL
      AND courier_id IS NULL AND address IS NULL)
    OR
