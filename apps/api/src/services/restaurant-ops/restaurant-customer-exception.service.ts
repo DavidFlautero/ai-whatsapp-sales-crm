@@ -48,8 +48,17 @@ export function detectRestaurantException(
 
   const dispatched = ["out_for_delivery", "completed", "cancelled"]
     .includes(context.recentOrderStatus ?? "");
+  // Do not assume a new shopping request modifies a customer's prior order.
+  // Only a message explicitly referring to that existing order can trigger
+  // post-dispatch review (otherwise "quiero agregar" starts a new cart).
+  const refersToOldOrder =
+    /\b(?:al|a mi|a ese|a este|el|mi|ese|este|del)\s+(?:ultimo\s+)?pedido\b/.test(m) ||
+    /\bpedido\s*#?\s*\d+\b/.test(m) ||
+    /\b(?:pedido anterior|orden anterior)\b/.test(m);
+  const requestsModification =
+    /\b(?:agrega|agregar|anadir|sumar|cambiar|modificar|quitar|retirar|otra bebida|otra gaseosa|una mas|otro producto)\b/.test(m);
   if (dispatched && context.cartUnits === 0 &&
-      /\b(?:agrega|agregar|quiero sumar|cambiar el pedido|modificar|otra bebida|otra gaseosa|de litro|una mas|otro producto)\b/.test(m)) {
+      refersToOldOrder && requestsModification) {
     return "post_dispatch_change";
   }
   return null;
