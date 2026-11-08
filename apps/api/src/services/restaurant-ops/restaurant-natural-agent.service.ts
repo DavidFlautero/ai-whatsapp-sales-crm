@@ -4,7 +4,7 @@ import { supabaseRequest } from "../db/supabase-rest.client.js";
 import { formatDraftCart } from "./restaurant-checkout-dialogue.service.js";
 import { getRestaurantAgentContext, getRestaurantOrderInsights, getCustomerVerifiedHistory } from "./restaurant-agent-business.service.js";
 import { handleRestaurantCheckoutMessage, type CheckoutDraft, type CheckoutReply } from "./restaurant-whatsapp-checkout.service.js";
-import { isMenuLinkRequest, isMenuRequest } from "./restaurant-checkout-dialogue.service.js";
+import { isAddRequest, isMenuLinkRequest, isMenuRequest } from "./restaurant-checkout-dialogue.service.js";
 import {
   handleRestaurantCustomerSupport,loadCustomerHistory
 } from "./restaurant-customer-support.service.js";
@@ -116,6 +116,13 @@ export async function handleNaturalRestaurantTurn(input:{
     phone:input.phone,message:input.message,currentMessageId:input.currentMessageId
   });
   if(support.handled)return support;
+  // Explicit requests to add a product are transactional. The model may
+  // converse about dishes, but it must not decide whether to write a cart.
+  // Allergy-related messages stay in the cautious conversational workflow.
+  if(isAddRequest(input.message) &&
+      !/\b(?:alerg\w*|anafilaxia|intolerancia|celiac\w*)\b/i.test(input.message)){
+    return handleRestaurantCheckoutMessage(input);
+  }
 
   // A precise product-choice reply must reuse its original quantity.
   const choice=await handleRestaurantProductFollowup({
