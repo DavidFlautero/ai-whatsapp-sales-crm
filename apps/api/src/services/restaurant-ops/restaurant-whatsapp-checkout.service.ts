@@ -10,7 +10,7 @@ import {freshVerifiedPin} from "./restaurant-whatsapp-location.service.js";
 import {isSplitPaymentRequest,parseExactTransferCOP,splitPaymentQuote,splitQuoteMessage} from "./restaurant-split-payment.service.js";
 import {
   MENU_PAGE_SIZE, spanishNormalize, wantsCartSummary, isCoverageQuestion,
-  coverageAnswer, isMenuRequest, isMoreMenuRequest, isPreviousMenuRequest,
+  coverageAnswer, isMenuRequest, isMenuLinkRequest, isMoreMenuRequest, isPreviousMenuRequest,
   isAddRequest, isRemoveRequest, isStandaloneMenuSelection, parseNumberedProduct, findMenuMentions,
   mergeCart, removeFromCart, formatDraftCart, isPlausibleCustomerName,
   type CartLine
@@ -18,6 +18,7 @@ import {
 
 const COMPANY = "delibocados";
 const MENU_FALLBACK = "https://delibocados.online/menu";
+const MENU_OFFICIAL_CANDIDATE = "https://delibocadosfunza.com/menu";
 type Item = { id: string; name: string; priceCOP: number; available?: boolean; priceNeedsReview?: boolean };
 type MenuDoc = { revision: number; payload: { products?: Item[] } };
 type Zone = { id: string; name: string; fee_cop: number; eta_minutes: number; active: boolean };
@@ -174,7 +175,8 @@ export function shouldStartCheckout(message: string) {
   const m = normalize(message);
   if (["complaint","order_status","payment"].includes(classifyRestaurantIntent(message)))
     return false;
-  return /\b(menu|carta|catalogo|hacer un pedido|quiero pedir|quisiera pedir|voy a pedir|pedir comida|quiero un|quiero una|quiero dos|quiero tres|quisiera un|quisiera una|dame un|dame una|me regalas|me vendes)\b/.test(m)
+  return isAddRequest(message) || isStandaloneMenuSelection(message) ||
+    /\b(menu|carta|catalogo|hacer un pedido|quiero pedir|quisiera pedir|voy a pedir|pedir comida|quiero un|quiero una|quiero dos|quiero tres|quisiera un|quisiera una|dame un|dame una|me regalas|me vendes)\b/.test(m)
     || /^(hola|holaa|buenas|buenos dias|buenas tardes|buenas noches)[.!?\s]*$/.test(m)
     || /\b(quiero|quisiera|deme|me das|me vendes)\s+\d+\b/.test(m)
     || classifyRestaurantIntent(message) === "pickup" || classifyRestaurantIntent(message) === "delivery";
@@ -198,16 +200,27 @@ function safeImageUrl(value: string) {
   } catch { return ""; }
 }
 export async function preferredMenuShare(): Promise<{ url?: string; imageUrl?: string }> {
-  const url = safeMenuUrl(process.env.DELIBOCADOS_MENU_URL || MENU_FALLBACK);
-  if (url) {
+  // Never disclose an unverified URL: only configured/official HTTPS hosts.
+  const candidates = [...new Set([
+    process.env.DELIBOCADOS_MENU_URL || "",
+    MENU_OFFICIAL_CANDIDATE,
+    MENU_FALLBACK
+  ].map(safeMenuUrl).filter(Boolean))];
+  for (const url of candidates) {
     try {
-      const response = await fetch(url, {
-        method: "HEAD", redirect: "error",
-        signal: AbortSignal.timeout(4500)
+      let response = await fetch(url, {
+        method:"HEAD", redirect:"error",signal:AbortSignal.timeout(3500)
       });
-      if (response.ok && (response.headers.get("content-type") || "").includes("text/html"))
+      if (!response.ok && [403,405,501].includes(response.status)) {
+        response = await fetch(url, {
+          method:"GET",redirect:"error",signal:AbortSignal.timeout(3500)
+        });
+        await response.body?.cancel();
+      }
+      if (response.ok &&
+          (response.headers.get("content-type") || "").toLowerCase().includes("text/html"))
         return { url };
-    } catch { /* Never announce a broken menu link */ }
+    } catch { /* Never announce a broken or unreachable menu link. */ }
   }
   const imageUrl = safeImageUrl(process.env.DELIBOCADOS_MENU_IMAGE_URL || "");
   return imageUrl ? { imageUrl } : {};
@@ -277,13 +290,28 @@ export async function handleRestaurantCheckoutMessage(input: {
     return {handled:true,humanHandoff:true,
       text:"Tu solicitud requiere revisión de una persona por seguridad alimentaria. El bot no puede modificar ni confirmar ese pedido."};
   }
+  // Menu links are first-class actions: do not let the LLM paraphrase the menu
+  // or force a customer to repeat their request. Preserve the existing cart.
+  if (isMenuRequest(input.message) || isMenuLinkRequest(input.message)) {
+    draft.menuPage = 0;
+    await persist(input.phone,draft);
+    const share = await preferredMenuShare();
+    if (share.url) return {handled:true,
+      text:"Acá tenés el menú de Delibocados: " + share.url +
+        "\nPodés pedirme cualquier producto del menú por nombre o número."};
+    if (share.imageUrl) return {handled:true,imageUrl:share.imageUrl,
+      text:"Te comparto la imagen disponible del menú. " +
+        "Podés pedirme cualquier producto por nombre."};
+    return {handled:true,
+      text:"No tengo una URL del menú verificada ahora mismo. " +
+        "Te lo muestro acá para que puedas elegir:\n" + menuPageText(available,0)};
+  }
   if(activeDraft && wantsCartSummary(input.message)) {
     return {handled:true,text:formatDraftCart(draft.items,available)};
   }
-  if(activeDraft && (isMenuRequest(input.message) || isMoreMenuRequest(input.message) ||
-      isPreviousMenuRequest(input.message))) {
+  if(activeDraft && (isMoreMenuRequest(input.message) || isPreviousMenuRequest(input.message))) {
     const maxPage=Math.max(0,Math.ceil(available.length/MENU_PAGE_SIZE)-1);
-    const newPage=isMenuRequest(input.message)?0:isMoreMenuRequest(input.message)?
+    const newPage=isMoreMenuRequest(input.message)?
       Math.min(maxPage,(draft.menuPage??0)+1):Math.max(0,(draft.menuPage??0)-1);
     draft.menuPage=newPage;
     await persist(input.phone,draft);
