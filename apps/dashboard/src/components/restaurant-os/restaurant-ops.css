@@ -86,3 +86,11 @@
 .rops-settings-metrics span{color:#637580;font-size:12px}
 @media(max-width:1080px){.rops-hours-grid{grid-template-columns:1fr}}
 @media(max-width:630px){.rops-hour-row{grid-template-columns:1fr 1fr;gap:10px}.rops-hour-row>span{display:none}.rops-settings-metrics{grid-template-columns:1fr}}
+
+/* KDS read-only reconciliation. Do not style printed_at as confirmed paper. */
+.rops-kitchen-audit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:18px 0}
+.rops-kitchen-audit-grid>div{display:flex;flex-direction:column;gap:5px;padding:13px 15px;border-radius:11px;border:1px solid #d9e5ea;background:#f8fbfc}
+.rops-kitchen-audit-grid span{font-size:12px;font-weight:650;color:#54707d}
+.rops-kitchen-audit-grid strong{font-size:25px;font-weight:750;color:#183e4b}
+.rops-kitchen-alert{border:1px solid #eed5ae;background:#fff8ed;border-radius:11px;padding:12px 15px;color:#714615;margin:10px 0;line-height:1.5}
+@media(max-width:650px){.rops-kitchen-audit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
