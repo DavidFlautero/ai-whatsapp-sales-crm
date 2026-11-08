@@ -45,3 +45,48 @@ El repositorio actual contiene pedido local y comanda interna, pero NO tiene cli
 - Segundo: pedido en Toteat desarrollo, o en entorno real de prueba autorizado, sin duplicados.
 - Tercero: impresión de ticket físico confirmada en la sede y actualización de estados.
 - Después, tres ventas reales una por una y bajo supervisión humana. Habilitación pública solo tras cada revisión.
+## Avance en código — outbox durable (2026-11-08)
+
+Migración nueva: `supabase/migrations/20261108190000_delibocados_pos_export_outbox.sql`.
+**No aplicada automáticamente en la VPS.** Se despliega mediante un proceso controlado,
+con respaldo y migración, cuando haya acceso al servidor.
+
+- Cada NUEVO pedido `source=whatsapp` de Delibocados crea dentro de la misma transacción
+  UNA sola intención `restaurant_ops_pos_exports`, destino `toteat`, referencia
+  estable `delibocados-<uuid>`. Los pedidos `qr` no producen exportación Toteat.
+- Si el pago está pendiente, la intención queda `blocked`. La verificación real
+  del banco la libera. Las órdenes canceladas antes del envío se suprimen.
+- Los pedidos históricos NO se reenvían por instalar la migración.
+- `restaurant_ops_pos_product_map` almacena códigos verificados de Toteat. El
+  procedimiento de reserva `restaurant_ops_pos_claim_toteat` rechaza pedidos
+  si falta una línea mapeada, el pago no es elegible o la integración está deshabilitada.
+- Un solo intento por orden. `unknown` implica consulta y conciliación, **nunca**
+  repetir POST después de un timeout sin verificar la referencia externa.
+- `restaurant_ops_pos_finish_toteat` registra aceptación con ID de Toteat,
+  rechazo o estado incierto, pero no afirma que la comanda se imprimió.
+- Preparador puro en
+  `restaurant-toteat-preparation.service.ts` verifica precios COP, cantidades,
+  producto de Toteat confirmado y referencia estable. Todavía no forma un
+  `document` externo que no haya sido contrastado con el OpenAPI del local.
+- No existe transporte POST habilitado. La política de conexión y las credenciales
+  cifradas deben verificarse antes de implementar el último eslabón.
+
+**Preflight de solo lectura**, una vez aplicada la migración:
+
+```bash
+cd /var/www/control
+pnpm --filter @ventas/api exec tsx src/scripts/delibocados-toteat-readiness.ts
+```
+
+Este script comprueba existencia de integración, legibilidad de secreto cifrado
+(sin revelar valores), cantidad de mapeos revisados y estado de exportación por pedido.
+
+Para cerrar el POST efectivo: confirmar `restaurantId`, `localNumber`,
+`userId`, token, permisos de "Carga de Órdenes Externas", códigos del menú
+`/products`, `document` según el OpenAPI del ambiente correspondiente,
+respuesta/estado por `orderReference`, y señal real de Print Server.
+Respetar el límite documentado de 1 inserción de orden por segundo.
+En un timeout o desconexión de red, NO reintentar sin reconciliar con Toteat.
+
+La fuente de verificación de Toteat es su documentación:
+https://developers.toteat.com/.
