@@ -7,6 +7,7 @@ import { classifyRestaurantIntent } from "../agent/restaurant-ops-conversation.s
 import { transferInstructionsForOrder } from "./restaurant-payment-intake.service.js";
 import {quoteVerifiedDeliveryAddress,quoteVerifiedDeliveryPoint} from "./restaurant-delivery-routing.service.js";
 import {freshVerifiedPin} from "./restaurant-whatsapp-location.service.js";
+import {explicitFulfillment,explicitPurchaseStatement} from "./restaurant-natural-checkout-routing.service.js";
 import {isSplitPaymentRequest,parseExactTransferCOP,splitPaymentQuote,splitQuoteMessage} from "./restaurant-split-payment.service.js";
 import {
   MENU_PAGE_SIZE, spanishNormalize, wantsCartSummary, isCoverageQuestion,
@@ -242,6 +243,7 @@ export async function handleRestaurantCheckoutMessage(input: {
   const conversation = await getConversationByPhone(input.phone,COMPANY);
   const previous = existingDraft(conversation?.metadata?.restaurant_checkout_v1);
   const normalized = normalize(input.message);
+  const requestedMode = explicitFulfillment(input.message);
   // Coverage questions never change the checkout draft or invent geofences.
   if(isCoverageQuestion(input.message)) {
     return {handled:true,text:coverageAnswer(input.message)};
@@ -276,10 +278,19 @@ export async function handleRestaurantCheckoutMessage(input: {
     ? { ...previous } : {
         id: crypto.randomUUID(),stage:"items",items:[],menuRevision:doc.revision,
         createdAt:new Date().toISOString(),
-        ...(classifyRestaurantIntent(input.message)==="pickup" ? {mode:"pickup" as const} :
-           classifyRestaurantIntent(input.message)==="delivery" ? {mode:"delivery" as const} : {})
+        ...(requestedMode==="pickup" || requestedMode==="delivery"
+          ? {mode:requestedMode} :
+          classifyRestaurantIntent(input.message)==="pickup" ? {mode:"pickup" as const} :
+          classifyRestaurantIntent(input.message)==="delivery" ? {mode:"delivery" as const} : {})
       };
   const activeDraft = previous && !["cancelled","completed"].includes(previous.stage);
+  if(activeDraft && explicitPurchaseStatement(input.message) &&
+      (requestedMode==="pickup" || requestedMode==="delivery") &&
+      draft.mode && requestedMode!==draft.mode){
+    return {handled:true,text:"Este carrito ya está configurado para "+
+      (draft.mode==="pickup"?"retiro":"domicilio")+
+      ". Para cambiar la modalidad, confirmala por separado antes de añadir productos. No cambié el carrito."};
+  }
   if(activeDraft && draft.customerName && !isPlausibleCustomerName(draft.customerName)) {
     // Recover drafts polluted by the former "anything is a name" bug.
     draft.customerName=undefined;
@@ -373,7 +384,7 @@ export async function handleRestaurantCheckoutMessage(input: {
     if(!additional)return {handled:true,text:"Ese número no está disponible en el menú. Escribí *MENÚ* o *VER MÁS* para elegir un producto."};
     return addProduct(additional);
   }
-  if(activeDraft && isAddRequest(input.message)) {
+  if(activeDraft && (isAddRequest(input.message) || explicitPurchaseStatement(input.message))) {
     const found=addLines(input.message);
     if(!found)return {handled:true,text:"No pude identificar ese producto con seguridad. Pasame el nombre exacto o el número del menú. Escribí *MENÚ* para consultarlo."};
     return addProduct(found);
@@ -426,12 +437,12 @@ export async function handleRestaurantCheckoutMessage(input: {
       "¿Pasás a buscarlo al local o querés domicilio? Respondé *RETIRO* o *DOMICILIO*."};
   }
   if (draft.stage==="mode") {
-    if (/^(retiro|recoger|paso a buscar|local)$/.test(normalized)) {
+    if (/^(retiro|recoger|paso a buscar|local|para retirar|para recoger|retiro en el local)$/.test(normalized)) {
       draft.mode="pickup";draft.stage="pickup_time";
       await persist(input.phone,draft);
       return {handled:true,text:"Perfecto, sin domicilio. ¿En cuántos minutos pasarás a buscarlo? Respondé *AHORA* o un número entre 10 y 180."};
     }
-    if (/^(domicilio|delivery|envio)$/.test(normalized)) {
+    if (/^(domicilio|delivery|envio|a domicilio|para domicilio)$/.test(normalized)) {
       draft.mode="delivery";draft.stage="zone";
       const savedPin=freshVerifiedPin(conversation?.metadata?.restaurant_delivery_pin_v1);
       if(savedPin&&zoneRows.some(z=>z.id===savedPin.zoneId)){
