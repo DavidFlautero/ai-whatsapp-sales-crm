@@ -249,7 +249,7 @@ export async function handleRestaurantCheckoutMessage(input: {
   const normalized = normalize(input.message);
   const requestedMode = explicitFulfillment(input.message);
   // Coverage questions never change the checkout draft or invent geofences.
-  if(isCoverageQuestion(input.message)) {
+  if(isCoverageQuestion(input.message) && !explicitPurchaseStatement(input.message)) {
     return {handled:true,text:coverageAnswer(input.message)};
   }
   if (previous?.stage === "completed" && normalized === "confirmar pedido") {
