@@ -12,6 +12,7 @@ import { handleRestaurantProductFollowup } from "./restaurant-product-followup.s
 import {handleRestaurantLineModification} from "./restaurant-line-modification.service.js";
 import {isSplitPaymentRequest} from "./restaurant-split-payment.service.js";
 import {shouldDeterministicallyCheckout} from "./restaurant-natural-checkout-routing.service.js";
+import {isFoodSafetyMessage} from "./restaurant-cart-intake.service.js";
 import {
   detectRestaurantException,restaurantExceptionResponse,
   RESTAURANT_CONVERSATION_GUIDANCE
@@ -106,6 +107,18 @@ export async function handleNaturalRestaurantTurn(input:{
 }):Promise<CheckoutReply> {
   if(input.companyId!==COMPANY||!/^[0-9]{8,15}$/.test(input.phone))
     return {handled:false,text:""};
+  // Food safety is a human-only concern even when mentioned in an explicit
+  // purchase, before the deterministic route can touch an order draft.
+  if(isFoodSafetyMessage(input.message)){
+    await updateConversationMetadata(input.phone,{
+      restaurant_attention:{type:"food_safety_review",status:"needs_human",
+        reason:"ALLERGEN_REQUIRES_HUMAN_REVIEW",
+        last_source_message_id:input.currentMessageId??null,
+        reported_at:new Date().toISOString()}
+    },COMPANY);
+    return {handled:true,humanHandoff:true,handoffReason:"food_safety_review",
+      text:"Una persona de Delibocados debe confirmar ingredientes y alérgenos antes de aceptar tu pedido. No hice cambios automáticos en tu carrito."};
+  }
   // An explicit menu request must never be delegated to a probabilistic model.
   // It may arrive after a completed order or while a customer has an open cart.
   if(isMenuRequest(input.message)||isMenuLinkRequest(input.message)){
