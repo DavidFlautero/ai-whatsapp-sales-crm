@@ -80,7 +80,8 @@ async function main(){
   const modular: Array<{url:URL;depth:number}>=[
     {url:new URL("./paths/create_order.yaml",SPEC_URL),depth:0},
     {url:new URL("./paths/orderstatus.yaml",SPEC_URL),depth:0},
-    {url:new URL("./components/index.yaml",SPEC_URL),depth:0}
+    {url:new URL("./components/index.yaml",SPEC_URL),depth:0},
+    {url:new URL("./components/schemas.yaml",SPEC_URL),depth:0}
   ];
   const visited=new Set<string>();
   while(modular.length && visited.size<20){
@@ -100,6 +101,15 @@ async function main(){
       console.log("\n=== TOTEAT MODULE",target.pathname,
         "LINES",moduleLines.length,"BYTES",source.length,"===");
       const max=target.pathname.includes("create_order")?750:270;
+      if(target.pathname==="/components/schemas.yaml"){
+        console.log("SCHEMA_INDEX_MATCHES:");
+        for(let i=0;i<moduleLines.length;i++){
+          if(/NewOrder|BasicOrderResponse|DetailedOrderResponse|OrderDocument|OrderLine|Payment|Customer|Delivery|Fiscal|Discount|Tax/i.test(moduleLines[i])){
+            for(let j=Math.max(0,i-1);j<Math.min(moduleLines.length,i+4);j++)
+              console.log((j+1)+" "+moduleLines[j]);
+          }
+        }
+      }
       for(let i=0;i<Math.min(moduleLines.length,max);i++)
         console.log((i+1)+" "+moduleLines[i]);
       if(moduleLines.length>max)console.log("MODULE_TRUNCATED_LINES",moduleLines.length-max);
