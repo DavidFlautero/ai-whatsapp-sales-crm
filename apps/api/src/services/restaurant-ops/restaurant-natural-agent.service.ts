@@ -11,6 +11,7 @@ import {
 import { handleRestaurantProductFollowup } from "./restaurant-product-followup.service.js";
 import {handleRestaurantLineModification} from "./restaurant-line-modification.service.js";
 import {isSplitPaymentRequest} from "./restaurant-split-payment.service.js";
+import {shouldDeterministicallyCheckout} from "./restaurant-natural-checkout-routing.service.js";
 import {
   detectRestaurantException,restaurantExceptionResponse,
   RESTAURANT_CONVERSATION_GUIDANCE
@@ -137,6 +138,12 @@ export async function handleNaturalRestaurantTurn(input:{
   if(lineChange.handled)return lineChange;
   const current=await getConversationByPhone(input.phone,COMPANY);
   const stage=(current?.metadata?.restaurant_checkout_v1 as CheckoutDraft|undefined)?.stage;
+  // A purchase containing "para retirar" and "cuánto cuesta" must first create
+  // the verified cart; an LLM may answer prices but may never skip a purchase.
+  // Explicit checkout slot answers and final confirmation are also deterministic.
+  if(shouldDeterministicallyCheckout(input.message,stage)){
+    return handleRestaurantCheckoutMessage(input);
+  }
   // A mixed payment belongs to the auditable order engine, not a free-form
   // LLM or the legacy handoff response.
   if(stage==="split_amount" || stage==="split_confirm" ||
