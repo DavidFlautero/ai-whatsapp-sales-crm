@@ -21,6 +21,14 @@ test("webhook requires matching restaurant/local and Delibocados reference",()=>
     {...body.data[0],orderReference:"other-tenant-1"}
   ]},"123","4"),/REFERENCE/);
 });
+test("unsafe 16-digit provider IDs are not compared after JSON precision loss",()=>{
+  const [e]=parseToteatOrderWebhook({
+    ok:true,restaurantId:123,localNumber:4,
+    data:[{orderReference:reference,orderId:12345678901234567,
+      orderStatus:"OPEN",deliveryStatusId:100}]
+  },"123","4");
+  assert.equal(e.externalOrderId,"");
+});
 test("only single-step verified transitions are permitted",()=>{
   assert.equal(toteatSafeTransition("confirmed","pickup",false,event(90)),null);
   assert.deepEqual(toteatSafeTransition("confirmed","pickup",false,event(100)),
