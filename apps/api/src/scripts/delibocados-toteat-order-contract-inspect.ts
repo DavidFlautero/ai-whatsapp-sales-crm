@@ -76,6 +76,45 @@ async function main(){
       if(end>k+170)console.log("SCHEMA_TRUNCATED",end-k-170);
     }
   }
+
+  const modular: Array<{url:URL;depth:number}>=[
+    {url:new URL("./paths/create_order.yaml",SPEC_URL),depth:0},
+    {url:new URL("./paths/orderstatus.yaml",SPEC_URL),depth:0}
+  ];
+  const visited=new Set<string>();
+  while(modular.length && visited.size<20){
+    const item=modular.shift()!;
+    const target=item.url;
+    if(visited.has(target.href))continue;
+    visited.add(target.href);
+    if(target.hostname!=="developers.toteat.com" || target.protocol!=="https:")
+      continue;
+    try{
+      const result=await fetch(target,{method:"GET",redirect:"error",
+        headers:{Accept:"text/yaml,text/plain,*/*"},signal:AbortSignal.timeout(12000)});
+      if(!result.ok){console.log("MODULE_HTTP",target.pathname,result.status);continue;}
+      const source=await result.text();
+      if(source.length>300000){console.log("MODULE_TOO_LARGE",target.pathname);continue;}
+      const moduleLines=source.split("\n").map(clean);
+      console.log("\n=== TOTEAT MODULE",target.pathname,
+        "LINES",moduleLines.length,"BYTES",source.length,"===");
+      const max=target.pathname.includes("create_order")?750:270;
+      for(let i=0;i<Math.min(moduleLines.length,max);i++)
+        console.log((i+1)+" "+moduleLines[i]);
+      if(moduleLines.length>max)console.log("MODULE_TRUNCATED_LINES",moduleLines.length-max);
+      const relatives=[...source.matchAll(/\$ref:\s*["']?([^"'\s#]+\.ya?ml)(?:#[^\s"']*)?["']?/g)];
+      if(item.depth<3)
+        for(const match of relatives){
+          let next:URL;
+          try{next=new URL(match[1],target);}catch{continue;}
+          if(next.hostname!=="developers.toteat.com"||next.protocol!=="https:")continue;
+          if(!visited.has(next.href)&&!modular.some(x=>x.url.href===next.href))
+            modular.push({url:next,depth:item.depth+1});
+        }
+    }catch{
+      console.log("MODULE_GET_FAILED",target.pathname);
+    }
+  }
   console.log("=== END; PUBLIC OPENAPI ONLY; NO POST; NO PRINT ===");
 }
 void main().catch(e=>{
