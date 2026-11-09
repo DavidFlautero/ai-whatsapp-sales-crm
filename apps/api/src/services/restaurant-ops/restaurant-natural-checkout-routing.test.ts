@@ -30,3 +30,42 @@ test("transactional replies bypass LLM for known safe slots",()=>{
   assert.equal(shouldDeterministicallyCheckout("CONFIRMAR PEDIDO","confirm"),true);
   assert.equal(shouldDeterministicallyCheckout("¿Cuánto es el domicilio?","payment"),false);
 });
+
+test("Spanish checkout message matches two verified catalog lines without pretending to confirm",async()=>{
+  const {parseNaturalItemSelection,buildOrderSummary}=
+    await import("./restaurant-whatsapp-checkout.service.js");
+  const {formatDraftCart}=await import("./restaurant-checkout-dialogue.service.js");
+  const menu=[
+    {id:"deli-burger",name:"Hamburguesa Tradicional",priceCOP:11000,
+      available:true,priceNeedsReview:false},
+    {id:"deli-drink",name:"Coca Cola Retornable 250",priceCOP:2500,
+      available:true,priceNeedsReview:false}
+  ];
+  const message="Hola, quiero una hamburguesa tradicional y una Coca Cola Retornable 250 para retirar en el local. ¿Cuánto me sale todo?";
+  const lines=parseNaturalItemSelection(message,menu);
+  assert.deepEqual(lines,[
+    {productId:"deli-burger",quantity:1},
+    {productId:"deli-drink",quantity:1}
+  ]);
+  const cart=formatDraftCart(lines!,menu);
+  assert.match(cart,/13[.]500/);
+  assert.match(cart,/No se ha registrado/);
+  const summary=buildOrderSummary({
+    id:"unconfirmed-draft",stage:"confirm",menuRevision:3,
+    items:lines!,customerName:"Cliente Prueba",mode:explicitFulfillment(message)==="pickup"
+      ?"pickup":"delivery",
+    payment:"cash",createdAt:new Date().toISOString()
+  },menu,[]);
+  assert.equal(summary.total,13500);
+  assert.match(summary.text,/CONFIRMAR PEDIDO/);
+  assert.match(summary.text,/Retiro en local/);
+});
+test("products awaiting price verification are never offered in initial cart",async()=>{
+  const {parseNaturalItemSelection}=await import("./restaurant-whatsapp-checkout.service.js");
+  const {explicitPurchaseStatement}=await import("./restaurant-natural-checkout-routing.service.js");
+  const message="Quiero una porción de chicharrón";
+  assert.equal(explicitPurchaseStatement(message),true);
+  const available=[{id:"deli-055",name:"Chicharrón Porción",priceCOP:8001,
+    available:true,priceNeedsReview:true}].filter(x=>!x.priceNeedsReview);
+  assert.equal(parseNaturalItemSelection(message,available),null);
+});
