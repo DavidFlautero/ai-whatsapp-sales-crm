@@ -8,6 +8,7 @@ import { transferInstructionsForOrder } from "./restaurant-payment-intake.servic
 import {quoteVerifiedDeliveryAddress,quoteVerifiedDeliveryPoint} from "./restaurant-delivery-routing.service.js";
 import {freshVerifiedPin} from "./restaurant-whatsapp-location.service.js";
 import {explicitFulfillment,explicitPurchaseStatement,extractCustomerName} from "./restaurant-natural-checkout-routing.service.js";
+import {interpretNaturalPreparation,isFoodSafetyMessage} from "./restaurant-cart-intake.service.js";
 import {isSplitPaymentRequest,parseExactTransferCOP,splitPaymentQuote,splitQuoteMessage} from "./restaurant-split-payment.service.js";
 import {
   MENU_PAGE_SIZE, spanishNormalize, wantsCartSummary, isCoverageQuestion,
@@ -240,6 +241,9 @@ export async function handleRestaurantCheckoutMessage(input: {
   companyId: string; phone: string; message: string;
 }): Promise<CheckoutReply> {
   if (input.companyId !== COMPANY || !/^[0-9]{8,15}$/.test(input.phone)) return { handled:false,text:"" };
+  if(isFoodSafetyMessage(input.message))
+    return {handled:true,humanHandoff:true,handoffReason:"food_safety_review",
+      text:"Por seguridad alimentaria, una persona del restaurante debe confirmar ingredientes y alérgenos. No se registró ni modificó un pedido automáticamente."};
   const conversation = await getConversationByPhone(input.phone,COMPANY);
   const previous = existingDraft(conversation?.metadata?.restaurant_checkout_v1);
   const normalized = normalize(input.message);
@@ -339,14 +343,23 @@ export async function handleRestaurantCheckoutMessage(input: {
       parseItemSelection(stripped,available) ?? parseNaturalItemSelection(value,available);
   };
   const addProduct = async (lines:CartLine[],confirmedQuantity=false):Promise<CheckoutReply> => {
-    if(!confirmedQuantity && lines.some(x=>x.quantity>5)) {
-      draft.pendingBulk=lines;
+    const preparation=interpretNaturalPreparation(input.message,lines);
+    if(preparation.kind!=="safe")
+      return {handled:true,
+        ...(preparation.kind==="human"?{humanHandoff:true,handoffReason:preparation.code}:{}),
+        text:preparation.prompt};
+    const prepared=preparation.lines;
+    const requestedTotals=new Map<string,number>();
+    for(const line of prepared)
+      requestedTotals.set(line.productId,(requestedTotals.get(line.productId)??0)+line.quantity);
+    if(!confirmedQuantity && [...requestedTotals.values()].some(qty=>qty>5)) {
+      draft.pendingBulk=prepared;
       await persist(input.phone,draft);
       return {handled:true,text:"Esa cantidad es alta: "+
-        formatDraftCart(lines,available)+
+        formatDraftCart(prepared,available)+
         "\nSi realmente querés esas unidades, respondé *CONFIRMAR CANTIDAD*. Todavía no se añadieron."};
     }
-    const combined=mergeCart(draft.items,lines);
+    const combined=mergeCart(draft.items,prepared);
     if(!combined)return {handled:true,text:"La cantidad supera el máximo permitido por producto (25). Decime cuántas unidades querés."};
     draft.pendingBulk=undefined;draft.items=combined;draft.menuRevision=doc.revision;
     if(draft.stage==="items")draft.stage="name";
