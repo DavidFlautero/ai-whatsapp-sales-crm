@@ -3,7 +3,7 @@
  * to choose if a customer's explicit purchase should persist to the draft.
  * The checkout engine alone validates products, prices, payment and totals.
  */
-import {spanishNormalize} from "./restaurant-checkout-dialogue.service.js";
+import {spanishNormalize,isPlausibleCustomerName} from "./restaurant-checkout-dialogue.service.js";
 
 export type FulfillmentChoice="pickup"|"delivery"|"ambiguous"|null;
 
@@ -34,6 +34,16 @@ export function explicitPurchaseStatement(message:string):boolean{
   return direct||ordering;
 }
 
+export function extractCustomerName(message:string):string|null{
+  const value=message.trim().replace(/\s+/g," ")
+    .replace(/^(?:soy|me llamo|mi nombre es|a nombre de|pon(?:lo|eme)? a nombre de)\s+/i,"")
+    .replace(/[.!]+$/g,"").trim();
+  const m=spanishNormalize(value);
+  if(/^(?:hola|buenas|gracias|si|listo|ok|dale|vale|perfecto)$/.test(m))
+    return null;
+  return isPlausibleCustomerName(value)?value:null;
+}
+
 export function shouldDeterministicallyCheckout(
   message:string,stage:string|undefined
 ):boolean{
@@ -41,11 +51,7 @@ export function shouldDeterministicallyCheckout(
   if(explicitPurchaseStatement(message))return true;
   if(/^(?:confirmar pedido|cancelar pedido|confirmar cantidad|confirmar division|vaciar (?:carrito|pedido))$/.test(m))return true;
   if(!stage||["completed","cancelled","human_review"].includes(stage))return false;
-  if(stage==="name"){
-    // Only simple plausible names; no product, price or multi-intent commands.
-    return /^[\p{L}][\p{L} .'-]{1,70}$/u.test(message.trim()) &&
-      !/\b(?:pedido|menu|carta|cuanto|precio|domicilio|retirar|transferencia|efectivo|agrega|suma|quita)\b/.test(m);
-  }
+  if(stage==="name")return extractCustomerName(message)!==null;
   if(stage==="mode")return /^(?:retiro|recoger|paso a buscar|local|domicilio|delivery|envio)$/.test(m);
   if(stage==="zone")return /^\d{1,2}$/.test(m)||/^(?:retiro|local)$/.test(m);
   if(stage==="address")return /\b(?:calle|carrera|cra|avenida|av\.|diagonal|transversal|funza|mosquera|barrio)\b/.test(m);
