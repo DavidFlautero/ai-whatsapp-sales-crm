@@ -9,7 +9,7 @@ export type FulfillmentChoice="pickup"|"delivery"|"ambiguous"|null;
 
 export function explicitFulfillment(message:string):FulfillmentChoice{
   const m=spanishNormalize(message);
-  const pickup=/\b(?:para retirar|para recoger|paso a buscar(?:lo|la)?|retiro en (?:el )?local|recoger en (?:el )?local|para llevar|lo recojo|paso por (?:el )?local)\b/.test(m);
+  const pickup=/\b(?:retiro|para retirar|para recoger|paso a buscar(?:lo|la)?|retiro en (?:el )?local|recoger en (?:el )?local|para llevar|lo recojo|paso por (?:el )?local)\b/.test(m);
   const delivery=/\b(?:a domicilio|para domicilio|envio a domicilio|domicilio|delivery|a mi casa|a mi direccion|que me lo (?:lleven|traigan|envien|manden)|para entrega)\b/.test(m);
   if(pickup && delivery)return "ambiguous";
   if(pickup)return "pickup";
