@@ -40,8 +40,11 @@ async function processOne():Promise<void>{
         "&select=order_id,external_order_id,status&limit=1"
     });
     const exportRow=exports[0];
-    if(!exportRow || !job.external_order_id ||
-       exportRow.external_order_id!==job.external_order_id){
+    // When Toteat supplied an unsafe JS integer, the authenticated reference
+    // is the only exact identifier. The export must still have proven acceptance.
+    if(!exportRow ||
+       (job.external_order_id &&
+        exportRow.external_order_id!==job.external_order_id)){
       reason="NO_VERIFIED_TOTEAT_ACCEPTANCE";
     }else{
       const orders=await supabaseRequest<Order[]>({
