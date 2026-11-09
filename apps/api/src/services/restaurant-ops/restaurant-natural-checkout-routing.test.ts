@@ -69,3 +69,13 @@ test("products awaiting price verification are never offered in initial cart",as
     available:true,priceNeedsReview:true}].filter(x=>!x.priceNeedsReview);
   assert.equal(parseNaturalItemSelection(message,available),null);
 });
+
+test("natural name variants are normalized without inserting the greeting into customer record",async()=>{
+  const {extractCustomerName}=await import("./restaurant-natural-checkout-routing.service.js");
+  assert.equal(extractCustomerName("Soy Carolina"),"Carolina");
+  assert.equal(extractCustomerName("Me llamo Juan Pérez"),"Juan Pérez");
+  assert.equal(extractCustomerName("A nombre de Prueba Tecnica"),"Prueba Tecnica");
+  assert.equal(extractCustomerName("Hola"),null);
+  assert.equal(extractCustomerName("Cuánto cuesta"),null);
+  assert.equal(shouldDeterministicallyCheckout("Soy Carolina","name"),true);
+});
