@@ -49,6 +49,10 @@ export function parseToteatOrderWebhook(
     const id = entry.orderId;
     if (id != null && !/^[1-9][0-9]{0,19}$/.test(String(id)))
       throw new Error("TOTEAT_WEBHOOK_ORDER_ID_INVALID");
+    // Toteat can return a 16-digit integer; JSON.parse may round it.
+    // If it is unsafe, rely on the authenticated orderReference only.
+    const verifiedExternalId = typeof id === "number" && !Number.isSafeInteger(id)
+      ? "" : id == null ? "" : String(id);
     const rawStatus = entry.deliveryStatusId;
     const deliveryStatusId = rawStatus == null ? null : Number(rawStatus);
     if (deliveryStatusId !== null && !Number.isSafeInteger(deliveryStatusId))
@@ -58,7 +62,7 @@ export function parseToteatOrderWebhook(
         ? entry.modificationDate : null;
     events.push({
       reference,
-      externalOrderId: id == null ? "" : String(id),
+      externalOrderId: verifiedExternalId,
       deliveryStatusId,
       orderStatus: String(entry.orderStatus ?? "").toUpperCase(),
       modificationDate
