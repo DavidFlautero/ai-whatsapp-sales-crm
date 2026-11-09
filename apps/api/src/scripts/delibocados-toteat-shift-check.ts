@@ -12,7 +12,11 @@ function object(input:unknown):Data|null {
 }
 function statusSummary(input:unknown):{type:string;keys:string[];fields:Data}{
   const record=object(input);
-  if(!record)return {type:input===null?"null":Array.isArray(input)?"array":typeof input,keys:[],fields:{}};
+  if(typeof input==="boolean")return {type:"boolean",keys:[],fields:{value:input}};
+  if(typeof input==="string" && /^(open|closed|abierto|cerrado|active|inactive)$/i.test(input))
+    return {type:"string",keys:[],fields:{value:input}};
+  if(Array.isArray(input))return {type:"array",keys:[],fields:{length:input.length}};
+  if(!record)return {type:input===null?"null":typeof input,keys:[],fields:{}};
   const allow=/^(?:shift(?:_|)(?:status|open|opened|active|state)|status|state|open|isopen|is_open|opened|active|turno(?:_|)(?:abierto|activo|estado)|isactive|is_active)$/i;
   const fields:Data={};
   for(const [key,value] of Object.entries(record))
