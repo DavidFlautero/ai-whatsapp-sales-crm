@@ -79,7 +79,8 @@ async function main(){
 
   const modular: Array<{url:URL;depth:number}>=[
     {url:new URL("./paths/create_order.yaml",SPEC_URL),depth:0},
-    {url:new URL("./paths/orderstatus.yaml",SPEC_URL),depth:0}
+    {url:new URL("./paths/orderstatus.yaml",SPEC_URL),depth:0},
+    {url:new URL("./components/index.yaml",SPEC_URL),depth:0}
   ];
   const visited=new Set<string>();
   while(modular.length && visited.size<20){
@@ -108,6 +109,12 @@ async function main(){
           let next:URL;
           try{next=new URL(match[1],target);}catch{continue;}
           if(next.hostname!=="developers.toteat.com"||next.protocol!=="https:")continue;
+          if(target.pathname==="/components/index.yaml"){
+            const refLine=source.slice(0,source.indexOf(match[0]));
+            const lastSection=refLine.split("\n").slice(-4).join(" ");
+            if(!/NewOrder|BasicOrderResponse|DetailedOrderResponse|OrderStatusResult|Payment|Document|NewOrderLine/i.test(lastSection))
+              continue;
+          }
           if(!visited.has(next.href)&&!modular.some(x=>x.url.href===next.href))
             modular.push({url:next,depth:item.depth+1});
         }
