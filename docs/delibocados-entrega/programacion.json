@@ -1,0 +1,173 @@
+{
+  "project": "Delibocados",
+  "version": "2026-11-09",
+  "sourceBranch": "feature/delibocados-toteat-safe-integration-20261109",
+  "productionDeployVerified": false,
+  "allStagesProgrammed": false,
+  "onlyWhatsAppToToteat": true,
+  "qrProvider": "pos360",
+  "rollout": "testPhone_first",
+  "stages": [
+    {
+      "id": 1,
+      "name": "Catalogo y mapeos",
+      "state": "code_ready_db_pending",
+      "dependsOn": [],
+      "owner": "backend",
+      "files": [
+        "apps/api/src/scripts/delibocados-approve-reviewed-product.ts",
+        "apps/api/src/scripts/delibocados-toteat-map-reconcile.ts"
+      ],
+      "gate": "133 verified SKUs and 133 reviewed mappings"
+    },
+    {
+      "id": 2,
+      "name": "Agente IA y carrito",
+      "state": "code_ready_live_test_pending",
+      "dependsOn": [
+        1
+      ],
+      "owner": "backend",
+      "files": [
+        "apps/api/src/services/restaurant-ops/restaurant-natural-agent.service.ts",
+        "apps/api/src/services/restaurant-ops/restaurant-whatsapp-checkout.service.ts",
+        "apps/api/src/services/restaurant-ops/restaurant-cart-intake.service.ts"
+      ],
+      "gate": "two successful WhatsApp testPhone conversations; dedupe & no false payment"
+    },
+    {
+      "id": 3,
+      "name": "Toteat orden externa",
+      "state": "not_implemented",
+      "dependsOn": [
+        1,
+        2
+      ],
+      "owner": "backend_integration",
+      "files": [
+        "apps/api/src/services/restaurant-ops/restaurant-toteat-order-payload.service.ts",
+        "apps/api/src/services/restaurant-ops/restaurant-toteat-order-client.service.ts",
+        "apps/api/src/services/restaurant-ops/restaurant-toteat-export-worker.service.ts"
+      ],
+      "gate": "one authorized order accepted by Toteat once with exact reference"
+    },
+    {
+      "id": 4,
+      "name": "Cocina y webhook",
+      "state": "partial_not_deployed",
+      "dependsOn": [
+        3
+      ],
+      "owner": "backend_frontend",
+      "files": [
+        "apps/api/src/services/restaurant-ops/restaurant-toteat-status-sync.service.ts",
+        "apps/api/src/services/restaurant-ops/restaurant-toteat-webhook-worker.service.ts",
+        "apps/dashboard/src/app/panel/cocina/page.tsx"
+      ],
+      "gate": "physical ticket observed and state updates audited"
+    },
+    {
+      "id": 5,
+      "name": "Google Maps y reparto",
+      "state": "partial_configuration_missing",
+      "dependsOn": [
+        2,
+        4
+      ],
+      "owner": "backend_frontend_ops",
+      "files": [
+        "apps/api/src/services/restaurant-ops/restaurant-delivery-routing.service.ts",
+        "apps/api/src/services/restaurant-ops/restaurant-proof-of-delivery.service.ts",
+        "apps/dashboard/src/app/panel/reparto/page.tsx"
+      ],
+      "gate": "verified zones+2 bikes+3 motos+delivery proof"
+    },
+    {
+      "id": 6,
+      "name": "Pagos y avisos",
+      "state": "partial",
+      "dependsOn": [
+        2,
+        4,
+        5
+      ],
+      "owner": "backend_payments",
+      "files": [
+        "apps/api/src/services/restaurant-ops/restaurant-payment-intake.service.ts",
+        "apps/api/src/services/restaurant-ops/restaurant-notifications.service.ts",
+        "apps/api/src/services/restaurant-ops/restaurant-cash-settlement.service.ts"
+      ],
+      "gate": "cash transfer split reconciled; state-based WhatsApp idempotent"
+    },
+    {
+      "id": 7,
+      "name": "Panel inventario reportes",
+      "state": "partial",
+      "dependsOn": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "owner": "frontend_backend",
+      "files": [
+        "apps/dashboard/src/app/panel/pedidos/page.tsx",
+        "apps/dashboard/src/app/panel/informes/page.tsx",
+        "apps/dashboard/src/app/panel/inventario/page.tsx"
+      ],
+      "gate": "all operational modules RBAC + audit; inventory separately approved"
+    },
+    {
+      "id": 8,
+      "name": "E2E pruebas",
+      "state": "pending",
+      "dependsOn": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "owner": "qa",
+      "files": [
+        "docs/delibocados-entrega/08-pruebas-e2e.md"
+      ],
+      "gate": "E01-E35 PASS or written approved exclusions"
+    },
+    {
+      "id": 9,
+      "name": "Despliegue y entrega",
+      "state": "pending",
+      "dependsOn": [
+        8
+      ],
+      "owner": "devops_ops",
+      "files": [
+        "docs/delibocados-entrega/09-despliegue-entrega.md"
+      ],
+      "gate": "3 supervised real orders, rollback, owner acceptance"
+    }
+  ],
+  "referenceDocs": [
+    "docs/delibocados-entrega/00-INICIO-IMPLEMENTACION.md",
+    "docs/delibocados-entrega/10-ORDEN-DE-PROGRAMACION.md"
+  ],
+  "diagnostic": "apps/api/src/scripts/delibocados-delivery-readiness.ts",
+  "mustNotDo": [
+    "auto-send Toteat order without documented permissions",
+    "retry ambiguous POST without reconcile",
+    "enable public Whapi without authorized rollout",
+    "claim physical print from DB timestamp",
+    "claim payment from screenshot",
+    "send QR orders to Toteat"
+  ],
+  "externalDependencies": [
+    "Toteat external order permission and OpenAPI schema",
+    "Toteat Print Server on-site",
+    "Google Maps key and verified origin/zones",
+    "Whapi active channel",
+    "bank reconciliation personnel",
+    "courier assignments and proof-of-delivery procedure"
+  ]
+}
