@@ -7,7 +7,7 @@ import { classifyRestaurantIntent } from "../agent/restaurant-ops-conversation.s
 import { transferInstructionsForOrder } from "./restaurant-payment-intake.service.js";
 import {quoteVerifiedDeliveryAddress,quoteVerifiedDeliveryPoint} from "./restaurant-delivery-routing.service.js";
 import {freshVerifiedPin} from "./restaurant-whatsapp-location.service.js";
-import {explicitFulfillment,explicitPurchaseStatement} from "./restaurant-natural-checkout-routing.service.js";
+import {explicitFulfillment,explicitPurchaseStatement,extractCustomerName} from "./restaurant-natural-checkout-routing.service.js";
 import {isSplitPaymentRequest,parseExactTransferCOP,splitPaymentQuote,splitQuoteMessage} from "./restaurant-split-payment.service.js";
 import {
   MENU_PAGE_SIZE, spanishNormalize, wantsCartSummary, isCoverageQuestion,
@@ -415,8 +415,8 @@ export async function handleRestaurantCheckoutMessage(input: {
     return addProduct(lines);
   }
   if (draft.stage === "name") {
-    const value=input.message.trim().replace(/\s+/g," ");
-    if (!isPlausibleCustomerName(value))
+    const value=extractCustomerName(input.message);
+    if (!value)
       return {handled:true,text:"Decime tu nombre para identificar el pedido, por favor."};
     draft.customerName=value;
     draft.stage=draft.mode==="pickup" ? "pickup_time" : draft.mode==="delivery" ? "zone" : "mode";
@@ -550,7 +550,7 @@ export async function handleRestaurantCheckoutMessage(input: {
       await persist(input.phone,draft);
       return {handled:true,humanHandoff:true,text:"Gracias por avisarnos. Por seguridad, un encargado debe revisar los ingredientes y confirmar el pedido. No se registró automáticamente."};
     }
-    draft.customerNote = normalized==="no" ? "" : comment;
+    draft.customerNote = /^(?:no|ninguna|ninguno|sin observaciones)$/.test(normalized) ? "" : comment;
     draft.stage="payment"; await persist(input.phone,draft);
     return {handled:true,text:"¿Pagás *EFECTIVO*, *TRANSFERENCIA* o *MIXTO* (una parte transferida y el resto en efectivo)? El comprobante siempre se verifica."};
   }
