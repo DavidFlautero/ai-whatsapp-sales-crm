@@ -98,6 +98,23 @@ async function main(){
       const source=await result.text();
       if(source.length>300000){console.log("MODULE_TOO_LARGE",target.pathname);continue;}
       const moduleLines=source.split("\n").map(clean);
+      if(target.pathname==="/components/schemas.yaml"){
+        for(const schema of ["NewOrder","Payments","Lines","Taxes","Comissions",
+          "BasicOrderResponse","DetailedOrderResponse"]){
+          const start=moduleLines.findIndex(line=>line.trim()===schema+":" && indent(line)===0);
+          if(start<0){console.log("SCHEMA_NOT_FOUND",schema);continue;}
+          let end=start+1;
+          while(end<moduleLines.length){
+            const line=moduleLines[end];
+            if(line.trim() && !line.trim().startsWith("#") && indent(line)===0)break;
+            end++;
+          }
+          console.log("\n=== EXACT SCHEMA",schema,"LINES",start+1,end,"===");
+          for(let k=start;k<Math.min(end,start+260);k++)console.log((k+1)+" "+moduleLines[k]);
+          if(end>start+260)console.log("SCHEMA_TRUNCATED_LINES",end-start-260);
+        }
+      }
+
       console.log("\n=== TOTEAT MODULE",target.pathname,
         "LINES",moduleLines.length,"BYTES",source.length,"===");
       const max=target.pathname.includes("create_order")?750:270;
