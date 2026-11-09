@@ -42,6 +42,10 @@ async function main(){
     }
   }
   console.log("OPERATIONS_FOUND:",operations.length);
+  if(operations.length===0){
+    console.log("YAML_STRUCTURE_FIRST_128_LINES:");
+    for(let i=0;i<Math.min(lines.length,128);i++)console.log((i+1)+" "+lines[i]);
+  }
   for(const x of operations)
     if(x.method==="POST" || /order|orden|pedido|status|shift/i.test(x.path))
       console.log("ENDPOINT:",x.method,x.path,"LINES:",x.at+"-"+x.end);
