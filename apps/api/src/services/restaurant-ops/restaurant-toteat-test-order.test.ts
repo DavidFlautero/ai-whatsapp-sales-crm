@@ -30,3 +30,15 @@ test("ambiguous provider responses never become a safe retry",()=>{
  assert.equal(parseToteatTestReceipt('{"ok":false}',200).outcome,"unknown");
  assert.equal(parseToteatTestReceipt('{"ok":false}',429).outcome,"unknown");
 });
+
+test("HTTP 200 without a verified order ID is UNKNOWN, never accepted",()=>{
+  assert.deepEqual(parseToteatTestReceipt('{"ok":true,"msg":"order created"}',200),
+    {outcome:"unknown",externalOrderId:null});
+  assert.deepEqual(parseToteatTestReceipt('{"ok":true,"data":{"orderId":9450186157992447}}',200),
+    {outcome:"accepted",externalOrderId:"9450186157992447"});
+});
+test("conflicting external order IDs cannot be considered accepted",()=>{
+  assert.equal(parseToteatTestReceipt(
+    '{"ok":true,"data":{"orderId":9450186157992447,"duplicate":{"orderId":9450186157992448}}}',200
+  ).outcome,"unknown");
+});
