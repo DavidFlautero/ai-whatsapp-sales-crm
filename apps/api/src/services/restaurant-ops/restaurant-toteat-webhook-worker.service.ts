@@ -64,6 +64,31 @@ async function processOne():Promise<void>{
           orderStatus:job.order_status,
           modificationDate:job.modification_date
         };
+        // Toteat's status 90 is a PROVIDER REPORT, not proof that any physical
+        // printer generated paper. Record once for the kitchen audit without
+        // setting kitchen_tickets.printed_at or sending WhatsApp confirmation.
+        if(event.deliveryStatusId===90 &&
+           order.status!=="cancelled" && order.status!=="completed"){
+          const exists=await supabaseRequest<Array<{id:number}>>({
+            table:"restaurant_ops_order_events",
+            query:"?company_id=eq.delibocados&order_id=eq."+order.id+
+              "&event_type=eq.toteat_print_reported&select=id&limit=1"
+          });
+          if(!exists.length){
+            await supabaseRequest<unknown[]>({
+              table:"restaurant_ops_order_events",method:"POST",
+              prefer:"return=minimal",
+              body:[{company_id:COMPANY,order_id:order.id,
+                event_type:"toteat_print_reported",
+                actor_id:"toteat-webhook",actor_role:"system",
+                details:{provider:"toteat",delivery_status_id:90,
+                  external_reference:job.external_reference,
+                  observed_physical_paper:false}}]
+            });
+          }
+          outcome="applied";
+          reason="TOTEAT_REPORTS_PRINT_ONLY";
+        }
         const transition=toteatSafeTransition(order.status,order.fulfillment_mode,
           Boolean(order.courier_id),event);
         if(transition){
