@@ -8,11 +8,9 @@
  */
 import {config} from "dotenv";
 config({path:"../../.env",quiet:true});
-import {
-  toteatExportControls,exportOneConfirmedWhatsappOrder
-} from "../services/restaurant-ops/restaurant-toteat-export-worker.service.js";
-
 async function main(){
+ const {toteatExportControls,exportOneConfirmedWhatsappOrder}=
+   await import("../services/restaurant-ops/restaurant-toteat-export-worker.service.js");
  const mode=process.argv[2]??"--check";
  if(!["--check","--execute"].includes(mode))
    throw new Error("USE_CHECK_OR_EXECUTE");
