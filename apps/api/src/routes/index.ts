@@ -91,6 +91,7 @@ import { adminMessageMediaRoutes } from "./admin/message-media.routes.js";
 import {
   ninoxWebhookRoutes,
 } from "./webhooks/ninox.routes.js";
+import {delibocadosToteatWebhookRoutes} from "./webhooks/delibocados-toteat.routes.js";
 
 import {
   adminPaymentSettingsRoutes,
@@ -180,6 +181,8 @@ router.use(
   "/webhooks/ninox",
   ninoxWebhookRoutes,
 );
+// Protected by an independent provider webhook secret; off by default.
+router.use("/webhooks/delibocados-toteat",delibocadosToteatWebhookRoutes);
 
 router.use("/customers", requireAuth, customersRoutes);
 

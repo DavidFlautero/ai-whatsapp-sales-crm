@@ -7,6 +7,8 @@ import { classifyRestaurantIntent } from "../agent/restaurant-ops-conversation.s
 import { transferInstructionsForOrder } from "./restaurant-payment-intake.service.js";
 import {quoteVerifiedDeliveryAddress,quoteVerifiedDeliveryPoint} from "./restaurant-delivery-routing.service.js";
 import {freshVerifiedPin} from "./restaurant-whatsapp-location.service.js";
+import {explicitFulfillment,explicitPurchaseStatement,extractCustomerName} from "./restaurant-natural-checkout-routing.service.js";
+import {interpretNaturalPreparation,isFoodSafetyMessage} from "./restaurant-cart-intake.service.js";
 import {isSplitPaymentRequest,parseExactTransferCOP,splitPaymentQuote,splitQuoteMessage} from "./restaurant-split-payment.service.js";
 import {
   MENU_PAGE_SIZE, spanishNormalize, wantsCartSummary, isCoverageQuestion,
@@ -239,11 +241,15 @@ export async function handleRestaurantCheckoutMessage(input: {
   companyId: string; phone: string; message: string;
 }): Promise<CheckoutReply> {
   if (input.companyId !== COMPANY || !/^[0-9]{8,15}$/.test(input.phone)) return { handled:false,text:"" };
+  if(isFoodSafetyMessage(input.message))
+    return {handled:true,humanHandoff:true,handoffReason:"food_safety_review",
+      text:"Por seguridad alimentaria, una persona del restaurante debe confirmar ingredientes y alérgenos. No se registró ni modificó un pedido automáticamente."};
   const conversation = await getConversationByPhone(input.phone,COMPANY);
   const previous = existingDraft(conversation?.metadata?.restaurant_checkout_v1);
   const normalized = normalize(input.message);
+  const requestedMode = explicitFulfillment(input.message);
   // Coverage questions never change the checkout draft or invent geofences.
-  if(isCoverageQuestion(input.message)) {
+  if(isCoverageQuestion(input.message) && !explicitPurchaseStatement(input.message)) {
     return {handled:true,text:coverageAnswer(input.message)};
   }
   if (previous?.stage === "completed" && normalized === "confirmar pedido") {
@@ -276,10 +282,19 @@ export async function handleRestaurantCheckoutMessage(input: {
     ? { ...previous } : {
         id: crypto.randomUUID(),stage:"items",items:[],menuRevision:doc.revision,
         createdAt:new Date().toISOString(),
-        ...(classifyRestaurantIntent(input.message)==="pickup" ? {mode:"pickup" as const} :
-           classifyRestaurantIntent(input.message)==="delivery" ? {mode:"delivery" as const} : {})
+        ...(requestedMode==="pickup" || requestedMode==="delivery"
+          ? {mode:requestedMode} :
+          classifyRestaurantIntent(input.message)==="pickup" ? {mode:"pickup" as const} :
+          classifyRestaurantIntent(input.message)==="delivery" ? {mode:"delivery" as const} : {})
       };
   const activeDraft = previous && !["cancelled","completed"].includes(previous.stage);
+  if(activeDraft && explicitPurchaseStatement(input.message) &&
+      (requestedMode==="pickup" || requestedMode==="delivery") &&
+      draft.mode && requestedMode!==draft.mode){
+    return {handled:true,text:"Este carrito ya está configurado para "+
+      (draft.mode==="pickup"?"retiro":"domicilio")+
+      ". Para cambiar la modalidad, confirmala por separado antes de añadir productos. No cambié el carrito."};
+  }
   if(activeDraft && draft.customerName && !isPlausibleCustomerName(draft.customerName)) {
     // Recover drafts polluted by the former "anything is a name" bug.
     draft.customerName=undefined;
@@ -328,14 +343,23 @@ export async function handleRestaurantCheckoutMessage(input: {
       parseItemSelection(stripped,available) ?? parseNaturalItemSelection(value,available);
   };
   const addProduct = async (lines:CartLine[],confirmedQuantity=false):Promise<CheckoutReply> => {
-    if(!confirmedQuantity && lines.some(x=>x.quantity>5)) {
-      draft.pendingBulk=lines;
+    const preparation=interpretNaturalPreparation(input.message,lines);
+    if(preparation.kind!=="safe")
+      return {handled:true,
+        ...(preparation.kind==="human"?{humanHandoff:true,handoffReason:preparation.code}:{}),
+        text:preparation.prompt};
+    const prepared=preparation.lines;
+    const requestedTotals=new Map<string,number>();
+    for(const line of prepared)
+      requestedTotals.set(line.productId,(requestedTotals.get(line.productId)??0)+line.quantity);
+    if(!confirmedQuantity && [...requestedTotals.values()].some(qty=>qty>5)) {
+      draft.pendingBulk=prepared;
       await persist(input.phone,draft);
       return {handled:true,text:"Esa cantidad es alta: "+
-        formatDraftCart(lines,available)+
+        formatDraftCart(prepared,available)+
         "\nSi realmente querés esas unidades, respondé *CONFIRMAR CANTIDAD*. Todavía no se añadieron."};
     }
-    const combined=mergeCart(draft.items,lines);
+    const combined=mergeCart(draft.items,prepared);
     if(!combined)return {handled:true,text:"La cantidad supera el máximo permitido por producto (25). Decime cuántas unidades querés."};
     draft.pendingBulk=undefined;draft.items=combined;draft.menuRevision=doc.revision;
     if(draft.stage==="items")draft.stage="name";
@@ -373,7 +397,7 @@ export async function handleRestaurantCheckoutMessage(input: {
     if(!additional)return {handled:true,text:"Ese número no está disponible en el menú. Escribí *MENÚ* o *VER MÁS* para elegir un producto."};
     return addProduct(additional);
   }
-  if(activeDraft && isAddRequest(input.message)) {
+  if(activeDraft && (isAddRequest(input.message) || explicitPurchaseStatement(input.message))) {
     const found=addLines(input.message);
     if(!found)return {handled:true,text:"No pude identificar ese producto con seguridad. Pasame el nombre exacto o el número del menú. Escribí *MENÚ* para consultarlo."};
     return addProduct(found);
@@ -404,8 +428,8 @@ export async function handleRestaurantCheckoutMessage(input: {
     return addProduct(lines);
   }
   if (draft.stage === "name") {
-    const value=input.message.trim().replace(/\s+/g," ");
-    if (!isPlausibleCustomerName(value))
+    const value=extractCustomerName(input.message);
+    if (!value)
       return {handled:true,text:"Decime tu nombre para identificar el pedido, por favor."};
     draft.customerName=value;
     draft.stage=draft.mode==="pickup" ? "pickup_time" : draft.mode==="delivery" ? "zone" : "mode";
@@ -426,12 +450,12 @@ export async function handleRestaurantCheckoutMessage(input: {
       "¿Pasás a buscarlo al local o querés domicilio? Respondé *RETIRO* o *DOMICILIO*."};
   }
   if (draft.stage==="mode") {
-    if (/^(retiro|recoger|paso a buscar|local)$/.test(normalized)) {
+    if (/^(retiro|recoger|paso a buscar|local|para retirar|para recoger|retiro en el local)$/.test(normalized)) {
       draft.mode="pickup";draft.stage="pickup_time";
       await persist(input.phone,draft);
       return {handled:true,text:"Perfecto, sin domicilio. ¿En cuántos minutos pasarás a buscarlo? Respondé *AHORA* o un número entre 10 y 180."};
     }
-    if (/^(domicilio|delivery|envio)$/.test(normalized)) {
+    if (/^(domicilio|delivery|envio|a domicilio|para domicilio)$/.test(normalized)) {
       draft.mode="delivery";draft.stage="zone";
       const savedPin=freshVerifiedPin(conversation?.metadata?.restaurant_delivery_pin_v1);
       if(savedPin&&zoneRows.some(z=>z.id===savedPin.zoneId)){
@@ -539,7 +563,7 @@ export async function handleRestaurantCheckoutMessage(input: {
       await persist(input.phone,draft);
       return {handled:true,humanHandoff:true,text:"Gracias por avisarnos. Por seguridad, un encargado debe revisar los ingredientes y confirmar el pedido. No se registró automáticamente."};
     }
-    draft.customerNote = normalized==="no" ? "" : comment;
+    draft.customerNote = /^(?:no|ninguna|ninguno|sin observaciones)$/.test(normalized) ? "" : comment;
     draft.stage="payment"; await persist(input.phone,draft);
     return {handled:true,text:"¿Pagás *EFECTIVO*, *TRANSFERENCIA* o *MIXTO* (una parte transferida y el resto en efectivo)? El comprobante siempre se verifica."};
   }
