@@ -43,6 +43,7 @@ export function makeToteatOrderPayload(input:{
   restaurantId:string;localNumber:string;
   split?:VerifiedSplit|null;
   deliveryFeeProduct?:VerifiedFeeProduct|null;
+  lineProductNames:string[];
   nowISO:string;
 }):PayloadResult{
   const {order,preparation,restaurantId,localNumber,split,deliveryFeeProduct}=input;
@@ -69,13 +70,17 @@ export function makeToteatOrderPayload(input:{
     return {ready:false,reason:"CUSTOMER_NAME_INVALID"};
   if(order.fulfillment_mode!==preparation.kind)
     return {ready:false,reason:"FULFILLMENT_MISMATCH"};
+  if(input.lineProductNames.length!==preparation.lines.length ||
+     input.lineProductNames.some(x=>!x?.trim()||x.length>160))
+    return {ready:false,reason:"PRODUCT_NAMES_MISSING"};
+  if(preparation.kind==="delivery" && !order.address?.trim())
+    return {ready:false,reason:"DELIVERY_ADDRESS_MISSING"};
   const lines=preparation.lines.map((line,i)=>({
     lineNumber:i+1,quantity:line.quantity,productCode:line.productCode,
-    productName:"",amountAfterTax:line.quantity*line.priceCOP,
+    productName:input.lineProductNames[i].trim(),
+    amountAfterTax:line.quantity*line.priceCOP,
     comment:line.comment.trim().slice(0,500)
   }));
-  // Caller must provide actual published product names; the exporter overwrites
-  // this placeholder using the DB order_item snapshot keyed by line position.
   if(lines.some(x=>!validCode(x.productCode)||!validCOP(x.amountAfterTax)))
     return {ready:false,reason:"PRODUCT_LINE_INVALID"};
   if(preparation.kind==="delivery" && preparation.deliveryFeeCOP>0){
