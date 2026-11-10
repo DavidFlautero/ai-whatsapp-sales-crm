@@ -53,6 +53,10 @@ export function serializeExactToteatTestOrder(order:ToteatTestOrder):string{
   if(!json.includes('"'+marker+'"'))throw new Error("ORDER_SERIALIZE_FAILED");
   return json.replace('"'+marker+'"',integer);
 }
+/** Parse a receipt without rounding a 16+ digit Toteat ID through JSON.parse.
+ * A 200/ok:true without one provable orderId MUST stay unknown.
+ * Only explicit 4xx/ok:false (not 429) is a confirmed rejection.
+ */
 export function parseToteatTestReceipt(raw:string,httpStatus:number):{
   outcome:"accepted"|"unknown"|"rejected";externalOrderId:string|null;
 }{
@@ -61,14 +65,16 @@ export function parseToteatTestReceipt(raw:string,httpStatus:number):{
   try{p=JSON.parse(raw);}catch{return {outcome:"unknown",externalOrderId:null};}
   const obj=p&&typeof p==="object"&&!Array.isArray(p)?
     p as Record<string,unknown>:null;
-  if(httpStatus>=200&&httpStatus<300 && obj?.ok===true){
-    // Preserve the exact 16-digit ID: JSON.parse can lose integer precision.
-    const match=raw.match(/"orderId"\s*:\s*(?:"([1-9][0-9]{5,19})"|([1-9][0-9]{5,19}))/);
-    return {outcome:"accepted",externalOrderId:match?(match[1]??match[2]):null};
+  if(httpStatus>=200&&httpStatus<300&&obj?.ok===true){
+    // Check ALL orderId tokens; never trust a rounded IEEE-754 number.
+    const ids=[...raw.matchAll(/"(?:orderId|order_id)"\s*:\s*(?:"([1-9][0-9]{5,19})"|([1-9][0-9]{5,19}))/g)]
+      .map(x=>x[1]??x[2]);
+    const unique=[...new Set(ids)];
+    return unique.length===1
+      ?{outcome:"accepted",externalOrderId:unique[0]}
+      :{outcome:"unknown",externalOrderId:null};
   }
-  // Many providers return 400 when a request was not accepted, but only
-  // "ok:false" proves an explicit rejection. A timeout/502 is UNKNOWN.
-  if(obj?.ok===false&&httpStatus>=400&&httpStatus<500 &&httpStatus!==429)
+  if(obj?.ok===false&&httpStatus>=400&&httpStatus<500&&httpStatus!==429)
     return {outcome:"rejected",externalOrderId:null};
   return {outcome:"unknown",externalOrderId:null};
 }
