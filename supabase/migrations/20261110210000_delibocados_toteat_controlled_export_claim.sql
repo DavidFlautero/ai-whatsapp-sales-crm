@@ -13,7 +13,8 @@ REVOKE ALL ON public.restaurant_ops_toteat_export_lease FROM PUBLIC,anon,authent
 GRANT SELECT,INSERT,UPDATE ON public.restaurant_ops_toteat_export_lease TO service_role;
 
 CREATE OR REPLACE FUNCTION public.restaurant_ops_pos_claim_toteat_controlled(
- p_company_id text, p_cutover timestamptz, p_only_order_id uuid DEFAULT NULL
+ p_company_id text, p_cutover timestamptz, p_only_order_id uuid DEFAULT NULL,
+ p_allow_delivery boolean DEFAULT false
 ) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
 SET search_path=public,pg_temp AS $$
 DECLARE v_export public.restaurant_ops_pos_exports%ROWTYPE;
@@ -42,6 +43,8 @@ BEGIN
    AND e.created_at>=p_cutover AND o.created_at>=p_cutover
    AND (p_only_order_id IS NULL OR e.order_id=p_only_order_id)
    AND o.source='whatsapp' AND o.status='confirmed'
+   AND (o.fulfillment_mode='pickup' OR
+        (o.fulfillment_mode='delivery' AND p_allow_delivery IS TRUE))
    AND o.payment_status IN ('verified','cash_on_delivery')
    AND EXISTS(
      SELECT 1 FROM public.company_integrations i
@@ -76,10 +79,10 @@ BEGIN
 END $$;
 
 REVOKE ALL ON FUNCTION
- public.restaurant_ops_pos_claim_toteat_controlled(text,timestamptz,uuid)
+ public.restaurant_ops_pos_claim_toteat_controlled(text,timestamptz,uuid,boolean)
  FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION
- public.restaurant_ops_pos_claim_toteat_controlled(text,timestamptz,uuid)
+ public.restaurant_ops_pos_claim_toteat_controlled(text,timestamptz,uuid,boolean)
  TO service_role;
 
 INSERT INTO public.commerce_schema_migrations(version,description)
