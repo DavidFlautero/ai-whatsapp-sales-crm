@@ -124,13 +124,16 @@ export async function exportOneConfirmedWhatsappOrder():Promise<{
     return {action:"disabled",reason:"TOTEAT_CREDENTIALS_INVALID"};
   const claim=await supabaseRpc<Claim|null>("restaurant_ops_pos_claim_toteat_controlled",{
     p_company_id:COMPANY,p_cutover:controls.cutover,
-    p_only_order_id:controls.onlyOrderId
+    p_only_order_id:controls.onlyOrderId,
+    p_allow_delivery:process.env.DELIBOCADOS_TOTEAT_DELIVERY_ENABLED==="1" &&
+      Boolean(process.env.DELIBOCADOS_TOTEAT_DELIVERY_FEE_CODE?.trim())
   });
   if(!claim)return {action:"empty",reason:"NO_ELIGIBLE_NEW_ORDER"};
   // Claim already consumed this attempt. Any failure from this point requires
   // an audit and must never cause automatic resending.
   let outcome:"accepted"|"unknown"|"rejected"="unknown";
   let externalId:string|null=null,reason="PROVIDER_RESULT_UNKNOWN";
+  let postAttempted=false;
   try{
     if(!UUID.test(claim.id)||!UUID.test(claim.order_id) ||
        claim.external_reference!=="delibocados-"+claim.order_id)
@@ -187,6 +190,7 @@ export async function exportOneConfirmedWhatsappOrder():Promise<{
        renewed.onlyOrderId!==controls.onlyOrderId||
        current?.enabled!==true||current.status!=="connected")
       throw new Error("EXPORT_DISABLED_DURING_PREPARATION");
+    postAttempted=true; // From here even a network error may mean Toteat got it.
     const result=await submitOneToteatOrder({
       credentials:parsed.value,
       orderReference:prepared.orderReference,
@@ -199,7 +203,7 @@ export async function exportOneConfirmedWhatsappOrder():Promise<{
     // A failed LOCAL preflight consumes this one attempt without any POST.
     // Unknown is safer than silently requeuing a potential external order.
     reason=error instanceof Error?error.message:"UNKNOWN";
-    outcome="unknown";externalId=null;
+    outcome=postAttempted?"unknown":"rejected";externalId=null;
   }
   try{await finish(claim.id,outcome,externalId);}
   catch{
