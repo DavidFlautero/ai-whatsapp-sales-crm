@@ -57,7 +57,7 @@ async function main(){
        }
      }
    }catch{ /* provider unavailable: not proof of print */ }
-   const [order,ticket]=await Promise.all([
+   const [order,ticket,printEvents]=await Promise.all([
      supabaseRequest<Array<{status:string;fulfillment_mode:string}>>({
        table:"restaurant_ops_orders",
        query:"?company_id=eq.delibocados&id=eq."+x.order_id+
@@ -67,12 +67,18 @@ async function main(){
        table:"restaurant_ops_kitchen_tickets",
        query:"?company_id=eq.delibocados&order_id=eq."+x.order_id+
          "&select=status,printed_at&limit=1"
+     }),
+     supabaseRequest<Array<{event_type:string}>>({
+       table:"restaurant_ops_order_events",
+       query:"?company_id=eq.delibocados&order_id=eq."+x.order_id+
+         "&event_type=eq.toteat_print_reported&select=event_type&limit=1"
      })
    ]);
    console.log(JSON.stringify({reference:x.external_reference,
      accepted:true,toteat_status:status,toteat_print_signal:printing,
      crm_status:order[0]?.status??null,crm_kitchen_ticket:ticket[0]?.status??null,
      db_print_timestamp:Boolean(ticket[0]?.printed_at),
+     toteat_print_event_logged:printEvents.length>0,
      physical_paper_observed:"REQUIRES_PERSONAL_DEL_LOCAL"}));
  }
  console.log("NINGUN_POST_NINGUN_WHATSAPP_NINGUNA_ESCRITURA");
