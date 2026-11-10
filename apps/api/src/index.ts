@@ -16,6 +16,7 @@ import {
 
 import { startRestaurantNotificationsWorker } from "./services/restaurant-ops/restaurant-notifications.service.js";
 import {startToteatWebhookWorker} from "./services/restaurant-ops/restaurant-toteat-webhook-worker.service.js";
+import {startToteatExportWorker} from "./services/restaurant-ops/restaurant-toteat-export-worker.service.js";
 
 async function bootstrap() {
 
@@ -45,6 +46,7 @@ async function bootstrap() {
       );
       startRestaurantNotificationsWorker();
       startToteatWebhookWorker();
+      startToteatExportWorker(); // hard-disabled unless explicit owner/tenant/cutover flags
     },
   );
 }
