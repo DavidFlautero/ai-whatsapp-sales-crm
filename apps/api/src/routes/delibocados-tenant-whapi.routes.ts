@@ -1,3 +1,4 @@
+import { queueDelibocadosImageVision } from "../services/whapi/delibocados-image-vision.service.js";
 import { queueWhapiAudioTranscription } from "../services/whapi/whapi-audio-processing.service.js";
 import { captureRestaurantWhatsappName } from "../services/crm/restaurant-whatsapp-profile.service.js";
 import { captureRestaurantPaymentProof } from "../services/restaurant-ops/restaurant-payment-intake.service.js";
@@ -173,6 +174,8 @@ delibocadosTenantWhapiRoutes.post("/webhook", async (req, res) => {
         COMPANY
       );
 
+      let pendingTransferProof = false;
+
       // Display names are provisional. CRM enrichment never blocks the webhook.
       if (!fromMe && !result.duplicate) {
         try {
@@ -202,7 +205,8 @@ delibocadosTenantWhapiRoutes.post("/webhook", async (req, res) => {
               kind: messageType,
               caption: body === "[" + messageType + "]" ? "" : body
             });
-            if (receipt.reason !== "NO_PENDING_TRANSFER") {
+            pendingTransferProof = receipt.reason !== "NO_PENDING_TRANSFER";
+            if (pendingTransferProof) {
               console.log("[DELIBOCADOS PAYMENT INTAKE]", {
                 last4: phone.slice(-4),
                 received: receipt.received,
@@ -223,6 +227,22 @@ delibocadosTenantWhapiRoutes.post("/webhook", async (req, res) => {
         duplicates++;
       } else {
         saved++;
+
+        if (
+          !fromMe &&
+          messageType === "image" &&
+          !pendingTransferProof &&
+          result.message?.id
+        ) {
+          queueDelibocadosImageVision({
+            messageId: result.message.id,
+            phone,
+            sourceMessageId: externalId,
+            occurredAt: occurredAt && !Number.isNaN(occurredAt.getTime())
+              ? occurredAt.toISOString() : undefined,
+            caption: body === "[image]" ? undefined : body
+          });
+        }
 
         if (
           !fromMe &&
