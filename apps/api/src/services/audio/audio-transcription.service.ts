@@ -19,7 +19,7 @@ async function saveBufferToTempFile(buffer: Buffer, filename = "audio.ogg"): Pro
   await fs.promises.mkdir("./temp", { recursive: true });
 
   const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const filePath = path.join("./temp", `${Date.now()}-${safeFilename}`);
+  const filePath = path.resolve("./temp", `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeFilename}`);
 
   await fs.promises.writeFile(filePath, buffer);
 
@@ -77,7 +77,16 @@ export async function transcribeAudio(input: AudioInput): Promise<string> {
     throw new Error("Invalid audio input: missing buffer/filePath/url");
   }
 
-  const transcription = await transcribeWithGroq(filePath);
+  // Delete only temporary files created by this module, never caller-owned paths.
+  const temporary = filePath.startsWith(path.resolve("./temp") + path.sep);
+  let transcription: string;
+  try {
+    transcription = await transcribeWithGroq(filePath);
+  } finally {
+    if (temporary) {
+      await fs.promises.unlink(filePath).catch(() => undefined);
+    }
+  }
 
   console.log(
     "[AUDIO TRANSCRIPTION]",
