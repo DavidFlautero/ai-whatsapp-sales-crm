@@ -7,7 +7,11 @@
   "use strict";
 
   const params = new URLSearchParams(window.location.search);
-  const token = params.get("mesa") || "";
+  // Secure QR format: /menu#kind=table&tableId=<UUID>&token=<opaque>
+  // The fragment stays in the browser and is never part of normal HTTP logs.
+  const qrHash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const hashTableId = qrHash.get("kind") === "table" ? (qrHash.get("tableId") || "") : "";
+  const token = hashTableId ? (qrHash.get("token") || "") : (params.get("mesa") || "");
   const tableInput = document.getElementById("table");
   const tableField = document.getElementById("table-field");
   const button = document.querySelector("button.disabled-submit");
@@ -115,7 +119,7 @@
   }
   async function loadContext() {
     status("Validando QR y mesa con el servidor...", false);
-    const tableId = await awaitTableId();
+    const tableId = hashTableId || await awaitTableId();
     if (!uuid(tableId) && !editorId(tableId)) {
       status("Esta mesa aun no esta enlazada al checkout seguro. El pedido no se puede enviar.", true);
       return;
@@ -134,7 +138,17 @@
         return;
       }
       context = result.json;
+      const tableMode = document.querySelector('input[name="mode"][value="mesa"]');
+      if (tableMode) {
+        tableMode.checked = true;
+        tableMode.dispatchEvent(new Event("change", { bubbles: true }));
+      }
       showTable(String(context.table.label || tableInput.value || "Mesa"));
+      // Remove old "coming soon" copy only after secure server validation.
+      const comingSoon = button.nextElementSibling;
+      if (comingSoon && /por ahora puedes consultar|se habilitará próximamente/i.test(comingSoon.textContent || "")) {
+        comingSoon.hidden = true;
+      }
       status("Mesa verificada. Confirma el pedido y la forma de pago.", false);
       updateButton();
     } catch (_) {
