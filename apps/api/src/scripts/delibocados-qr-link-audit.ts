@@ -54,7 +54,7 @@ async function main(){
       const match=rows.find(row=>row.editor_table_id===id)
         ?? rows.find(row=>row.label.toLowerCase()===label.toLowerCase()&&!!label);
       console.log("EDITOR",JSON.stringify({
-        mesa:label||"(sin etiqueta)", id:id.slice(0,50),
+        mesa:label||"(sin etiqueta)",
         enCheckout:!!match, via:match?(match.editor_table_id===id?"editor_id":"etiqueta"):"-"
       }));
     }
