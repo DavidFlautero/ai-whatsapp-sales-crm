@@ -72,15 +72,31 @@ file.write_text(s,encoding="utf-8")
 PY
 
 nginx -t
+
+# Before reload, prove the *effective* Nginx configuration includes the patch.
+# Checking on-disk files alone is insufficient if another config takes priority.
+if ! nginx -T 2>&1 | grep -Eq 'location = /menu \{ return 410; \}'; then
+  echo "BLOQUEADO: Nginx no incluye la ruta de retiro; se revierte"; false
+fi
 systemctl reload nginx
 
+# Bypass HTTPS_PROXY/ALL_PROXY (common in managed shells). Otherwise
+# --resolve may still send the request through an outbound proxy, giving
+# a misleading HTTP 200 even though the localhost Nginx served HTTP 410.
 for path in /menu "/menu?mesa=test" /menu/; do
-  STATUS="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+  STATUS="$(curl --noproxy '*' --http1.1 --silent --show-error --output /dev/null --write-out '%{http_code}' \
     --max-time 12 --resolve delibocados.online:443:127.0.0.1 \
     "https://delibocados.online$path")"
-  echo "HTTPS $path => $STATUS"
-  [[ "$STATUS" == 410 ]] || { echo "BLOQUEADO: no se verifico 410"; false; }
+  echo "NGINX LOCAL $path => $STATUS"
+  [[ "$STATUS" == 410 ]] || { echo "BLOQUEADO: no se verifico 410 en localhost"; false; }
 done
+
+# The admin panel must remain a separate virtual host and respond.
+PANEL="$(curl --noproxy '*' --http1.1 --silent --show-error --output /dev/null --write-out '%{http_code}' \
+    --max-time 12 --resolve panel.delibocados.online:443:127.0.0.1 \
+    https://panel.delibocados.online/panel)"
+echo "PANEL NUEVO /panel => $PANEL"
+[[ "$PANEL" =~ ^(200|301|302|303|307|308|401|403)$ ]] || { echo "BLOQUEADO: panel nuevo no responde como se esperaba"; false; }
 
 trap - ERR
 echo "OK: /menu y /menu/ retirados; HTTP 410."
