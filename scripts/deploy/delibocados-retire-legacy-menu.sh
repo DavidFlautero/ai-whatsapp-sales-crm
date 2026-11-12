@@ -80,16 +80,33 @@ if ! nginx -T 2>&1 | grep -E 'location = /menu \{ return 410; \}' >/dev/null; th
 fi
 systemctl reload nginx
 
-# Bypass HTTPS_PROXY/ALL_PROXY (common in managed shells). Otherwise
-# --resolve may still send the request through an outbound proxy, giving
-# a misleading HTTP 200 even though the localhost Nginx served HTTP 410.
-for path in /menu "/menu?mesa=test" /menu/; do
-  STATUS="$(curl --noproxy '*' --http1.1 --silent --show-error --output /dev/null --write-out '%{http_code}' \
-    --max-time 12 --resolve delibocados.online:443:127.0.0.1 \
-    "https://delibocados.online$path")"
-  echo "NGINX LOCAL $path => $STATUS"
-  [[ "$STATUS" == 410 ]] || { echo "BLOQUEADO: no se verifico 410 en localhost"; false; }
-done
+# Nginx reload is asynchronous: systemctl can return while old workers still
+# serve the previous configuration. Poll until the replacement is effective
+# rather than rolling it back on the very first request.
+verify_path() {
+  local path="$1" attempt status="000"
+  for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+    status="$(curl --noproxy '*' --http1.1 --silent --show-error \
+      --output /dev/null --write-out '%{http_code}' \
+      --max-time 5 --resolve delibocados.online:443:127.0.0.1 \
+      "https://delibocados.online$path" || true)"
+    if [[ "$status" == 410 ]]; then
+      echo "NGINX LOCAL $path => 410 (intento $attempt)"
+      return 0
+    fi
+    sleep 1
+  done
+  echo "BLOQUEADO: NGINX LOCAL $path => $status tras 15 comprobaciones."
+  echo "Comprobaciones locales; config al momento de falla:"
+  grep -n -A 2 -B 2 -E 'location = /menu[/ ]' "$CONF" | head -25 || true
+  echo "Estado servicio Nginx:"
+  systemctl is-active nginx || true
+  return 1
+}
+
+verify_path /menu
+verify_path "/menu?mesa=test"
+verify_path /menu/
 
 # The admin panel must remain a separate virtual host and respond.
 PANEL="$(curl --noproxy '*' --http1.1 --silent --show-error --output /dev/null --write-out '%{http_code}' \
