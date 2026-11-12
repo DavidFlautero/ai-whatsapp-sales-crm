@@ -5,7 +5,7 @@
 La pagina de produccion esta fuera del repositorio, en:
   /var/www/delibocados-public/carta.html
 
-El instalador no reemplaza la carta. Inyecta un script separado y crea
+El instalador no reemplaza la carta. Inyecta el adaptador directamente en el HTML y crea
 copias de seguridad de HTML y Nginx antes de modificar produccion.
 
 El adaptador de navegador:
@@ -30,8 +30,8 @@ Desde la VPS:
   bash scripts/delibocados/install-qr-checkout.sh --check
   bash scripts/delibocados/install-qr-checkout.sh --apply
 
-Se crea el respaldo en /var/backups/delibocados-qr-checkout-TIMESTAMP.
-Se verifica la sintaxis de Nginx antes de recargar. Si falla, revierte.
+Se crea el respaldo en /var/backups/delibocados-qr-checkout-TIMESTAMP. No requiere una URL adicional para servir el JavaScript.
+Se verifica la sintaxis de Nginx y la disponibilidad del HTML y la API QR antes de finalizar. Si falla, revierte.
 
 ## Prerequisitos para habilitar pedidos de verdad
 
@@ -71,8 +71,7 @@ Recuperar desde la ruta de respaldo indicada:
   cp -a /var/backups/RUTA/delibocados-online.conf /etc/nginx/conf.d/delibocados-online.conf
   nginx -t && systemctl reload nginx
 
-Si el JS existia antes, restaurar su copia; si se creo nuevo, borrarlo
-tras restaurar HTML y configuracion.
+El adaptador va dentro de carta.html; restaurar HTML y Nginx alcanza para deshacer esta instalacion. Un recurso JS residual de instalaciones previas puede quedar en disco sin ser servido.
 
 ## API existente
 
