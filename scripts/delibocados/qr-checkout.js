@@ -74,7 +74,7 @@
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
   }
   async function post(path, data) {
-    const response = await fetch("/qr-checkout/" + path, {
+    const response = await fetch("/public/delibocados-qr/" + path, {
       method: "POST", headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
       cache: "no-store",
