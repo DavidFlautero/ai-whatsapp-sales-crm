@@ -75,7 +75,7 @@ nginx -t
 
 # Before reload, prove the *effective* Nginx configuration includes the patch.
 # Checking on-disk files alone is insufficient if another config takes priority.
-if ! nginx -T 2>&1 | grep -Eq 'location = /menu \{ return 410; \}'; then
+if ! nginx -T 2>&1 | grep -E 'location = /menu \{ return 410; \}' >/dev/null; then
   echo "BLOQUEADO: Nginx no incluye la ruta de retiro; se revierte"; false
 fi
 systemctl reload nginx
