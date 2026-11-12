@@ -50,3 +50,30 @@ La versión anterior se restaura copiando ese archivo a la ruta original.
 8. POS360/SmartPOS NO está integrado: el informe de preparación indicó cero
    mapeos, integración pending/false y puente Windows sin verificar.
    Un pedido interno confirmado no implica impresión física.
+
+## Prueba de un QR impreso existente (sin exponer el token)
+
+La API antigua del editor responde 200 con `tables: []`, mientras que el
+registro de checkout tiene 16 mesas habilitadas. El editor Python y el checkout
+no se consideran sincronizados por ese resultado.
+
+Para verificar si el QR físico de Mesa 4 es reutilizable:
+
+  git fetch origin feature/delibocados-qr-checkout-frontend-20261112
+  git show FETCH_HEAD:apps/api/src/scripts/delibocados-qr-token-check.ts > apps/api/src/scripts/delibocados-qr-token-check.ts
+  read -rs -p 'Pega la URL del QR de Mesa 4: ' QR_URL; echo
+  printf '%s' "$QR_URL" | pnpm --filter @ventas/api exec tsx src/scripts/delibocados-qr-token-check.ts
+  unset QR_URL
+
+El script compara SHA-256 con las 16 mesas activas; no imprime enlace, token ni
+hash. No se crean pedidos ni se cambian datos. Si no coincide el token, NO
+activar pedidos: se necesita emitir nuevos QR seguros.
+
+El adaptador actualizado también permite el formato de QR independiente del
+editor antiguo:
+
+  https://delibocados.online/menu#kind=table&tableId=<UUID>&token=<token-opaco>
+
+Los tokens de esa URL deben ser secretos, aleatorios de 32+ caracteres y el
+hash debe estar registrado en la tabla checkout. Nunca insertar claves reales
+en Git o chats.
