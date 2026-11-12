@@ -73,6 +73,9 @@
     return typeof value === "string" &&
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
   }
+  function editorId(value) {
+    return typeof value === "string" && /^mesa_[0-9a-f]{32}$/.test(value);
+  }
   async function post(path, data) {
     const response = await fetch("/public/delibocados-qr/" + path, {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -89,7 +92,7 @@
       let attempts = 0;
       function check() {
         const value = tableInput.dataset.mesaId;
-        if (uuid(value) || attempts++ >= 24) return resolve(value || "");
+        if (uuid(value) || editorId(value) || attempts++ >= 24) return resolve(value || "");
         window.setTimeout(check, 250);
       }
       check();
@@ -113,7 +116,7 @@
   async function loadContext() {
     status("Validando QR y mesa con el servidor...", false);
     const tableId = await awaitTableId();
-    if (!uuid(tableId)) {
+    if (!uuid(tableId) && !editorId(tableId)) {
       status("Esta mesa aun no esta enlazada al checkout seguro. El pedido no se puede enviar.", true);
       return;
     }
