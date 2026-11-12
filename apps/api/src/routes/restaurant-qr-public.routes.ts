@@ -9,11 +9,15 @@ import { z, ZodError } from "zod";
 import { supabaseRequest, supabaseRpc } from "../services/db/supabase-rest.client.js";
 
 export const restaurantQrPublicRoutes=Router();
+// /context accepts a UUID or the editor ID (mesa_<32 hex>).
+// /order still requires the verified UUID returned by /context.
 const base=z.object({
-  kind:z.enum(["table","general"]),tableId:z.string().uuid(),
+  kind:z.enum(["table","general"]),
+  tableId:z.union([z.string().uuid(),z.string().regex(/^mesa_[0-9a-f]{32}$/)]),
   token:z.string().min(32).max(200).regex(/^[A-Za-z0-9_-]+$/)
 }).strict();
 const orderInput=base.extend({
+  tableId:z.string().uuid(),
   sourceKey:z.string().uuid(),
   customerName:z.string().trim().min(2).max(120),
   customerPhone:z.string().regex(/^[0-9]{8,15}$/),
@@ -51,8 +55,12 @@ function jsonError(res:Response,status:number,error:string){
 }
 async function verifiedTable(input:z.infer<typeof base>):Promise<{id:string;label:string}|null>{
   const hash=createHash("sha256").update(input.token).digest("hex");
+  // Resolve the editor's public identifier to a DB UUID before checkout.
+  // The editor ID alone never grants authority; the active table's token hash
+  // must still match. Raw tokens are never logged or returned.
+  const lookupColumn=input.tableId.startsWith("mesa_")?"editor_table_id":"id";
   const tables=await supabaseRequest<Table[]>({table:"restaurant_ops_qr_tables",
-    query:"?company_id=eq.delibocados&id=eq."+encodeURIComponent(input.tableId)+
+    query:"?company_id=eq.delibocados&"+lookupColumn+"=eq."+encodeURIComponent(input.tableId)+
       "&enabled=eq.true&select=id,company_id,label,enabled,qr_token_sha256&limit=1"});
   const table=tables[0];
   if(!table)return null;
