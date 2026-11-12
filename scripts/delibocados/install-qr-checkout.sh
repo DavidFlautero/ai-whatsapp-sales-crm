@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Idempotent/reversible installation; does not activate live orders or printers.
+# Instala el checkout QR dentro de carta.html (sin archivos JS externos).
+# No activa el checkout en la API, no envia pedidos ni imprime.
 set -euo pipefail
 
 ROOT="/var/www/control"
 HTML="/var/www/delibocados-public/carta.html"
 CONF="/etc/nginx/conf.d/delibocados-online.conf"
 SOURCE="$ROOT/scripts/delibocados/qr-checkout.js"
-ASSET="/var/www/delibocados-public/delibocados-qr-checkout.js"
 MODE="${1:---check}"
 
 if [[ "$MODE" != "--check" && "$MODE" != "--apply" ]]; then
@@ -14,68 +14,62 @@ if [[ "$MODE" != "--check" && "$MODE" != "--apply" ]]; then
   exit 2
 fi
 for file in "$HTML" "$CONF" "$SOURCE"; do
-  if [[ ! -f "$file" ]]; then echo "FALTA: $file"; exit 1; fi
+  if [[ ! -f "$file" ]]; then
+    echo "FALTA: $file"; exit 1
+  fi
 done
 
-python3 - "$HTML" "$CONF" <<'PY'
+python3 - "$HTML" "$CONF" "$SOURCE" <<'PY'
 import pathlib, re, sys
 html = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
 conf = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
-assert len(re.findall(r"</body\s*>", html, re.I)) == 1, "No hay cierre </body> unico"
-assert 'location ^~ /restaurant-qr/ {' in conf, "No se encuentra la ruta QR existente"
-assert 'location = /delibocados-qr-checkout.js {' not in conf or \
-       'alias /var/www/delibocados-public/delibocados-qr-checkout.js;' in conf, \
-       "Conflicto con un recurso JS existente"
+source = pathlib.Path(sys.argv[3]).read_text(encoding="utf-8")
+assert len(re.findall(r"</body\s*>", html, re.I)) == 1, "El HTML no tiene un unico </body>"
+assert 'location ^~ /restaurant-qr/ {' in conf, "Nginx QR actual no encontrado"
+assert '</script' not in source.lower(), "El adaptador JS tiene cierre de script incompatible"
 assert 'location ^~ /qr-checkout/ {' not in conf or \
-       '4000/public/delibocados-qr/' in conf, "Conflicto en checkout QR"
-print("CHECK OK: fuente, HTML y rutas de Nginx localizados")
+  '4000/public/delibocados-qr/' in conf, "Conflicto con ruta checkout existente"
+print("CHECK OK: menu, QR, nginx y fuente listos")
 PY
 
 if [[ "$MODE" == "--check" ]]; then
-  echo "No se modifico nada. Para instalar usa --apply"
+  echo "Solo verificacion; no se modifico nada."
   exit 0
 fi
 if [[ "$(id -u)" != "0" ]]; then
-  echo "La instalacion requiere root."; exit 1
+  echo "Requiere root."; exit 1
 fi
+
 BACKUP="/var/backups/delibocados-qr-checkout-$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$BACKUP"
 chmod 700 "$BACKUP"
 cp -a "$HTML" "$BACKUP/carta.html"
 cp -a "$CONF" "$BACKUP/delibocados-online.conf"
-ASSET_EXISTED=0
-if [[ -e "$ASSET" ]]; then
-  cp -a "$ASSET" "$BACKUP/delibocados-qr-checkout.js"
-  ASSET_EXISTED=1
-fi
 
 rollback() {
-  echo "ERROR: restaurando los archivos originales..."
+  echo "ERROR: rollback automatico..."
   cp -a "$BACKUP/carta.html" "$HTML"
   cp -a "$BACKUP/delibocados-online.conf" "$CONF"
-  if [[ "$ASSET_EXISTED" == "1" ]]; then
-    cp -a "$BACKUP/delibocados-qr-checkout.js" "$ASSET"
-  else
-    rm -f "$ASSET"
-  fi
   nginx -t && systemctl reload nginx || true
 }
 trap rollback ERR
 
-cp "$SOURCE" "$ASSET"
-chmod 644 "$ASSET"
-
-python3 - "$HTML" "$CONF" <<'PY'
+python3 - "$HTML" "$CONF" "$SOURCE" <<'PY'
 import pathlib, re, sys
-html_file, conf_file = map(pathlib.Path, sys.argv[1:])
+html_file, conf_file, source_file = map(pathlib.Path, sys.argv[1:])
 html = html_file.read_text(encoding="utf-8")
 conf = conf_file.read_text(encoding="utf-8")
-tag = '<script defer src="/delibocados-qr-checkout.js?v=1"></script>'
-if '/delibocados-qr-checkout.js' not in html:
-    html = re.sub(r'(?i)</body\s*>', tag + '\n</body>', html, count=1)
-    html_file.write_text(html, encoding="utf-8")
+source = source_file.read_text(encoding="utf-8")
+marker = '<script id="delibocados-qr-checkout-adapter">'
+if marker not in html:
+  # Replace stale external reference if it exists from a prior partial install.
+  html = re.sub(r'<script\b[^>]*\bsrc="/delibocados-qr-checkout\.js[^"]*"[^>]*></script>\s*',
+                '', html, flags=re.I)
+  inline = marker + '\n' + source + '\n</script>\n'
+  html = re.sub(r'(?i)</body\s*>', lambda match: inline + match.group(0), html, count=1)
+  html_file.write_text(html, encoding="utf-8")
 if 'location ^~ /qr-checkout/ {' not in conf:
-    block = '''    # Neuromind QR checkout: do not confuse with the QR editor on 3500.
+  block = '''    # Checkout publico seguro de Neuromind API (NO editor QR 3500)
     location ^~ /qr-checkout/ {
         proxy_pass http://127.0.0.1:4000/public/delibocados-qr/;
         proxy_set_header Host $host;
@@ -85,27 +79,46 @@ if 'location ^~ /qr-checkout/ {' not in conf:
         proxy_read_timeout 20s;
         add_header Cache-Control "no-store" always;
     }
-    location = /delibocados-qr-checkout.js {
-        alias /var/www/delibocados-public/delibocados-qr-checkout.js;
-        default_type application/javascript;
-        add_header Cache-Control "no-store" always;
-    }
 
 '''
-    conf = conf.replace('    location ^~ /restaurant-qr/ {',
-                        block + '    location ^~ /restaurant-qr/ {', 1)
-    conf_file.write_text(conf, encoding="utf-8")
+  conf = conf.replace('    location ^~ /restaurant-qr/ {',
+                      block + '    location ^~ /restaurant-qr/ {', 1)
+  conf_file.write_text(conf, encoding="utf-8")
 PY
 
 nginx -t
 systemctl reload nginx
-HTTP_CODE="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
-  --max-time 10 --resolve delibocados.online:443:127.0.0.1 \
-  https://delibocados.online/delibocados-qr-checkout.js)"
-if [[ "$HTTP_CODE" != "200" ]]; then
-  echo "Recurso JS devolvio HTTP $HTTP_CODE en vez de 200"; false
-fi
+
+# Check the resource that was already public, avoiding a new JS URL.
+curl -fsS --max-time 15 \
+  --resolve delibocados.online:443:127.0.0.1 \
+  https://delibocados.online/menu |
+  python3 -c 'import sys; data=sys.stdin.buffer.read(); ok=b"id=\"delibocados-qr-checkout-adapter\"" in data; print("HTML MENU:","OK" if ok else "FALTA SCRIPT"); sys.exit(0 if ok else 1)'
+
+# Invalid JSON shape is guaranteed not to create an order.
+RESPONSE="$(curl -sS --max-time 15 \
+  --resolve delibocados.online:443:127.0.0.1 \
+  -H 'Content-Type: application/json' \
+  -X POST --data '{}' \
+  -w '\n%{http_code}' \
+  https://delibocados.online/qr-checkout/context)"
+BODY="${RESPONSE%$'\n'*}"
+HTTP="${RESPONSE##*$'\n'}"
+python3 - "$BODY" "$HTTP" <<'PY'
+import json,sys
+try:
+  body=json.loads(sys.argv[1])
+except Exception:
+  body={}
+code=sys.argv[2]
+err=body.get("error")
+valid=err in ("QR_CHECKOUT_NOT_ENABLED", "INVALID_INPUT", "QR_RATE_LIMIT")
+print("API QR:", "OK" if valid else "NO DISPONIBLE", "HTTP",code,"CODE",err or "DESCONOCIDO")
+if not valid:
+  raise SystemExit(1)
+PY
+
 trap - ERR
-echo "INSTALADO: adaptador QR y proxy; pedidos publicos siguen desactivados"
+echo "INSTALADO: adaptador dentro del HTML y ruta API QR verificada"
 echo "RESPALDO: $BACKUP"
-echo "PENDIENTE: verificar tablas, migraciones y flag antes de aceptar pedidos"
+echo "PEDIDOS LIVE: NO ACTIVADOS POR ESTE INSTALADOR"
