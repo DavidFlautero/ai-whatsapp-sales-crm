@@ -8,8 +8,11 @@ function error(status:number,code:string){
 export async function POST(request:NextRequest,context:Context){
  const {action}=await context.params;
  if(!["context","order","tables"].includes(action))return error(404,"NOT_FOUND");
+ // The readonly context preview never permits order or general table listing.
+ const enabled=process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED==="1";
+ const preview=process.env.DELIBOCADOS_QR_MENU_PREVIEW_ENABLED==="1";
  if(process.env.NEXT_PUBLIC_PANEL_INSTANCE!=="delibocados"||
-    process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED!=="1")
+   (!enabled && !(action==="context" && preview)))
    return error(503,"QR_CHECKOUT_NOT_ENABLED");
  const origin=request.headers.get("origin");
  // Nginx forwards to loopback; request.url may resolve to http://127.0.0.1:3700.
