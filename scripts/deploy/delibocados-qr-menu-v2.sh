@@ -44,6 +44,15 @@ for(const name of ["neuromind-api","delibocados-whatsapp-next"]){
  }
 }
 JS
+# SHA-1 hashes of the exact reviewed v1 QR preview deployed earlier.
+# Replace only when the local file is byte-for-byte that known baseline.
+# Any other local changes still go through a conservative three-way merge.
+declare -A KNOWN_PREVIEW=(
+ ["apps/api/src/routes/restaurant-qr-public.routes.ts"]="e13881fa7efd5d72aa33a55fac4038942105b757"
+ ["apps/dashboard/src/app/qr-pedido/page.tsx"]="fd7dea20dd01ce4ca6b90f664cb200fa859e74dd"
+ ["apps/dashboard/src/app/qr-pedido/page.module.css"]="67ef40bf3dd58c2432032b6860f1b1f6cdc1b82d"
+ ["apps/dashboard/next.config.mjs"]="57ee34fae75f3efa9e98173fce593dc548172b26"
+)
 MERGE="$(mktemp -d /tmp/deli-qr-menu-v2-XXXXXXXX)"
 chmod 700 "$MERGE"
 CANARY_PID=""
@@ -63,6 +72,10 @@ for f in "${FILES[@]}"; do
      echo "BLOQUEADO: se elimino $f localmente"; exit 1
    fi
    git show "FETCH_HEAD:$f" > "$MERGE/$f"
+ elif [[ -n "${KNOWN_PREVIEW[$f]:-}" &&
+          "$(git hash-object "$f")" == "${KNOWN_PREVIEW[$f]}" ]]; then
+   git show "FETCH_HEAD:$f" > "$MERGE/$f"
+   echo "ACTUALIZACION SEGURA: version v1 exacta reconocida: $f"
  elif git diff --quiet HEAD -- "$f"; then
    git show "FETCH_HEAD:$f" > "$MERGE/$f"
  else
