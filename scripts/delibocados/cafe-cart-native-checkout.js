@@ -73,7 +73,10 @@
   // Make the original button the ONLY confirmation control.
   submit.removeAttribute("disabled");
   submit.classList.remove("disabled-submit");
-  submit.style.cursor="pointer";
+  // Keep the old full-width brown button styling even after removing the
+  // legacy disabled-submit CSS class.
+  submit.style.cssText="display:block;width:100%;border:0;border-radius:12px;padding:14px;background:#91603d;color:#fff0df;font-weight:900;cursor:pointer;";
+
   function sync() {
     const m=mode();
     const ready = m==="table" ? !!state.qr : m==="pickup" ? !!state.catalog :
