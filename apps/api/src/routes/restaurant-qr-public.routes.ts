@@ -34,10 +34,24 @@ const orderInput=base.extend({
 
 type Table={id:string;company_id:string;label:string;enabled:boolean;qr_token_sha256:string};
 type General={enabled:boolean;qr_token_sha256:string};
-type MenuDoc={revision:number;payload:{products?:Array<{
-  id?:string;name?:string;category?:string;available?:boolean;
-  priceNeedsReview?:boolean;priceCOP?:number
-}>}};
+type MenuProduct={id?:string;name?:string;category?:string;description?:string;
+  imageId?:string|number|null;available?:boolean;priceNeedsReview?:boolean;priceCOP?:number};
+type MenuDoc={revision:number;payload:{
+  products?:MenuProduct[];
+  categories?:Array<{name?:string;label?:string}>;
+  images?:Record<string,string>;
+}};
+const PUBLIC_MEDIA_ORIGIN="https://delibocados.online";
+function publicImage(source:unknown):string|null{
+  if(typeof source!=="string")return null;
+  if(/^\\/restaurant-menu-media\\/[a-f0-9]{32}\\.(?:png|jpe?g|webp)$/.test(source))
+    return PUBLIC_MEDIA_ORIGIN+source;
+  // Public data-image is present in some historical catalogs. Cap it to
+  // avoid amplifying huge originals across hundreds of menu cards.
+  if(/^data:image\\/(?:png|jpeg|webp);base64,[a-zA-Z0-9+/=]+$/.test(source)
+      && source.length<200000)return source;
+  return null;
+}
 type Row=Record<string,unknown>;
 const counters=new Map<string,{count:number;reset:number}>();
 function limited(req:Request,max:number):boolean{
@@ -112,15 +126,21 @@ async function handler(req:Request,res:Response,checkout:boolean){
       });
       const menu=menus[0];
       if(!menu)return jsonError(res,503,"MENU_NOT_AVAILABLE");
+      const media=menu.payload.images??{};
       const products=(menu.payload.products??[]).filter(p=>
         typeof p.id==="string"&&typeof p.name==="string"&&
         p.available!==false&&p.priceNeedsReview!==true&&
         Number.isSafeInteger(p.priceCOP)&&Number(p.priceCOP)>=0
       ).slice(0,600).map(p=>({
-        id:p.id,name:p.name,category:p.category??"",priceCOP:p.priceCOP
+        id:p.id,name:p.name,category:p.category??"",priceCOP:p.priceCOP,
+        description:typeof p.description==="string"?p.description.slice(0,600):"",
+        imageUrl:publicImage(p.imageId==null?null:media[String(p.imageId)])
       }));
+      const categories=(menu.payload.categories??[])
+        .filter(x=>typeof x.name==="string"&&x.name.length>0)
+        .map(x=>({name:x.name??"",label:x.label??x.name??""}));
       res.setHeader("Cache-Control","no-store");
-      return res.json({ok:true,table,revision:menu.revision,products,ordersEnabled});
+      return res.json({ok:true,table,revision:menu.revision,products,categories,ordersEnabled});
     }
     const payload=input as z.infer<typeof orderInput>;
     const order=await supabaseRpc<Row>("restaurant_ops_create_qr_order",{
