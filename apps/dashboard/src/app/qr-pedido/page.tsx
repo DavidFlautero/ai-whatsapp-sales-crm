@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import styles from "./page.module.css";
 type Product={id:string;name:string;category:string;priceCOP:number};
-type Context={table:{id:string;label:string};revision:number;products:Product[]};
+type Context={table:{id:string;label:string};revision:number;products:Product[];ordersEnabled?:boolean};
 type Token={kind:"table"|"general";tableId?:string;token:string};
 type TableChoice={id:string;label:string};
 type Receipt={id:string;number:number;status:string;paymentStatus:string;totalCOP:number;table:string};
@@ -18,6 +18,11 @@ function failure(code:string):string{
   MENU_NOT_AVAILABLE:"La carta todavía no está disponible.",
   QR_SERVICE_UNAVAILABLE:"El sistema no pudo confirmar la operación.",
   QR_OPERATION_UNAVAILABLE:"No pudimos verificar el registro. Consultá al encargado.",
+  ORIGIN_DENIED:"La conexión del checkout fue rechazada por una configuración del dominio.",
+  INVALID_INPUT:"Los datos del código QR no tienen el formato esperado.",
+  JSON_REQUIRED:"El servidor requiere una solicitud JSON.",
+  QR_ORDER_UNVERIFIED:"El servidor no pudo confirmar este pedido.",
+  BAD_QR_UPSTREAM:"La conexión del panel con el servicio QR devolvió una respuesta incompatible.",
   BAD_JSON:"Solicitud inválida."
  };
  return messages[code]??"No se pudo completar la operación. Consultá al encargado.";
@@ -46,8 +51,8 @@ export default function DelibocadosQrCheckoutPage(){
        headers:{"Content-Type":"application/json"},body:JSON.stringify(t)
      });
      const payload=await res.json();
-     if(!res.ok||!payload.ok)throw new Error(failure(payload.error??"QR_SERVICE_UNAVAILABLE"));
-     setContext({table:payload.table,revision:payload.revision,products:payload.products});
+     if(!res.ok||!payload.ok)throw new Error(failure(payload.error??"QR_SERVICE_UNAVAILABLE") + (payload.error?" ("+payload.error+")":""));
+     setContext({table:payload.table,revision:payload.revision,products:payload.products,ordersEnabled:payload.ordersEnabled===true});
      setSourceKey(crypto.randomUUID());
    }catch(e){setError(e instanceof Error?e.message:"No se pudo cargar la carta");}
    finally{setLoading(false);}
@@ -93,7 +98,7 @@ export default function DelibocadosQrCheckoutPage(){
    setCart(c=>({...c,[id]:Math.max(0,Math.min(25,(c[id]??0)+delta))}));
  };
  const checkout=async()=>{
-   if(!token?.tableId||!context||!sourceKey||busy||uncertain||receipt)return;
+   if(!token?.tableId||!context||!context.ordersEnabled||!sourceKey||busy||uncertain||receipt)return;
    if(!selected.length){setError("Elegí al menos un producto.");return;}
    if(name.trim().length<2||!/^[0-9]{8,15}$/.test(phone)){
      setError("Completá tu nombre y teléfono con indicativo de país.");return;
@@ -148,6 +153,7 @@ export default function DelibocadosQrCheckoutPage(){
    </section>:null}
    {context&&!receipt?<section className={styles.content}>
      <div className={styles.table}>Mesa verificada: <strong>{context.table.label}</strong></div>
+     {!context.ordersEnabled?<div className={styles.notice} role="status">Vista previa de la carta: el pedido todavía no se puede enviar a cocina. No se cobrará ni registrará ninguna orden desde esta página.</div>:null}
      <section className={styles.catalog}>
        <h2>Carta</h2>
        {context.products.length===0?<p>No hay productos disponibles.</p>:null}
@@ -181,8 +187,8 @@ export default function DelibocadosQrCheckoutPage(){
          onChange={e=>setCustomerNote(e.target.value)}
          maxLength={2000} disabled={busy||uncertain}/></label>
        <button type="button" className={styles.confirm} onClick={()=>void checkout()}
-         disabled={!selected.length||busy||uncertain}>
-         {busy?"Registrando…":"Confirmar pedido"}
+         disabled={!selected.length||busy||uncertain||!context.ordersEnabled}>
+         {busy?"Registrando…":context.ordersEnabled?"Confirmar pedido":"Pedidos aún no habilitados"}
        </button>
        <small>Los precios se verifican nuevamente en el servidor. La transferencia
          no se considera pagada hasta ser revisada.</small>
