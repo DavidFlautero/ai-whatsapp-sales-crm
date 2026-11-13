@@ -175,7 +175,13 @@
     button.disabled = !valid || !consent.checked || sending || confirmed || uncertain;
     button.textContent = confirmed ? "Pedido registrado" :
       sending ? "Registrando pedido..." :
-      valid ? "Confirmar pedido" : originalLabel;
+      valid ? "Confirmar pedido" :
+      !context ? originalLabel :
+      m==="table" ? "Se necesita QR de mesa" :
+      m==="delivery" ? "Verificá el domicilio" :
+      m==="pickup" ? "Confirmar pedido" : "Elegí cómo recibir el pedido";
+    button.style.opacity = valid && !sending && !confirmed ? "1" : "";
+    button.style.cursor = button.disabled ? "not-allowed" : "pointer";
   }
   async function initialize() {
     status("Comprobando disponibilidad del checkout...",false);
@@ -187,6 +193,13 @@
         updateButton();return;
       }
       context=result.data;
+      // Remove legacy placeholder copy only after a live backend confirms the catalog.
+      const parent=button.parentElement;
+      if(parent) for (const el of parent.querySelectorAll("small,p")) {
+        if (/(pedidos? en linea proximamente|se habilitara proximamente|proximamente disponible)/.test(norm(el.textContent))) {
+          el.hidden=true;el.style.display="none";
+        }
+      }
       status("Podés pedir para retirar. Para mesa hace falta un QR seguro; para domicilio, una dirección verificada.",false);
       if(validToken && (isUuid(secureTableId)||tableInput)) {
         let tableId=secureTableId;
