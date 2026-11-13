@@ -11,6 +11,8 @@ const money=(value:number)=>new Intl.NumberFormat("es-CO",{style:"currency",curr
 function failure(code:string):string{
  const messages:Record<string,string>={
   QR_CHECKOUT_NOT_ENABLED:"Este canal todavía no está habilitado para recibir pedidos.",
+  QR_NOT_ENABLED_FOR_TABLE:"Esta mesa todavía no está habilitada para pedidos. Estamos realizando pruebas controladas.",
+  QR_GENERAL_DISABLED_DURING_PILOT:"El QR general no está disponible durante las pruebas.",
   QR_NOT_AVAILABLE:"QR no disponible o mesa deshabilitada. Pedile ayuda al encargado.",
   QR_RATE_LIMIT:"Demasiadas consultas. Intentá nuevamente más adelante.",
   MENU_NOT_AVAILABLE:"La carta todavía no está disponible.",
