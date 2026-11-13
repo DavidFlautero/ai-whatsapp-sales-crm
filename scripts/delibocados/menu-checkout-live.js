@@ -76,12 +76,26 @@
   const norm = v => String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .trim().toLowerCase().replace(/\s+/g, " ");
   function mode() {
-    const chosen = document.querySelector('input[name="mode"]:checked, input[name="orderMode"]:checked, input[name="fulfillment"]:checked');
+    // The original menu's mode inputs may have other names than "mode".
+    // Read the selected radio's value AND its visible label, rather than
+    // relying on an assumed field name that can leave the button disabled.
+    const selected = [...document.querySelectorAll('input[type="radio"]:checked')];
+    const chosen = selected.find(input =>
+      /(mesa|salon|comer|reti|local|domic|delivery|pickup|table|takeaway)/.test(
+        norm(input.value+" "+(input.closest("label")?.textContent || ""))
+      )
+    ) || document.querySelector('input[name="mode"]:checked, input[name="orderMode"]:checked, input[name="fulfillment"]:checked');
     const fallback = document.querySelector('select[name="mode"], select[name="orderMode"], #order-mode');
-    const v = norm(chosen ? chosen.value : fallback && fallback.value);
+    let v = norm(chosen ? chosen.value+" "+(chosen.closest("label")?.textContent || "") :
+      fallback?.value || "");
+    if (!v) {
+      const selectedPill = [...document.querySelectorAll('[aria-pressed="true"], [aria-selected="true"], .selected, .active')]
+        .find(el => el.closest("button")!==button && /(mesa|reti|domic)/.test(norm(el.textContent)));
+      v = norm(selectedPill?.textContent);
+    }
     if (/(mesa|salon|comer aqui|dine|table)/.test(v)) return "table";
-    if (/(domicilio|delivery|envio|reparto)/.test(v)) return "delivery";
-    if (/(retiro|recoger|paso a buscar|pickup|llevar|local)/.test(v)) return "pickup";
+    if (/(domic|delivery|envio|reparto)/.test(v)) return "delivery";
+    if (/(reti|recoger|paso a buscar|pickup|takeaway|llevar|local)/.test(v)) return "pickup";
     return "";
   }
   async function post(action, body) {
@@ -264,8 +278,7 @@
   consent.addEventListener("change",updateButton);
   payment.addEventListener("change",updateButton);
   document.addEventListener("change",ev=>{
-    if(ev.target && ev.target.matches &&
-      ev.target.matches('input[name="mode"],input[name="orderMode"],input[name="fulfillment"],select[name="mode"],select[name="orderMode"],#order-mode')) {
+    if (ev.target?.matches?.('input[type="radio"], select')) {
       queueMicrotask(updateButton);
     }
   },true);
