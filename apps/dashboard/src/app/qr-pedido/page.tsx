@@ -76,7 +76,7 @@ export default function DelibocadosQrCheckoutPage(){
     const payload=safeParse(await response.text());
     if(!response.ok||!payload.ok)
       throw new Error(message(payload.error||"QR_SERVICE_UNAVAILABLE"));
-    return payload as T;
+    return payload as unknown as T;
   }
   async function loadContext(identity:QrIdentity){
     if(!identity.tableId){setError("Seleccioná tu mesa.");setLoading(false);return;}
@@ -132,7 +132,7 @@ export default function DelibocadosQrCheckoutPage(){
         const allowed=new Set(context.products.map(p=>p.id));
         const result:Cart={};
         for(const [id,qty] of Object.entries(parsed))
-          if(allowed.has(id)&&Number.isInteger(qty)&&Number(qty)>0)
+          if(allowed.has(id)&&typeof qty==="number"&&Number.isInteger(qty)&&qty>0)
             result[id]=Math.min(25,Number(qty));
         setCart(result);
       }
