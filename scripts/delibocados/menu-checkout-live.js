@@ -168,7 +168,7 @@
   }
   function updateButton() {
     const m=mode();
-    deliveryBox.hidden = m!=="delivery";
+    deliveryBox.style.display = m==="delivery" ? "grid" : "none";
     const valid = m==="table" ? !!qrContext : m==="pickup" ? !!context :
       m==="delivery" ? !!context && !!quote?.covered &&
         quote.address===address.value.trim() : false;
