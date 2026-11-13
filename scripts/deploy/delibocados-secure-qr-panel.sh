@@ -7,6 +7,8 @@ BRANCH="fix/delibocados-qr-panel-real-20261113"
 FILES=(
  "apps/api/src/routes/restaurant-ops.routes.ts"
  "apps/api/src/routes/restaurant-qr-public.routes.ts"
+ "apps/api/src/scripts/delibocados-qr-pilot-table.ts"
+ "apps/dashboard/src/app/api/delibocados-qr/[action]/route.ts"
  "apps/dashboard/src/components/restaurant-os/native-qr.tsx"
  "apps/dashboard/src/app/qr-pedido/page.tsx"
  "apps/dashboard/src/components/restaurant-os/native-menu.tsx"
@@ -26,7 +28,9 @@ for proc in neuromind-api delibocados-whatsapp-next; do
  }
 done
 for file in "${FILES[@]}"; do
- [[ -f "$file" ]] || { echo "BLOQUEADO: falta $file"; exit 1; }
+ if [[ ! -f "$file" ]] && git cat-file -e "HEAD:$file" 2>/dev/null; then
+   echo "BLOQUEADO: se elimino localmente el archivo controlado $file"; exit 1
+ fi
 done
 [[ -f apps/dashboard/.next-delibocados/BUILD_ID ]] || {
  echo "BLOQUEADO: no existe build Delibocados actual para rollback"; exit 1;
@@ -43,7 +47,11 @@ trap cleanup EXIT
 for file in "${FILES[@]}"; do
  mkdir -p "$MERGE_TMP/$(dirname "$file")"
  proposed="$MERGE_TMP/$file"
- if git diff --quiet HEAD -- "$file"; then
+ if [[ ! -f "$file" ]]; then
+   git show "FETCH_HEAD:$file" > "$proposed"
+ elif ! git cat-file -e "HEAD:$file" 2>/dev/null; then
+   echo "BLOQUEADO: existe un archivo local no versionado $file"; exit 1
+ elif git diff --quiet HEAD -- "$file"; then
    git show "FETCH_HEAD:$file" > "$proposed"
  else
    git show "HEAD:$file" > "$MERGE_TMP/base.txt"
@@ -65,7 +73,7 @@ BACKUP="$(mktemp -d /root/backups/delibocados-qr-panel-XXXXXXXX)"
 chmod 700 "$BACKUP"
 for file in "${FILES[@]}"; do
  mkdir -p "$BACKUP/$(dirname "$file")"
- cp -a "$file" "$BACKUP/$file"
+ if [[ -f "$file" ]]; then cp -a "$file" "$BACKUP/$file"; fi
 done
 [[ ! -f pnpm-lock.yaml ]] || cp -a pnpm-lock.yaml "$BACKUP/pnpm-lock.yaml"
 OLD_BUILD="$ROOT/apps/dashboard/.next-delibocados"
@@ -74,7 +82,9 @@ MOVED_OLD=0
 MOVED_NEW=0
 rollback(){
  echo "ERROR: revirtiendo codigo y build del panel QR"
- for file in "${FILES[@]}"; do cp -a "$BACKUP/$file" "$file"; done
+ for file in "${FILES[@]}"; do
+   if [[ -f "$BACKUP/$file" ]]; then cp -a "$BACKUP/$file" "$file"; else rm -f "$file"; fi
+ done
  if [[ -f "$BACKUP/pnpm-lock.yaml" ]]; then
    cp -a "$BACKUP/pnpm-lock.yaml" pnpm-lock.yaml
  fi
