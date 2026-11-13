@@ -36,6 +36,9 @@ async function main(){
     Number.isSafeInteger(p.priceCOP)&&p.priceCOP>=0);
   if(eligible.length<10)throw new Error("MENU_HAS_TOO_FEW_VERIFIED_PRODUCTS");
 
+  const requireOrderRpc=Boolean(process.env.DELIBOCADOS_QR_REQUIRE_ROTATION_AFTER)||
+    process.env.DELIBOCADOS_QR_REQUIRE_RPC==="1";
+  if(requireOrderRpc){
   const url=process.env.SUPABASE_URL;
   const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
   if(!url||!key)throw new Error("SUPABASE_NOT_CONFIGURED");
@@ -59,10 +62,12 @@ async function main(){
   if(!json||typeof json.message!=="string"||
      !json.message.includes("QR_CHECKOUT_NOT_AUTHORIZED"))
     throw new Error("QR_ORDER_RPC_NOT_READY");
+  }
   console.log("QR_PREFLIGHT_OK");
   console.log("PILOT_TABLE_ID="+tableId);
   console.log("MENU_REVISION="+catalog.revision);
   console.log("VERIFIED_PRODUCTS="+eligible.length);
+  console.log("QR_RPC_VERIFIED="+(requireOrderRpc?"YES":"NO_PREVIEW_ONLY"));
 }
 void main().catch(err=>{
   console.error("QR_PREFLIGHT_BLOCKED="+(err instanceof Error?err.message:"UNKNOWN"));
