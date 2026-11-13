@@ -5,7 +5,9 @@ const isDelibocados =
   process.env.NEXT_PUBLIC_PANEL_INSTANCE === "delibocados";
 
 const nextConfig = {
-  distDir: isDelibocados ? ".next-delibocados" : ".next",
+  distDir: process.env.DELIBOCADOS_STAGING_BUILD === "1"
+    ? ".next-delibocados-candidate"
+    : isDelibocados ? ".next-delibocados" : ".next",
 };
 
 export default nextConfig;
