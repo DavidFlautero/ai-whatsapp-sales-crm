@@ -74,9 +74,21 @@ async function verifiedTable(input:z.infer<typeof base>):Promise<{id:string;labe
   }
   return {id:table.id,label:table.label};
 }
+function inputTablePilotMissing(input:unknown,pilot:string):boolean{
+  if(!/^[0-9a-f-]{36}$/i.test(pilot))return true;
+  if(!input||typeof input!=="object")return true;
+  const id=(input as Record<string,unknown>).tableId;
+  return typeof id!=="string"||id.toLowerCase()!==pilot.toLowerCase();
+}
+
 async function handler(req:Request,res:Response,checkout:boolean){
   if(process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED!=="1")
     return jsonError(res,503,"QR_CHECKOUT_NOT_ENABLED");
+  // Pilot allowlist: accept orders/context only for one secure table UUID.
+  // Never rely on a browser-provided label or editor ID to bypass this gate.
+  const pilot=process.env.DELIBOCADOS_QR_PILOT_TABLE_ID?.trim();
+  if(pilot && inputTablePilotMissing(req.body,pilot))
+    return jsonError(res,503,"QR_NOT_ENABLED_FOR_TABLE");
   if(limited(req,checkout?5:20))
     return jsonError(res,429,"QR_RATE_LIMIT");
   if(!req.is("application/json"))
@@ -149,6 +161,8 @@ restaurantQrPublicRoutes.post("/order",async(req,res)=>{await handler(req,res,tr
 restaurantQrPublicRoutes.post("/tables",async(req,res)=>{
  if(process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED!=="1")
    return jsonError(res,503,"QR_CHECKOUT_NOT_ENABLED");
+ if(process.env.DELIBOCADOS_QR_PILOT_TABLE_ID?.trim())
+   return jsonError(res,503,"QR_GENERAL_DISABLED_DURING_PILOT");
  if(limited(req,20))return jsonError(res,429,"QR_RATE_LIMIT");
  if(!req.is("application/json"))return jsonError(res,415,"JSON_REQUIRED");
  const parsed=z.object({kind:z.literal("general"),
