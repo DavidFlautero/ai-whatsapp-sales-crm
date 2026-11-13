@@ -2,6 +2,7 @@
  * Read-only readiness checks for QR order pilot.
  * Does not create an order or use a real QR token.
  */
+import { randomUUID } from "node:crypto";
 import { config } from "dotenv";
 config({path:"../../.env",quiet:true});
 
@@ -45,7 +46,7 @@ async function main(){
     method:"POST",
     headers:{apikey:key,Authorization:"Bearer "+key,"Content-Type":"application/json"},
     body:JSON.stringify({
-      p_company_id:"__readiness_only__",p_source_key:crypto.randomUUID(),
+      p_company_id:"__readiness_only__",p_source_key:randomUUID(),
       p_qr_kind:"table",p_qr_token:"0".repeat(48),
       p_table_id:tableId,p_customer_phone:"000000000000",p_customer_name:"Test",
       p_items:[],p_expected_menu_revision:catalog.revision,
