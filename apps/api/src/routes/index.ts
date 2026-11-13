@@ -147,6 +147,8 @@ router.use("/public/delibocados-qr", restaurantQrPublicRoutes);
 // unrelated catch-all API route. Every request still validates its opaque
 // token, enabled state, company ID and optional one-table pilot.
 router.use("/delibocados-qr", (req,res,next)=>{
+  // Marker proves the HTTPS request reached the QR handler, not the catch-all.
+  res.setHeader("X-Deli-QR-Handler","api-qr-alias-v1");
   // No credentials or cross-origin browser access to another tenant.
   if(req.headers.origin!=="https://panel.delibocados.online")
     return res.status(403).setHeader("Cache-Control","no-store")
