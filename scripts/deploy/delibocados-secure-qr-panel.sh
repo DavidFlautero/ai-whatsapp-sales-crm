@@ -35,12 +35,27 @@ git fetch origin "$BRANCH"
 for file in "${FILES[@]}"; do
  git cat-file -e "FETCH_HEAD:$file" || { echo "BLOQUEADO: falta $file en rama"; exit 1; }
 done
-changes="$(git diff --name-only -- "${FILES[@]}")"
-staged="$(git diff --cached --name-only -- "${FILES[@]}")"
-if [[ -n "$changes" || -n "$staged" ]]; then
- echo "BLOQUEADO: cambios locales en archivos a instalar:"
- printf '%s\n%s\n' "$changes" "$staged"; exit 1
-fi
+# Generate conflict-free candidates, preserving edits in the VPS working tree.
+MERGE_TMP="$(mktemp -d /tmp/delibocados-qr-merge-XXXXXXXX)"
+chmod 700 "$MERGE_TMP"
+cleanup() { rm -rf "$MERGE_TMP"; }
+trap cleanup EXIT
+for file in "${FILES[@]}"; do
+ mkdir -p "$MERGE_TMP/$(dirname "$file")"
+ proposed="$MERGE_TMP/$file"
+ if git diff --quiet HEAD -- "$file"; then
+   git show "FETCH_HEAD:$file" > "$proposed"
+ else
+   git show "HEAD:$file" > "$MERGE_TMP/base.txt"
+   git show "FETCH_HEAD:$file" > "$MERGE_TMP/incoming.txt"
+   if ! git merge-file --diff3 --stdout "$file" "$MERGE_TMP/base.txt" "$MERGE_TMP/incoming.txt" > "$proposed"; then
+     echo "BLOQUEADO: conflicto al fusionar $file"
+     echo "No se modifico el proyecto. Revisar la version local antes de continuar."
+     exit 1
+   fi
+   echo "MERGE OK: se conservan cambios locales de $file"
+ fi
+done
 echo "PRECHECK OK: no se tocara Nginx, PostgreSQL, pagos ni POS360."
 echo "PRECHECK OK: el checkout publico NO se activara."
 if [[ "$MODE" == "--check" ]]; then exit 0; fi
@@ -76,7 +91,7 @@ rollback(){
 }
 trap rollback ERR
 for file in "${FILES[@]}"; do
- git show "FETCH_HEAD:$file" > "$file"
+ cp "$MERGE_TMP/$file" "$file"
 done
 pnpm install --no-frozen-lockfile
 pnpm --filter @ventas/api typecheck
