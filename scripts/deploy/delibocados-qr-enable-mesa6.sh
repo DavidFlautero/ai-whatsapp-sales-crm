@@ -81,15 +81,17 @@ for action in context order; do
  echo "Mesa 6 token falso /$action => HTTP $CODE $ERROR"
  [[ "$CODE" == 404 && "$ERROR" == QR_NOT_AVAILABLE ]] || false
 done
-# Other tables remain blocked even when they carry a malformed token.
+# Another table may VIEW the catalogue with its own valid QR, but
+# cannot place ORDERS while the pilot allowlist is Mesa 6 only.
 OTHERS="$(curl --noproxy '*' --silent --show-error --max-time 15 \
- -o /dev/null -w '%{http_code}' \
+ -o "$ROOT/apps/api/qr-other-table-probe.tmp" -w '%{http_code}' \
  --resolve panel.delibocados.online:443:127.0.0.1 \
  -H 'Origin: https://panel.delibocados.online' \
  -H 'Content-Type: application/json' \
- --data '{"kind":"table","tableId":"00000000-0000-4000-8000-000000000000","token":"00000000000000000000000000000000"}' \
- https://panel.delibocados.online/api/delibocados-qr/context)"
-echo "Otra mesa => HTTP $OTHERS (esperado 503)"
+ --data '{"kind":"table","tableId":"00000000-0000-4000-8000-000000000000","token":"00000000000000000000000000000000","sourceKey":"00000000-0000-4000-8000-000000000000","customerName":"Prueba","customerPhone":"570000000000","expectedMenuRevision":1,"items":[{"productId":"inexistente","quantity":1}],"paymentMethod":"cash","customerConfirmed":true}' \
+ https://panel.delibocados.online/api/delibocados-qr/order)"
+rm -f "$ROOT/apps/api/qr-other-table-probe.tmp"
+echo "Otra mesa /order => HTTP $OTHERS (esperado 503)"
 [[ "$OTHERS" == 503 ]] || false
 trap - ERR
 echo "PILOTO ACTIVO: pedidos reales habilitados SOLO para Mesa 6"
