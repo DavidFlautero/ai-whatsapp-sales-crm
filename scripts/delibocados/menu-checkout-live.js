@@ -1,8 +1,12 @@
 /* Delibocados public menu checkout. Does not print, charge or send to POS360. */
 (() => {
   "use strict";
-  const button = document.querySelector("button.disabled-submit");
-  if (!button || document.getElementById("deli-live-checkout")) return;
+  // The cart modal is created only AFTER the customer opens it.
+  // A one-time document.querySelector() at page load never sees its button.
+  // Bind whenever the actual checkout button enters the DOM.
+  function bindCheckout(button) {
+  if (!button || button.dataset.deliCheckoutBound === "1") return;
+  button.dataset.deliCheckoutBound = "1";
   const originalLabel = button.textContent || "Confirmar pedido";
   const tableInput = document.getElementById("table");
   const params = new URLSearchParams(location.search);
@@ -315,4 +319,34 @@
   if(form)form.addEventListener("submit",submit,true);
   updateButton();
   void initialize();
+  } // end bindCheckout
+
+  // Keep one observer only; ignore re-rendered status text and other mutations.
+  // A dynamically replaced cart gets its own listeners and fields.
+  let pending = false;
+  function scanForCheckout() {
+    for (const button of document.querySelectorAll("button")) {
+      if (button.dataset.deliCheckoutBound === "1") continue;
+      if (button.matches(".disabled-submit") ||
+          /pedidos? en l[ií]nea pr[oó]ximamente/i.test(button.textContent || "")) {
+        bindCheckout(button);
+      }
+    }
+  }
+  function scheduleScan() {
+    if (pending) return;
+    pending = true;
+    queueMicrotask(() => {
+      pending = false;
+      scanForCheckout();
+    });
+  }
+  if (document.documentElement) {
+    new MutationObserver(scheduleScan).observe(document.documentElement, {
+      childList: true,
+      subtree: true
+    });
+  }
+  document.addEventListener("click", scheduleScan, true);
+  scanForCheckout();
 })();
