@@ -82,7 +82,10 @@ function inputTablePilotMissing(input:unknown,pilot:string):boolean{
 }
 
 async function handler(req:Request,res:Response,checkout:boolean){
-  if(process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED!=="1")
+  const ordersEnabled=process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED==="1";
+  const previewEnabled=process.env.DELIBOCADOS_QR_MENU_PREVIEW_ENABLED==="1";
+  // Read-only preview can load verified products but cannot place an order.
+  if(!ordersEnabled && (checkout || !previewEnabled))
     return jsonError(res,503,"QR_CHECKOUT_NOT_ENABLED");
   // Pilot allowlist: accept orders/context only for one secure table UUID.
   // Never rely on a browser-provided label or editor ID to bypass this gate.
@@ -117,7 +120,7 @@ async function handler(req:Request,res:Response,checkout:boolean){
         id:p.id,name:p.name,category:p.category??"",priceCOP:p.priceCOP
       }));
       res.setHeader("Cache-Control","no-store");
-      return res.json({ok:true,table,revision:menu.revision,products});
+      return res.json({ok:true,table,revision:menu.revision,products,ordersEnabled});
     }
     const payload=input as z.infer<typeof orderInput>;
     const order=await supabaseRpc<Row>("restaurant_ops_create_qr_order",{
