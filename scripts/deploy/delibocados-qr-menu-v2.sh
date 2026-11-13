@@ -58,6 +58,7 @@ chmod 700 "$MERGE"
 # Surgical optional API transformation: retain any unrelated changes in
 # restaurant-qr-public.routes.ts instead of forcing a whole-file Git merge.
 git show "FETCH_HEAD:scripts/deploy/delibocados-qr-public-menu-v2-transform.py" > "$MERGE/transform.py"
+git show "FETCH_HEAD:scripts/deploy/delibocados-qr-next-config-transform.py" > "$MERGE/next-transform.py"
 git show "FETCH_HEAD:apps/api/src/routes/restaurant-qr-public.routes.ts" > "$MERGE/qr-desired.ts"
 CANARY_PID=""
 cleanup(){
@@ -71,7 +72,11 @@ trap cleanup EXIT
 for f in "${FILES[@]}"; do
  git cat-file -e "FETCH_HEAD:$f" || { echo "BLOQUEADO: falta $f"; exit 1; }
  mkdir -p "$MERGE/$(dirname "$f")"
- if [[ "$f" == "apps/api/src/routes/restaurant-qr-public.routes.ts" ]]; then
+ if [[ "$f" == "apps/dashboard/next.config.mjs" ]]; then
+   python3 "$MERGE/next-transform.py" "$f" "$MERGE/$f" || {
+     echo "BLOQUEADO: Next config personalizado requiere revisar distDir"; exit 1;
+   }
+ elif [[ "$f" == "apps/api/src/routes/restaurant-qr-public.routes.ts" ]]; then
    if python3 "$MERGE/transform.py" "$f" "$MERGE/qr-desired.ts" "$MERGE/$f"; then
      echo "QR API: catalogo enriquecido sin reemplazar cambios locales"
    else
