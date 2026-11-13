@@ -5,6 +5,8 @@ MODE="${1:---check}"
 ROOT="/var/www/control"
 BRANCH="fix/delibocados-qr-panel-real-20261113"
 FILES=(
+ "apps/api/src/server/createApp.ts"
+ "apps/api/src/routes/index.ts"
  "apps/api/src/routes/restaurant-ops.routes.ts"
  "apps/api/src/routes/restaurant-qr-public.routes.ts"
  "apps/api/src/scripts/delibocados-qr-pilot-table.ts"
@@ -206,6 +208,16 @@ PANEL_HTTP="$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' \
   --max-time 10 http://127.0.0.1:3700/panel/qr)"
 CUSTOMER_HTTP="$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' \
   --max-time 10 http://127.0.0.1:3700/qr-pedido)"
+# Existing Nginx /api/ catch-all strips the prefix and hits API 4000.
+# Confirm our new alias and scoped CORS return the same disabled-order status.
+ALIAS_HTTP="$(curl --noproxy '*' -sS -o "$BACKUP/qr-alias-test.json" -w '%{http_code}' \
+ --max-time 10 -H 'Origin: https://panel.delibocados.online' \
+ -H 'Content-Type: application/json' --data '{}' \
+ http://127.0.0.1:4000/delibocados-qr/order)"
+ALIAS_ERROR="$(node -e 'const fs=require("fs");const d=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(d.error||""))' "$BACKUP/qr-alias-test.json")"
+echo "API 4000 QR alias => $ALIAS_HTTP $ALIAS_ERROR (esperado 503 QR_CHECKOUT_NOT_ENABLED)"
+[[ "$ALIAS_HTTP" == 503 && "$ALIAS_ERROR" == QR_CHECKOUT_NOT_ENABLED ]] || false
+
 echo "API admin anonima => $API_HTTP (esperado 401/403)"
 echo "Panel QR => $PANEL_HTTP (puede redirigir a login)"
 echo "Pagina del cliente => $CUSTOMER_HTTP"
