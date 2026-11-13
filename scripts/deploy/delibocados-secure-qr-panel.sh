@@ -8,6 +8,7 @@ FILES=(
  "apps/api/src/routes/restaurant-ops.routes.ts"
  "apps/api/src/routes/restaurant-qr-public.routes.ts"
  "apps/dashboard/src/components/restaurant-os/native-qr.tsx"
+ "apps/dashboard/src/app/qr-pedido/page.tsx"
  "apps/dashboard/src/components/restaurant-os/native-menu.tsx"
  "apps/dashboard/next.config.mjs"
  "apps/dashboard/package.json"
