@@ -184,6 +184,10 @@
       m==="delivery" ? !!context && !!quote?.covered &&
         quote.address===address.value.trim() : false;
     button.disabled = !valid || !consent.checked || sending || confirmed || uncertain;
+    // The legacy CSS class may include pointer-events:none regardless of the
+    // disabled property. Remove it only when our verified flow is actionable.
+    if (button.disabled) button.classList.add("disabled-submit");
+    else button.classList.remove("disabled-submit");
     button.textContent = confirmed ? "Pedido registrado" :
       sending ? "Registrando pedido..." :
       valid ? "Confirmar pedido" :
