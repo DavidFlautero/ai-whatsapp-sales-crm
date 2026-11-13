@@ -136,6 +136,10 @@ for (const name of ["neuromind-api","delibocados-whatsapp-next"]) {
     console.error("BLOQUEADO: "+name+" tiene pedidos QR activos; no reemplazar flags");
     process.exitCode=2;
   }
+  if(name==="delibocados-whatsapp-next" && String(app.pm2_env?.DELIBOCADOS_STAGING_BUILD||"") === "1") {
+    console.error("BLOQUEADO: la carpeta candidata parece estar en uso; no sobrescribirla");
+    process.exitCode=2;
+  }
 }
 JS
 
