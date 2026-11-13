@@ -145,18 +145,52 @@ DELIBOCADOS_BUILD=1 NEXT_PUBLIC_PANEL_INSTANCE=delibocados DELIBOCADOS_STAGING_B
 [[ -f "$NEW_BUILD/BUILD_ID" ]] || {
   echo "BLOQUEADO: Next no genero BUILD_ID candidato"; false;
 }
-if [[ -d "$OLD_BUILD" ]]; then
- mv "$OLD_BUILD" "$BACKUP/.next-delibocados"
- MOVED_OLD=1
+# Do not rename Next 16 Turbopack builds: compiled dynamic-route references
+# can depend on the build directory. Start a canary from candidate in place.
+(
+ cd "$ROOT/apps/dashboard"
+ exec env DELIBOCADOS_BUILD=1 NEXT_PUBLIC_PANEL_INSTANCE=delibocados \
+   DELIBOCADOS_STAGING_BUILD=1 DELIBOCADOS_QR_MENU_PREVIEW_ENABLED=1 \
+   DELIBOCADOS_QR_CHECKOUT_ENABLED=0 \
+   node node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3799
+) >"$BACKUP/canary-next.log" 2>&1 &
+CANARY_PID=$!
+READY=0
+for n in $(seq 1 20); do
+ if ! kill -0 "$CANARY_PID" 2>/dev/null; then
+   echo "BLOQUEADO: Next candidato termino antes de responder"; false
+ fi
+ CODE="$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' \
+   --max-time 3 http://127.0.0.1:3799/qr-pedido || true)"
+ if [[ "$CODE" == 200 ]]; then READY=1; break; fi
+ sleep 1
+done
+if [[ "$READY" != 1 ]]; then
+ echo "BLOQUEADO: candidato no responde /qr-pedido"; false
 fi
-mv "$NEW_BUILD" "$OLD_BUILD"
-MOVED_NEW=1
+# Exercise dynamic handler on canary without placing orders.
+CANARY_HTTP="$(curl --noproxy '*' -sS \
+ -o "$BACKUP/qr-canary-order.json" -w '%{http_code}' --max-time 10 \
+ -H 'Origin: https://panel.delibocados.online' \
+ -H 'Content-Type: application/json' --data '{}' \
+ http://127.0.0.1:3799/api/delibocados-qr/order)"
+CANARY_ERROR="$(node -e 'const fs=require("fs");try{const v=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(String(v.error||""))}catch{process.stdout.write("NON_JSON")}' "$BACKUP/qr-canary-order.json")"
+echo "NEXT CANDIDATO /api/delibocados-qr/order => $CANARY_HTTP $CANARY_ERROR"
+[[ "$CANARY_HTTP" == 503 && "$CANARY_ERROR" == QR_CHECKOUT_NOT_ENABLED ]] || {
+ echo "BLOQUEADO: el handler QR dinamico del Next candidato falla"; false
+}
+stop_canary
 # Preview only for the photographed Mesa 6 QR. Never activate orders.
+SWITCHED_API=1
 DELIBOCADOS_QR_MENU_PREVIEW_ENABLED=1 \
 DELIBOCADOS_QR_PILOT_TABLE_ID="$PILOT_ID" \
 DELIBOCADOS_QR_CHECKOUT_ENABLED=0 \
 pm2 restart neuromind-api --update-env
 
+# Keep compiled candidate IN PLACE; leave the old build available for rollback.
+SWITCHED_NEXT=1
+DELIBOCADOS_STAGING_BUILD=1 \
+DELIBOCADOS_BUILD=1 \
 DELIBOCADOS_QR_MENU_PREVIEW_ENABLED=1 \
 DELIBOCADOS_QR_CHECKOUT_ENABLED=0 \
 NEXT_PUBLIC_PANEL_INSTANCE=delibocados \
