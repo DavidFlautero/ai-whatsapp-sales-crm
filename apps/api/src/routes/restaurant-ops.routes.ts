@@ -264,7 +264,17 @@ restaurantOpsRoutes.post("/qr/secure-tables/:id/rotate",requireRoles("owner","ad
 restaurantOpsRoutes.get("/orders", safe(async (_req,res) => {
   const orders = await rows("restaurant_ops_orders",
     "?select=*,restaurant_ops_order_items(*)&company_id=eq.delibocados&order=created_at.desc&limit=200");
-  readOnly(res); res.json({ ok:true, orders });
+  // Resolve dine-in QR identity for both the order queue and the kitchen.
+  // Do not force the staff to look up a raw UUID to find the table.
+  const tables = await rows("restaurant_ops_qr_tables",
+    "?company_id=eq.delibocados&select=id,label&limit=100");
+  const tableLabels=new Map(tables.map(t=>[String(t.id),String(t.label)]));
+  const decorated=orders.map(o=>({
+    ...o,
+    qr_table_label:o.fulfillment_mode==="dine_in"
+      ?tableLabels.get(String(o.qr_table_id??""))??"Mesa sin nombre":null
+  }));
+  readOnly(res); res.json({ ok:true, orders:decorated });
 }));
 restaurantOpsRoutes.post("/orders", requireRoles("owner","admin","supervisor"),
  safe(async (req,res) => {
