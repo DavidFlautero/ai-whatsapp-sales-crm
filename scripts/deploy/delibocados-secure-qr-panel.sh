@@ -6,6 +6,7 @@ ROOT="/var/www/control"
 BRANCH="fix/delibocados-qr-panel-real-20261113"
 FILES=(
  "apps/api/src/routes/restaurant-ops.routes.ts"
+ "apps/api/src/routes/restaurant-qr-public.routes.ts"
  "apps/dashboard/src/components/restaurant-os/native-qr.tsx"
  "apps/dashboard/src/components/restaurant-os/native-menu.tsx"
  "apps/dashboard/next.config.mjs"
