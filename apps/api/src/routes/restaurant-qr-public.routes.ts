@@ -44,11 +44,11 @@ type MenuDoc={revision:number;payload:{
 const PUBLIC_MEDIA_ORIGIN="https://delibocados.online";
 function publicImage(source:unknown):string|null{
   if(typeof source!=="string")return null;
-  if(/^\\/restaurant-menu-media\\/[a-f0-9]{32}\\.(?:png|jpe?g|webp)$/.test(source))
+  if(/^\/restaurant-menu-media\/[a-f0-9]{32}\.(?:png|jpe?g|webp)$/.test(source))
     return PUBLIC_MEDIA_ORIGIN+source;
   // Public data-image is present in some historical catalogs. Cap it to
   // avoid amplifying huge originals across hundreds of menu cards.
-  if(/^data:image\\/(?:png|jpeg|webp);base64,[a-zA-Z0-9+/=]+$/.test(source)
+  if(/^data:image\/(?:png|jpeg|webp);base64,[a-zA-Z0-9+/=]+$/.test(source)
       && source.length<200000)return source;
   return null;
 }
