@@ -26,6 +26,9 @@ done
 for file in "${FILES[@]}"; do
  [[ -f "$file" ]] || { echo "BLOQUEADO: falta $file"; exit 1; }
 done
+[[ -f apps/dashboard/.next-delibocados/BUILD_ID ]] || {
+ echo "BLOQUEADO: no existe build Delibocados actual para rollback"; exit 1;
+}
 git fetch origin "$BRANCH"
 for file in "${FILES[@]}"; do
  git cat-file -e "FETCH_HEAD:$file" || { echo "BLOQUEADO: falta $file en rama"; exit 1; }
