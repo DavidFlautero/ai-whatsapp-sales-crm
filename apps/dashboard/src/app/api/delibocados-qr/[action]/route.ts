@@ -12,7 +12,9 @@ export async function POST(request:NextRequest,context:Context){
     process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED!=="1")
    return error(503,"QR_CHECKOUT_NOT_ENABLED");
  const origin=request.headers.get("origin");
- if(origin!==new URL(request.url).origin)return error(403,"ORIGIN_DENIED");
+ // Nginx forwards to loopback; request.url may resolve to http://127.0.0.1:3700.
+ // Match the browser Origin against the explicit public HTTPS application origin.
+ if(origin!=="https://panel.delibocados.online")return error(403,"ORIGIN_DENIED");
  if(!request.headers.get("content-type")?.toLowerCase().startsWith("application/json"))
    return error(415,"JSON_REQUIRED");
  const declared=Number(request.headers.get("content-length")??"0");
