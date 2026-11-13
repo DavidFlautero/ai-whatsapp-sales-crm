@@ -6,6 +6,8 @@ MODE="${1:---check}"
 ROOT="/var/www/control"
 BRANCH="fix/delibocados-qr-panel-real-20261113"
 FILES=(
+ "apps/api/src/routes/restaurant-ops.routes.ts"
+ "apps/dashboard/src/components/restaurant-os/RestaurantOpsClient.tsx"
  "apps/api/src/routes/restaurant-qr-public.routes.ts"
  "apps/api/src/scripts/delibocados-qr-order-preflight.ts"
  "apps/dashboard/src/app/qr-pedido/page.tsx"
