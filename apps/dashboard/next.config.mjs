@@ -13,6 +13,17 @@ const nextConfig = {
     : process.env.DELIBOCADOS_STAGING_BUILD === "1"
       ? ".next-delibocados-candidate"
       : isDelibocados ? ".next-delibocados" : ".next",
+  // Route the existing printed QR URL to the isolated v2 storefront
+  // BEFORE matching the legacy filesystem page, only in release menu-v2.
+  async rewrites() {
+    return {
+      beforeFiles: menuRelease
+        ? [{ source: "/qr-pedido", destination: "/qr-pedido-v2" }]
+        : [],
+      afterFiles: [],
+      fallback: [],
+    };
+  },
 };
 
 export default nextConfig;
