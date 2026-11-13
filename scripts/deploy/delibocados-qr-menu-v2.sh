@@ -171,6 +171,10 @@ ORDER_CODE="$(node -e 'const d=require(process.argv[1]);process.stdout.write(Str
 echo "MENU HTTP $PAGE | PEDIDOS HTTP $ORDER $ORDER_CODE"
 [[ "$PAGE" == 200 && "$ORDER" == 503 && "$ORDER_CODE" == QR_CHECKOUT_NOT_ENABLED ]] || false
 trap - ERR
+# Written only after successful deployment. The order-activation script
+# requires Mesa 6 QR to be rotated AFTER this timestamp.
+date -u +"%Y-%m-%dT%H:%M:%SZ" > /root/.delibocados-qr-menu-v2-installed-utc
+chmod 600 /root/.delibocados-qr-menu-v2-installed-utc
 echo "INSTALADO: carta v2 con categorias, fotos y carrito, en modo vista previa"
 echo "NO ACTIVADOS: pedidos reales, SmartPOS, impresora, Toteat"
 echo "RESPALDO: $BACKUP"
