@@ -11,8 +11,8 @@ FILES=(
  # the customer menu and public QR API. Staff table labels ship separately.
  "apps/api/src/routes/restaurant-qr-public.routes.ts"
  "apps/api/src/scripts/delibocados-qr-order-preflight.ts"
- "apps/dashboard/src/app/qr-pedido/page.tsx"
- "apps/dashboard/src/app/qr-pedido/page.module.css"
+ "apps/dashboard/src/app/qr-pedido-v2/page.tsx"
+ "apps/dashboard/src/app/qr-pedido-v2/page.module.css"
  "apps/dashboard/next.config.mjs"
 )
 [[ "$MODE" == "--check" || "$MODE" == "--apply" ]] || {
@@ -166,6 +166,11 @@ for n in $(seq 1 20); do
  sleep 1
 done
 [[ "$READY" == 1 ]] || { echo "BLOQUEADO: Next candidato no responde"; false; }
+curl --noproxy '*' -sS --max-time 10 \
+  http://127.0.0.1:3799/qr-pedido > "$BACKUP/canary-page.html"
+if ! grep -Fq 'Todo lo rico, directo a tu mesa.' "$BACKUP/canary-page.html"; then
+  echo "BLOQUEADO: el QR publico no apunta a la carta visual v2 en canary"; false
+fi
 CANARY="$(curl --noproxy '*' -sS -o "$BACKUP/qr-canary.json" -w '%{http_code}' \
  --max-time 10 -H 'Origin: https://panel.delibocados.online' \
  -H 'Content-Type: application/json' \
@@ -185,9 +190,12 @@ DELIBOCADOS_BUILD=1 DELIBOCADOS_STAGING_BUILD=0 \
  DELIBOCADOS_QR_MENU_PREVIEW_ENABLED=1 DELIBOCADOS_QR_CHECKOUT_ENABLED=0 \
  pm2 restart delibocados-whatsapp-next --update-env
 sleep 5
-PAGE="$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' \
+PAGE="$(curl --noproxy '*' -sS -o "$BACKUP/public-qr-page.html" -w '%{http_code}' \
  --max-time 15 --resolve panel.delibocados.online:443:127.0.0.1 \
  https://panel.delibocados.online/qr-pedido)"
+if ! grep -Fq 'Todo lo rico, directo a tu mesa.' "$BACKUP/public-qr-page.html"; then
+  echo "BLOQUEADO: el QR publico todavia muestra la pagina antigua"; false
+fi
 ORDER="$(curl --noproxy '*' -sS -o "$BACKUP/qr-orders-disabled.json" \
  -w '%{http_code}' --max-time 15 \
  --resolve panel.delibocados.online:443:127.0.0.1 \
