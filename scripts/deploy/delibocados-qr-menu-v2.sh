@@ -55,6 +55,10 @@ declare -A KNOWN_PREVIEW=(
 )
 MERGE="$(mktemp -d /tmp/deli-qr-menu-v2-XXXXXXXX)"
 chmod 700 "$MERGE"
+# Surgical optional API transformation: retain any unrelated changes in
+# restaurant-qr-public.routes.ts instead of forcing a whole-file Git merge.
+git show "FETCH_HEAD:scripts/deploy/delibocados-qr-public-menu-v2-transform.py" > "$MERGE/transform.py"
+git show "FETCH_HEAD:apps/api/src/routes/restaurant-qr-public.routes.ts" > "$MERGE/qr-desired.ts"
 CANARY_PID=""
 cleanup(){
  if [[ -n "$CANARY_PID" ]]; then
@@ -67,7 +71,14 @@ trap cleanup EXIT
 for f in "${FILES[@]}"; do
  git cat-file -e "FETCH_HEAD:$f" || { echo "BLOQUEADO: falta $f"; exit 1; }
  mkdir -p "$MERGE/$(dirname "$f")"
- if [[ ! -f "$f" ]]; then
+ if [[ "$f" == "apps/api/src/routes/restaurant-qr-public.routes.ts" ]]; then
+   if python3 "$MERGE/transform.py" "$f" "$MERGE/qr-desired.ts" "$MERGE/$f"; then
+     echo "QR API: catalogo enriquecido sin reemplazar cambios locales"
+   else
+     cp -a "$f" "$MERGE/$f"
+     echo "AVISO: se mantiene backend QR original; el menu y carrito si se actualizan"
+   fi
+ elif [[ ! -f "$f" ]]; then
    if git cat-file -e "HEAD:$f" 2>/dev/null; then
      echo "BLOQUEADO: se elimino $f localmente"; exit 1
    fi
