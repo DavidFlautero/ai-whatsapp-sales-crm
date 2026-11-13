@@ -104,6 +104,10 @@
     if (Array.isArray(stored)) entries = stored.map(x => ["",x]);
     else if (stored && typeof stored === "object" && Array.isArray(stored.items))
       entries = stored.items.map(x => ["",x]);
+    else if (stored && typeof stored === "object" && stored.items &&
+      typeof stored.items === "object") entries = Object.entries(stored.items);
+    else if (stored && typeof stored === "object" && stored.cart &&
+      typeof stored.cart === "object") entries = Object.entries(stored.cart);
     else if (typeof stored === "object") entries = Object.entries(stored);
     return entries.map(([key,raw]) => {
       if(raw === null || raw === undefined) return null;
@@ -124,10 +128,13 @@
       if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 25)
         throw new Error("Revisá la cantidad de productos en el carrito.");
       let p = products.find(p=>p.id === item.id);
-      if (!p && item.name && Number.isSafeInteger(item.price)) {
-        const matches = products.filter(p=>norm(p.name)===norm(item.name)&&
-          Number(p.priceCOP)===item.price);
-        if (matches.length===1) p=matches[0];
+      if (!p && item.name) {
+        const sameName=products.filter(p=>norm(p.name)===norm(item.name));
+        const exact=sameName.filter(p=>Number(p.priceCOP)===item.price);
+        if (exact.length===1) p=exact[0];
+        // An unambiguous catalog name can safely resolve an item; server
+        // prices are authoritative and never taken from browser input.
+        else if (sameName.length===1) p=sameName[0];
       }
       if (!p) throw new Error("El carrito contiene productos sin identificar en la carta oficial. Actualizá el menú antes de pedir.");
       const old = merged.get(p.id);
