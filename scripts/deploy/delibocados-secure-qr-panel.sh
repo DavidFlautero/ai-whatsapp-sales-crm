@@ -78,27 +78,37 @@ done
 [[ ! -f pnpm-lock.yaml ]] || cp -a pnpm-lock.yaml "$BACKUP/pnpm-lock.yaml"
 OLD_BUILD="$ROOT/apps/dashboard/.next-delibocados"
 NEW_BUILD="$ROOT/apps/dashboard/.next-delibocados-candidate"
-MOVED_OLD=0
-MOVED_NEW=0
+CANARY_PID=""
+SWITCHED_API=0
+SWITCHED_NEXT=0
+stop_canary(){
+ if [[ -n "$CANARY_PID" ]]; then
+   kill "$CANARY_PID" >/dev/null 2>&1 || true
+   wait "$CANARY_PID" >/dev/null 2>&1 || true
+   CANARY_PID=""
+ fi
+}
 rollback(){
- echo "ERROR: revirtiendo codigo y build del panel QR"
+ stop_canary
+ echo "ERROR: restaurando codigo y build del panel QR"
  for file in "${FILES[@]}"; do
    if [[ -f "$BACKUP/$file" ]]; then cp -a "$BACKUP/$file" "$file"; else rm -f "$file"; fi
  done
  if [[ -f "$BACKUP/pnpm-lock.yaml" ]]; then
    cp -a "$BACKUP/pnpm-lock.yaml" pnpm-lock.yaml
  fi
- if [[ "$MOVED_NEW" == 1 && -d "$OLD_BUILD" ]]; then
-   mv "$OLD_BUILD" "$NEW_BUILD.failed-$(date +%s)" || true
+ # Restore old build selection; candidate directory remains separate.
+ if [[ "$SWITCHED_API" == 1 ]]; then
+   DELIBOCADOS_QR_MENU_PREVIEW_ENABLED=0 DELIBOCADOS_QR_CHECKOUT_ENABLED=0 \
+     pm2 restart neuromind-api --update-env >/dev/null 2>&1 || true
  fi
- if [[ "$MOVED_OLD" == 1 && -d "$BACKUP/.next-delibocados" ]]; then
-   mv "$BACKUP/.next-delibocados" "$OLD_BUILD" || true
+ if [[ "$SWITCHED_NEXT" == 1 ]]; then
+   DELIBOCADOS_STAGING_BUILD=0 DELIBOCADOS_BUILD=1 \
+   NEXT_PUBLIC_PANEL_INSTANCE=delibocados \
+   DELIBOCADOS_QR_MENU_PREVIEW_ENABLED=0 DELIBOCADOS_QR_CHECKOUT_ENABLED=0 \
+     pm2 restart delibocados-whatsapp-next --update-env >/dev/null 2>&1 || true
  fi
  pnpm install --no-frozen-lockfile >/dev/null 2>&1 || true
- DELIBOCADOS_QR_MENU_PREVIEW_ENABLED=0 DELIBOCADOS_QR_CHECKOUT_ENABLED=0 \
- pm2 restart neuromind-api --update-env >/dev/null 2>&1 || true
- DELIBOCADOS_QR_MENU_PREVIEW_ENABLED=0 DELIBOCADOS_QR_CHECKOUT_ENABLED=0 \
- pm2 restart delibocados-whatsapp-next --update-env >/dev/null 2>&1 || true
  echo "ROLLBACK intentado. Respaldo: $BACKUP"
 }
 trap rollback ERR
