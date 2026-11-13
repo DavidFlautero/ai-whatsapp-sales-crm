@@ -7,11 +7,18 @@ config({path:"../../.env",quiet:true});
 
 async function main(){
   const {supabaseRequest}=await import("../services/db/supabase-rest.client.js");
-  const tables=await supabaseRequest<Array<{id:string;label:string;enabled:boolean}>>({
+  const tables=await supabaseRequest<Array<{id:string;label:string;enabled:boolean;updated_at:string}>>({
     table:"restaurant_ops_qr_tables",
-    query:"?company_id=eq.delibocados&label=eq.Mesa%206&enabled=eq.true&select=id,label,enabled&limit=2"
+    query:"?company_id=eq.delibocados&label=eq.Mesa%206&enabled=eq.true&select=id,label,enabled,updated_at&limit=2"
   });
   if(tables.length!==1)throw new Error("PILOT_TABLE_NOT_UNIQUE");
+  const threshold=process.env.DELIBOCADOS_QR_REQUIRE_ROTATION_AFTER;
+  if(threshold){
+    const rotatedAt=new Date(tables[0].updated_at).getTime();
+    const minimum=new Date(threshold).getTime();
+    if(!Number.isFinite(rotatedAt)||!Number.isFinite(minimum)||rotatedAt<=minimum)
+      throw new Error("PILOT_QR_MUST_BE_REGENERATED_AFTER_MENU_DEPLOY");
+  }
   const tableId=tables[0].id;
   const menus=await supabaseRequest<Array<{revision:number;payload:{products?:Array<{
     id:string;name:string;priceCOP:number;priceNeedsReview?:boolean;available?:boolean
