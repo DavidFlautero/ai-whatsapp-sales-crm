@@ -89,20 +89,48 @@ echo "=== Reiniciando solo neuromind-api ==="
 DELIBOCADOS_WEB_CHECKOUT_ENABLED=1 pm2 restart neuromind-api --update-env
 API_RESTARTED=1
 
-echo "=== Smoke test del checkout sin crear pedidos ==="
-curl --noproxy '*' --silent --show-error --fail --max-time 20 \
-  -H 'Content-Type: application/json' \
-  -d '{"kind":"pickup"}' \
-  http://127.0.0.1:4000/public/delibocados-qr/context |
-python3 -c '
+echo "=== Esperando disponibilidad REAL de neuromind-api ==="
+# A PM2 "online" means the process was spawned, NOT that port 4000 is ready.
+# Do not fail the entire deploy on the first connection-refused.
+RESPONSE_FILE="$(mktemp /tmp/delibocados-web-checkout-XXXXXXXX.json)"
+ready=0
+LAST_HTTP="000"
+for attempt in $(seq 1 30); do
+  LAST_HTTP="$(curl --noproxy '*' --silent --output "$RESPONSE_FILE" --write-out '%{http_code}' \
+    --connect-timeout 2 --max-time 6 \
+    -H 'Content-Type: application/json' -d '{"kind":"pickup"}' \
+    http://127.0.0.1:4000/public/delibocados-qr/context || true)"
+  if [[ "$LAST_HTTP" == "200" ]] && python3 - "$RESPONSE_FILE" <<'PY'
 import json,sys
-d=json.load(sys.stdin)
-ok = d.get("ok")==True and isinstance(d.get("products"),list) and \
-     len(d["products"])>0 and isinstance(d.get("revision"),int)
-print("CATALOGO INTERNO:", "OK" if ok else "ERROR",
-      "productos:",len(d.get("products",[])),"revision:",d.get("revision"))
-sys.exit(0 if ok else 1)
-'
+try:
+  d=json.load(open(sys.argv[1]))
+  assert d.get("ok") is True
+  assert isinstance(d.get("revision"),int) and d["revision"]>0
+  assert isinstance(d.get("products"),list) and len(d["products"])>0
+except Exception:
+  sys.exit(1)
+PY
+  then
+    ready=1
+    break
+  fi
+  sleep 2
+done
+if [[ "$ready" != "1" ]]; then
+  echo "API NO PREPARADA: ultimo HTTP $LAST_HTTP despues de 30 intentos"
+  echo "Puerto TCP 4000:"
+  ss -lntp | grep ':4000 ' || true
+  echo "Bloqueado para evitar publicar checkout inestable"
+  false
+fi
+python3 - "$RESPONSE_FILE" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1]))
+print("CATALOGO INTERNO: OK",
+      "productos:",len(d["products"]),"revision:",d["revision"])
+PY
+rm -f "$RESPONSE_FILE"
+echo "=== Smoke test HTTPS sin crear pedidos ==="
 
 curl --noproxy '*' --silent --show-error --fail --max-time 20 \
   --resolve delibocados.online:443:127.0.0.1 \
