@@ -8,7 +8,7 @@ type Tab = "orders" | "kitchen" | "dispatch" | "zones" | "incidents" | "reports"
 type Item = { id: string; product_id: string; product_name: string; quantity: number;
   unit_price_cop: number; line_total_cop: number; instructions: string };
 type Order = { id: string; number: number; customer_name: string; customer_phone: string;
-  fulfillment_mode: "pickup" | "delivery" | "dine_in"; status: Status; payment_status: string; payment_method?: string;
+  fulfillment_mode: "pickup" | "delivery" | "dine_in"; qr_table_label?: string | null; status: Status; payment_status: string; payment_method?: string;
   version: number; created_at: string; preparing_at?: string; ready_at?: string;
   customer_note?: string; address?: string; zone_id?: string; courier_id?: string;
   total_cop: number; subtotal_cop: number; delivery_fee_cop: number;
@@ -247,13 +247,14 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
       <div className="rops-order-head">
         <div><strong>#{order.number} · {order.customer_name}</strong>
           <small>{order.fulfillment_mode === "pickup" ? "Retiro en el local" :
-             order.fulfillment_mode === "dine_in" ? "Consumo en mesa" : "Domicilio"} · Hace {relative(order.created_at)}</small>
+             order.fulfillment_mode === "dine_in" ? (order.qr_table_label || "Consumo en mesa") : "Domicilio"} · Hace {relative(order.created_at)}</small>
         </div>
         <StatusLabel status={order.status}/>
       </div>
       <div className="rops-order-body">
         <OrderLines order={order}/>
         <p><b>Total:</b> {money(order.total_cop)} · <StatusLabel status={order.payment_status}/></p>
+        {order.fulfillment_mode === "dine_in" && <p><b>Mesa:</b> {order.qr_table_label || "Sin identificar"}</p>}
         {order.address && <p><b>Dirección:</b> {order.address}</p>}
         {needsPayment && <p><b>Atención:</b> comprobar el pago antes de pasar a cocina.</p>}
         {order.customer_note && <p><b>Observaciones:</b> {order.customer_note}</p>}

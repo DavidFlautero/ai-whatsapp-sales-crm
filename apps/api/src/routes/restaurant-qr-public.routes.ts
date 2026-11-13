@@ -34,10 +34,24 @@ const orderInput=base.extend({
 
 type Table={id:string;company_id:string;label:string;enabled:boolean;qr_token_sha256:string};
 type General={enabled:boolean;qr_token_sha256:string};
-type MenuDoc={revision:number;payload:{products?:Array<{
-  id?:string;name?:string;category?:string;available?:boolean;
-  priceNeedsReview?:boolean;priceCOP?:number
-}>}};
+type MenuProduct={id?:string;name?:string;category?:string;description?:string;
+  imageId?:string|number|null;available?:boolean;priceNeedsReview?:boolean;priceCOP?:number};
+type MenuDoc={revision:number;payload:{
+  products?:MenuProduct[];
+  categories?:Array<{name?:string;label?:string}>;
+  images?:Record<string,string>;
+}};
+const PUBLIC_MEDIA_ORIGIN="https://delibocados.online";
+function publicImage(source:unknown):string|null{
+  if(typeof source!=="string")return null;
+  if(/^\/restaurant-menu-media\/[a-f0-9]{32}\.(?:png|jpe?g|webp)$/.test(source))
+    return PUBLIC_MEDIA_ORIGIN+source;
+  // Public data-image is present in some historical catalogs. Cap it to
+  // avoid amplifying huge originals across hundreds of menu cards.
+  if(/^data:image\/(?:png|jpeg|webp);base64,[a-zA-Z0-9+/=]+$/.test(source)
+      && source.length<200000)return source;
+  return null;
+}
 type Row=Record<string,unknown>;
 const counters=new Map<string,{count:number;reset:number}>();
 function limited(req:Request,max:number):boolean{
@@ -74,9 +88,25 @@ async function verifiedTable(input:z.infer<typeof base>):Promise<{id:string;labe
   }
   return {id:table.id,label:table.label};
 }
+function inputTablePilotMissing(input:unknown,pilot:string):boolean{
+  if(!/^[0-9a-f-]{36}$/i.test(pilot))return true;
+  if(!input||typeof input!=="object")return true;
+  const id=(input as Record<string,unknown>).tableId;
+  return typeof id!=="string"||id.toLowerCase()!==pilot.toLowerCase();
+}
+
 async function handler(req:Request,res:Response,checkout:boolean){
-  if(process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED!=="1")
+  const ordersEnabled=process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED==="1";
+  const previewEnabled=process.env.DELIBOCADOS_QR_MENU_PREVIEW_ENABLED==="1";
+  // Read-only preview can load verified products but cannot place an order.
+  if(!ordersEnabled && (checkout || !previewEnabled))
     return jsonError(res,503,"QR_CHECKOUT_NOT_ENABLED");
+  // The pilot restricts WRITES, not browsing the real catalogue.
+  // A valid signed QR for any enabled table may see a read-only menu.
+  // Only the one nominated UUID may create orders.
+  const pilot=process.env.DELIBOCADOS_QR_PILOT_TABLE_ID?.trim();
+  if(checkout && pilot && inputTablePilotMissing(req.body,pilot))
+    return jsonError(res,503,"QR_NOT_ENABLED_FOR_TABLE");
   if(limited(req,checkout?5:20))
     return jsonError(res,429,"QR_RATE_LIMIT");
   if(!req.is("application/json"))
@@ -97,15 +127,22 @@ async function handler(req:Request,res:Response,checkout:boolean){
       });
       const menu=menus[0];
       if(!menu)return jsonError(res,503,"MENU_NOT_AVAILABLE");
+      const media=menu.payload.images??{};
       const products=(menu.payload.products??[]).filter(p=>
         typeof p.id==="string"&&typeof p.name==="string"&&
         p.available!==false&&p.priceNeedsReview!==true&&
         Number.isSafeInteger(p.priceCOP)&&Number(p.priceCOP)>=0
       ).slice(0,600).map(p=>({
-        id:p.id,name:p.name,category:p.category??"",priceCOP:p.priceCOP
+        id:p.id,name:p.name,category:p.category??"",priceCOP:p.priceCOP,
+        description:typeof p.description==="string"?p.description.slice(0,600):"",
+        imageUrl:publicImage(p.imageId==null?null:media[String(p.imageId)])
       }));
+      const categories=(menu.payload.categories??[])
+        .filter(x=>typeof x.name==="string"&&x.name.length>0)
+        .map(x=>({name:x.name??"",label:x.label??x.name??""}));
       res.setHeader("Cache-Control","no-store");
-      return res.json({ok:true,table,revision:menu.revision,products});
+      return res.json({ok:true,table,revision:menu.revision,products,categories,
+        ordersEnabled:ordersEnabled&&(!pilot||table.id.toLowerCase()===pilot.toLowerCase())});
     }
     const payload=input as z.infer<typeof orderInput>;
     const order=await supabaseRpc<Row>("restaurant_ops_create_qr_order",{
@@ -149,6 +186,8 @@ restaurantQrPublicRoutes.post("/order",async(req,res)=>{await handler(req,res,tr
 restaurantQrPublicRoutes.post("/tables",async(req,res)=>{
  if(process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED!=="1")
    return jsonError(res,503,"QR_CHECKOUT_NOT_ENABLED");
+ if(process.env.DELIBOCADOS_QR_PILOT_TABLE_ID?.trim())
+   return jsonError(res,503,"QR_GENERAL_DISABLED_DURING_PILOT");
  if(limited(req,20))return jsonError(res,429,"QR_RATE_LIMIT");
  if(!req.is("application/json"))return jsonError(res,415,"JSON_REQUIRED");
  const parsed=z.object({kind:z.literal("general"),

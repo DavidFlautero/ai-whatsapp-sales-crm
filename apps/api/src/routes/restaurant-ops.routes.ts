@@ -2,6 +2,7 @@ import { polygonSchema, containsPoint } from "../services/restaurant-ops/restaur
 import { listContacts } from "../services/crm/crm.repository.js";
 import { dispatchDelibocadosTestNotifications } from "../services/restaurant-ops/restaurant-notifications.service.js";
 import { buildKitchenBoard, type KitchenOrder, type KitchenTicket, type KitchenExport } from "../services/restaurant-ops/restaurant-kitchen-board.service.js";
+import { createHash, randomBytes } from "node:crypto";
 import { Router, type Request, type Response } from "express";
 import { z, ZodError } from "zod";
 import { requireRoles } from "../middlewares/auth.middleware.js";
@@ -206,10 +207,74 @@ restaurantOpsRoutes.post("/agent/learnings/:id/review",requireRoles("owner","adm
   return res.json({ok:true,lesson:updated[0]});
 }));
 
+/**
+ * Secure QR administration. This is the authoritative table registry, NOT
+ * the legacy editor on port 3500. Only the authenticated restaurant owner/admin
+ * can rotate a QR. A new secret is returned ONCE and stored as SHA256 only.
+ */
+restaurantOpsRoutes.get("/qr/secure-tables",requireRoles("owner","admin"),
+  safe(async(_req,res)=>{
+    const tables=await supabaseRequest<Array<{
+      id:string;label:string;editor_table_id:string;enabled:boolean
+    }>>({
+      table:"restaurant_ops_qr_tables",
+      query:"?company_id=eq.delibocados&select=id,label,editor_table_id,enabled&order=label.asc&limit=100"
+    });
+    readOnly(res);
+    return res.json({ok:true,tables:tables.map(t=>({
+      id:t.id,label:t.label,enabled:t.enabled,
+      editorId:t.editor_table_id
+    }))});
+  })
+);
+restaurantOpsRoutes.post("/qr/secure-tables/:id/rotate",requireRoles("owner","admin"),
+  safe(async(req,res)=>{
+    const tableId=uuid.parse(req.params.id);
+    // The old QR intentionally becomes invalid upon successful rotation.
+    // UI requires an explicit human confirmation before invoking this route.
+    const tables=await supabaseRequest<Array<{id:string;label:string;enabled:boolean}>>({
+      table:"restaurant_ops_qr_tables",
+      query:"?company_id=eq.delibocados&id=eq."+encodeURIComponent(tableId)+
+        "&enabled=eq.true&select=id,label,enabled&limit=1"
+    });
+    if(tables.length!==1)
+      return res.status(404).json({ok:false,error:"QR_TABLE_NOT_FOUND_OR_DISABLED"});
+    const token=randomBytes(32).toString("base64url");
+    const digest=createHash("sha256").update(token).digest("hex");
+    const updated=await supabaseRequest<Array<{id:string;label:string}>>({
+      table:"restaurant_ops_qr_tables",method:"PATCH",
+      query:"?company_id=eq.delibocados&id=eq."+encodeURIComponent(tableId)+
+        "&enabled=eq.true&select=id,label",
+      body:{qr_token_sha256:digest,updated_at:new Date().toISOString()}
+    });
+    if(updated.length!==1)
+      return res.status(409).json({ok:false,error:"QR_ROTATION_NOT_CONFIRMED"});
+    // Keep bearer capability in the URL fragment, not the request path.
+    // Do not log this URL. Do not send it to any third-party QR service.
+    const url="https://panel.delibocados.online/qr-pedido"+
+      "#kind=table&tableId="+encodeURIComponent(tableId)+
+      "&token="+encodeURIComponent(token);
+    return res.setHeader("Cache-Control","no-store")
+      .setHeader("Pragma","no-cache")
+      .json({ok:true,table:{id:tableId,label:updated[0].label},url,
+        notice:"El QR anterior de esta mesa ha quedado invalidado. Guardá e imprimí este código nuevo."});
+  })
+);
+
 restaurantOpsRoutes.get("/orders", safe(async (_req,res) => {
   const orders = await rows("restaurant_ops_orders",
     "?select=*,restaurant_ops_order_items(*)&company_id=eq.delibocados&order=created_at.desc&limit=200");
-  readOnly(res); res.json({ ok:true, orders });
+  // Resolve dine-in QR identity for both the order queue and the kitchen.
+  // Do not force the staff to look up a raw UUID to find the table.
+  const tables = await rows("restaurant_ops_qr_tables",
+    "?company_id=eq.delibocados&select=id,label&limit=100");
+  const tableLabels=new Map(tables.map(t=>[String(t.id),String(t.label)]));
+  const decorated=orders.map(o=>({
+    ...o,
+    qr_table_label:o.fulfillment_mode==="dine_in"
+      ?tableLabels.get(String(o.qr_table_id??""))??"Mesa sin nombre":null
+  }));
+  readOnly(res); res.json({ ok:true, orders:decorated });
 }));
 restaurantOpsRoutes.post("/orders", requireRoles("owner","admin","supervisor"),
  safe(async (req,res) => {
