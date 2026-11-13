@@ -101,10 +101,11 @@ async function handler(req:Request,res:Response,checkout:boolean){
   // Read-only preview can load verified products but cannot place an order.
   if(!ordersEnabled && (checkout || !previewEnabled))
     return jsonError(res,503,"QR_CHECKOUT_NOT_ENABLED");
-  // Pilot allowlist: accept orders/context only for one secure table UUID.
-  // Never rely on a browser-provided label or editor ID to bypass this gate.
+  // The pilot restricts WRITES, not browsing the real catalogue.
+  // A valid signed QR for any enabled table may see a read-only menu.
+  // Only the one nominated UUID may create orders.
   const pilot=process.env.DELIBOCADOS_QR_PILOT_TABLE_ID?.trim();
-  if(pilot && inputTablePilotMissing(req.body,pilot))
+  if(checkout && pilot && inputTablePilotMissing(req.body,pilot))
     return jsonError(res,503,"QR_NOT_ENABLED_FOR_TABLE");
   if(limited(req,checkout?5:20))
     return jsonError(res,429,"QR_RATE_LIMIT");
@@ -140,7 +141,8 @@ async function handler(req:Request,res:Response,checkout:boolean){
         .filter(x=>typeof x.name==="string"&&x.name.length>0)
         .map(x=>({name:x.name??"",label:x.label??x.name??""}));
       res.setHeader("Cache-Control","no-store");
-      return res.json({ok:true,table,revision:menu.revision,products,categories,ordersEnabled});
+      return res.json({ok:true,table,revision:menu.revision,products,categories,
+        ordersEnabled:ordersEnabled&&(!pilot||table.id.toLowerCase()===pilot.toLowerCase())});
     }
     const payload=input as z.infer<typeof orderInput>;
     const order=await supabaseRpc<Row>("restaurant_ops_create_qr_order",{
