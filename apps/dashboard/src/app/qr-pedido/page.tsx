@@ -1,198 +1,454 @@
 "use client";
+
 import { useEffect, useMemo, useState } from "react";
 import styles from "./page.module.css";
-type Product={id:string;name:string;category:string;priceCOP:number};
-type Context={table:{id:string;label:string};revision:number;products:Product[];ordersEnabled?:boolean};
-type Token={kind:"table"|"general";tableId?:string;token:string};
-type TableChoice={id:string;label:string};
-type Receipt={id:string;number:number;status:string;paymentStatus:string;totalCOP:number;table:string};
-const money=(value:number)=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",
-  maximumFractionDigits:0}).format(value);
-function failure(code:string):string{
- const messages:Record<string,string>={
-  QR_CHECKOUT_NOT_ENABLED:"Este canal todavía no está habilitado para recibir pedidos.",
-  QR_NOT_ENABLED_FOR_TABLE:"Esta mesa todavía no está habilitada para pedidos. Estamos realizando pruebas controladas.",
-  QR_GENERAL_DISABLED_DURING_PILOT:"El QR general no está disponible durante las pruebas.",
-  QR_NOT_AVAILABLE:"QR no disponible o mesa deshabilitada. Pedile ayuda al encargado.",
-  QR_RATE_LIMIT:"Demasiadas consultas. Intentá nuevamente más adelante.",
-  MENU_NOT_AVAILABLE:"La carta todavía no está disponible.",
-  QR_SERVICE_UNAVAILABLE:"El sistema no pudo confirmar la operación.",
-  QR_OPERATION_UNAVAILABLE:"No pudimos verificar el registro. Consultá al encargado.",
-  ORIGIN_DENIED:"La conexión del checkout fue rechazada por una configuración del dominio.",
-  INVALID_INPUT:"Los datos del código QR no tienen el formato esperado.",
-  JSON_REQUIRED:"El servidor requiere una solicitud JSON.",
-  QR_ORDER_UNVERIFIED:"El servidor no pudo confirmar este pedido.",
-  BAD_QR_UPSTREAM:"La conexión del panel con el servicio QR devolvió una respuesta incompatible.",
-  BAD_JSON:"Solicitud inválida."
- };
- return messages[code]??"No se pudo completar la operación. Consultá al encargado.";
+
+type Product = {
+  id:string; name:string; category:string; description:string;
+  priceCOP:number; imageUrl?:string|null;
+};
+type Category = {name:string;label:string};
+type Context = {
+  table:{id:string;label:string};
+  revision:number; products:Product[]; categories:Category[];
+  ordersEnabled:boolean;
+};
+type QrIdentity = {kind:"table"|"general";tableId?:string;token:string};
+type TableChoice = {id:string;label:string};
+type Receipt = {id:string;number:number;status:string;paymentStatus:string;totalCOP:number;table:string};
+type Cart = Record<string,number>;
+type PanelError = {ok?:boolean;error?:string};
+const peso = (n:number) => new Intl.NumberFormat("es-CO",{
+  style:"currency",currency:"COP",maximumFractionDigits:0
+}).format(n);
+
+const errors:Record<string,string> = {
+  QR_CHECKOUT_NOT_ENABLED:"Los pedidos por QR aún no están habilitados.",
+  QR_NOT_ENABLED_FOR_TABLE:"Esta mesa todavía no está habilitada para pedidos.",
+  QR_GENERAL_DISABLED_DURING_PILOT:"El QR general aún no está habilitado.",
+  QR_NOT_AVAILABLE:"Este código QR no es válido o fue renovado. Pedí uno actualizado.",
+  QR_RATE_LIMIT:"Demasiados intentos. Volvé a probar dentro de un minuto.",
+  MENU_NOT_AVAILABLE:"El menú no está publicado en este momento.",
+  QR_SERVICE_UNAVAILABLE:"No hay conexión con el servicio del restaurante.",
+  QR_OPERATION_UNAVAILABLE:"No pudimos confirmar el registro del pedido.",
+  ORIGIN_DENIED:"No se pudo verificar la conexión con el dominio.",
+  INVALID_INPUT:"Revisá los datos del pedido.",
+  JSON_REQUIRED:"Formato de solicitud incorrecto.",
+  QR_ORDER_UNVERIFIED:"No se pudo verificar el pedido.",
+  QR_ORDER_FAILED:"No se pudo registrar el pedido.",
+  BAD_QR_UPSTREAM:"El servidor devolvió una respuesta incompatible.",
+  MENU_REVISION_CHANGED:"El menú se actualizó. Recargá para revisar los precios.",
+  BAD_JSON:"Datos enviados incorrectamente."
+};
+const message = (code:string) => errors[code] || "No se pudo completar la operación ("+code+").";
+function safeParse(value:string):PanelError{
+  try{return JSON.parse(value) as PanelError;}catch{return {ok:false,error:"QR_SERVICE_UNAVAILABLE"};}
 }
+
 export default function DelibocadosQrCheckoutPage(){
- const [token,setToken]=useState<Token|null>(null);
- const [context,setContext]=useState<Context|null>(null);
- const [tables,setTables]=useState<TableChoice[]>([]);
- const [cart,setCart]=useState<Record<string,number>>({});
- const [notes,setNotes]=useState<Record<string,string>>({});
- const [name,setName]=useState("");
- const [phone,setPhone]=useState("");
- const [payment,setPayment]=useState<"cash"|"transfer">("cash");
- const [customerNote,setCustomerNote]=useState("");
- const [loading,setLoading]=useState(true);
- const [busy,setBusy]=useState(false);
- const [error,setError]=useState("");
- const [receipt,setReceipt]=useState<Receipt|null>(null);
- const [uncertain,setUncertain]=useState(false);
- const [sourceKey,setSourceKey]=useState("");
- const loadContext=async(t:Token)=>{
-   if(!t.tableId){setError("Seleccioná una mesa.");setLoading(false);return;}
-   try{
-     const res=await fetch("/api/delibocados-qr/context",{
-       method:"POST",credentials:"omit",cache:"no-store",
-       headers:{"Content-Type":"application/json"},body:JSON.stringify(t)
-     });
-     const payload=await res.json();
-     if(!res.ok||!payload.ok)throw new Error(failure(payload.error??"QR_SERVICE_UNAVAILABLE") + (payload.error?" ("+payload.error+")":""));
-     setContext({table:payload.table,revision:payload.revision,products:payload.products,ordersEnabled:payload.ordersEnabled===true});
-     setSourceKey(crypto.randomUUID());
-   }catch(e){setError(e instanceof Error?e.message:"No se pudo cargar la carta");}
-   finally{setLoading(false);}
- };
- useEffect(()=>{
-   const hash=new URLSearchParams(window.location.hash.replace(/^#/,""));
-   const kind=hash.get("kind"),tableId=hash.get("tableId"),qrToken=hash.get("token");
-   if((kind!=="table"&&kind!=="general")||!qrToken||
-     (kind==="table"&&!tableId)){
-     setError("Este enlace QR no incluye los datos necesarios.");setLoading(false);return;
-   }
-   const t:Token={kind,tableId:tableId??undefined,token:qrToken};setToken(t);
-   if(t.kind==="general"&&!t.tableId){
-     const loadTables=async()=>{
-       try{
-         const res=await fetch("/api/delibocados-qr/tables",{
-           method:"POST",credentials:"omit",cache:"no-store",
-           headers:{"Content-Type":"application/json"},
-           body:JSON.stringify({kind:"general",token:t.token})
-         });
-         const payload=await res.json();
-         if(!res.ok||!payload.ok)throw new Error(failure(payload.error??"QR_SERVICE_UNAVAILABLE"));
-         if(!payload.tables?.length)throw new Error("No hay mesas disponibles.");
-         setTables(payload.tables);
-       }catch(e){setError(e instanceof Error?e.message:"No se pudieron cargar las mesas");}
-       finally{setLoading(false);}
-     };void loadTables();
-   }else void loadContext(t);
- },[]);
- const chooseTable=(id:string)=>{
-   if(!token||token.kind!=="general")return;
-   const chosen={...token,tableId:id};
-   setToken(chosen);setTables([]);setError("");setLoading(true);
-   void loadContext(chosen);
- };
- const selected=useMemo(()=>Object.entries(cart).flatMap(([id,quantity])=>{
-   const product=context?.products.find(p=>p.id===id);
-   return product&&quantity>0?[{...product,quantity}]:[];
- }),[cart,context]);
- const total=selected.reduce((a,p)=>a+p.priceCOP*p.quantity,0);
- const change=(id:string,delta:number)=>{
-   if(uncertain||receipt||busy)return;
-   setCart(c=>({...c,[id]:Math.max(0,Math.min(25,(c[id]??0)+delta))}));
- };
- const checkout=async()=>{
-   if(!token?.tableId||!context||!context.ordersEnabled||!sourceKey||busy||uncertain||receipt)return;
-   if(!selected.length){setError("Elegí al menos un producto.");return;}
-   if(name.trim().length<2||!/^[0-9]{8,15}$/.test(phone)){
-     setError("Completá tu nombre y teléfono con indicativo de país.");return;
-   }
-   setError("");setBusy(true);
-   try{
-     const response=await fetch("/api/delibocados-qr/order",{
-       method:"POST",credentials:"omit",cache:"no-store",
-       headers:{"Content-Type":"application/json"},
-       body:JSON.stringify({...token,sourceKey,customerName:name.trim(),
-         customerPhone:phone,expectedMenuRevision:context.revision,
-         items:selected.map(p=>({productId:p.id,quantity:p.quantity,
-           instructions:(notes[p.id]??"").slice(0,500)})),
-         paymentMethod:payment,customerNote:customerNote.slice(0,2000),
-         customerConfirmed:true})
-     });
-     const payload=await response.json();
-     if(!response.ok||!payload.ok){
-       const code=payload.error??"QR_OPERATION_UNAVAILABLE";
-       if([400,404,413,415,422,429].includes(response.status)){
-         setError(failure(code));setBusy(false);return;
-       }
-       // Unknown network/database outcome: NEVER generate a new sourceKey
-       // and retry silently, because the order may already exist.
-       setUncertain(true);setError("No pudimos confirmar el resultado. "
-         +"No repitas el pedido; consultá con el encargado usando tu teléfono.");
-       return;
-     }
-     setReceipt(payload.order as Receipt);
-   }catch{
-     setUncertain(true);setError("Conexión interrumpida. El pedido podría estar "
-       +"registrado. No lo repitas; consultá al encargado.");
-   }finally{setBusy(false);}
- };
- return <main className={styles.page}>
-   <header className={styles.hero}><span>DELIBOCADOS · FUNZA</span>
-     <h1>Tu pedido en la mesa</h1><p>Elegí tus productos y confirmá con el restaurante.</p>
-   </header>
-   {loading?<p className={styles.notice}>Cargando carta y verificando mesa…</p>:null}
-   {error?<p role="alert" className={styles.error}>{error}</p>:null}
-   {tables.length>0&&!context?<section className={styles.catalog}>
-     <h2>Seleccioná tu mesa</h2>
-     <p>Verificá el número de la mesa antes de pedir.</p>
-     {tables.map(t=><button key={t.id} type="button" className={styles.tableChoice}
-       onClick={()=>chooseTable(t.id)}>{t.label}</button>)}
-   </section>:null}
-   {receipt?<section className={styles.receipt}>
-     <h2>Pedido #{receipt.number} registrado</h2>
-     <p>Mesa: {receipt.table}</p><p>Total: {money(receipt.totalCOP)}</p>
-     <p>El pedido quedó registrado. Confirmá con el personal si llegó a cocina.</p>
-     <p>Estado de pago: {receipt.paymentStatus==="pending"?"Pendiente de verificar":"Cobro pendiente"}</p>
-   </section>:null}
-   {context&&!receipt?<section className={styles.content}>
-     <div className={styles.table}>Mesa verificada: <strong>{context.table.label}</strong></div>
-     {!context.ordersEnabled?<div className={styles.notice} role="status">Vista previa de la carta: el pedido todavía no se puede enviar a cocina. No se cobrará ni registrará ninguna orden desde esta página.</div>:null}
-     <section className={styles.catalog}>
-       <h2>Carta</h2>
-       {context.products.length===0?<p>No hay productos disponibles.</p>:null}
-       {context.products.map(p=><article className={styles.product} key={p.id}>
-         <div><h3>{p.name}</h3><small>{p.category}</small><p>{money(p.priceCOP)}</p>
-           {(cart[p.id]??0)>0?<input aria-label={`Observaciones para ${p.name}`}
-             placeholder="Observaciones (opcional)" maxLength={500} value={notes[p.id]??""}
-             disabled={uncertain||busy}
-             onChange={e=>setNotes(n=>({...n,[p.id]:e.target.value}))}/>:null}
-         </div>
-         <div className={styles.qty}><button type="button" onClick={()=>change(p.id,-1)}
-           disabled={!cart[p.id]||uncertain||busy}>−</button><strong>{cart[p.id]??0}</strong>
-           <button type="button" onClick={()=>change(p.id,1)}
-             disabled={(cart[p.id]??0)>=25||uncertain||busy}>+</button></div>
-       </article>)}
-     </section>
-     <section className={styles.summary}><h2>Confirmar pedido</h2>
-       {selected.map(p=><p key={p.id}>{p.quantity} × {p.name} <b>{money(p.priceCOP*p.quantity)}</b></p>)}
-       <div className={styles.total}><strong>Total</strong><strong>{money(total)}</strong></div>
-       <label>Nombre<input value={name} onChange={e=>setName(e.target.value)}
-         maxLength={120} autoComplete="name" disabled={busy||uncertain}/></label>
-       <label>Teléfono con indicativo<input value={phone} onChange={e=>
-         setPhone(e.target.value.replace(/\D/g,"").slice(0,15))}
-         inputMode="tel" autoComplete="tel" disabled={busy||uncertain}/></label>
-       <label>Forma de pago<select value={payment} disabled={busy||uncertain}
-         onChange={e=>setPayment(e.target.value as "cash"|"transfer")}>
-         <option value="cash">Efectivo pendiente de cobrar</option>
-         <option value="transfer">Transferencia por verificar</option>
-       </select></label>
-       <label>Observaciones generales<textarea value={customerNote}
-         onChange={e=>setCustomerNote(e.target.value)}
-         maxLength={2000} disabled={busy||uncertain}/></label>
-       <button type="button" className={styles.confirm} onClick={()=>void checkout()}
-         disabled={!selected.length||busy||uncertain||!context.ordersEnabled}>
-         {busy?"Registrando…":context.ordersEnabled?"Confirmar pedido":"Pedidos aún no habilitados"}
-       </button>
-       <small>Los precios se verifican nuevamente en el servidor. La transferencia
-         no se considera pagada hasta ser revisada.</small>
-     </section>
-   </section>:null}
- </main>;
+  const [qr,setQr]=useState<QrIdentity|null>(null);
+  const [context,setContext]=useState<Context|null>(null);
+  const [tableChoices,setTableChoices]=useState<TableChoice[]>([]);
+  const [cart,setCart]=useState<Cart>({});
+  const [notes,setNotes]=useState<Record<string,string>>({});
+  const [query,setQuery]=useState("");
+  const [category,setCategory]=useState("all");
+  const [name,setName]=useState("");
+  const [phone,setPhone]=useState("");
+  const [payment,setPayment]=useState<"cash"|"transfer">("cash");
+  const [customerNote,setCustomerNote]=useState("");
+  const [loading,setLoading]=useState(true);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState("");
+  const [receipt,setReceipt]=useState<Receipt|null>(null);
+  const [uncertain,setUncertain]=useState(false);
+  const [sourceKey,setSourceKey]=useState("");
+  const [restored,setRestored]=useState(false);
+  const [cartOpen,setCartOpen]=useState(false);
+  const [review,setReview]=useState(false);
+
+  async function fetchJson<T>(path:string,body:unknown):Promise<T>{
+    const response=await fetch(path,{
+      method:"POST",credentials:"omit",cache:"no-store",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(body)
+    });
+    const payload=safeParse(await response.text());
+    if(!response.ok||!payload.ok)
+      throw new Error(message(payload.error||"QR_SERVICE_UNAVAILABLE"));
+    return payload as T;
+  }
+  async function loadContext(identity:QrIdentity){
+    if(!identity.tableId){setError("Seleccioná tu mesa.");setLoading(false);return;}
+    setError("");setLoading(true);setContext(null);setRestored(false);
+    try{
+      const result=await fetchJson<Context & {ok:boolean}>(
+        "/api/delibocados-qr/context",identity
+      );
+      if(!result.table || !Array.isArray(result.products) ||
+         !Number.isSafeInteger(result.revision))throw new Error("El catálogo llegó incompleto.");
+      setContext({...result,
+        products:result.products.filter(p=>p&&typeof p.id==="string"&&
+          typeof p.name==="string"&&Number.isSafeInteger(p.priceCOP)&&
+          p.priceCOP>=0),
+        categories:Array.isArray(result.categories)?result.categories:[],
+        ordersEnabled:result.ordersEnabled===true
+      });
+    }catch(e){setError(e instanceof Error?e.message:"No se pudo cargar la carta.");}
+    finally{setLoading(false);}
+  }
+
+  useEffect(()=>{
+    const hash=new URLSearchParams(window.location.hash.slice(1));
+    const kind=hash.get("kind"),tableId=hash.get("tableId"),token=hash.get("token");
+    if((kind!=="table"&&kind!=="general")||!token||
+       (kind==="table"&&!tableId)){
+      setError("Este enlace no identifica una mesa. Escaneá el QR del restaurante.");
+      setLoading(false);return;
+    }
+    const identity:QrIdentity={kind,tableId:tableId||undefined,token};
+    setQr(identity);
+    if(kind==="general"&&!tableId){
+      void (async()=>{
+        try{
+          const result=await fetchJson<{ok:boolean;tables:TableChoice[]}>(
+            "/api/delibocados-qr/tables",{kind:"general",token}
+          );
+          setTableChoices(result.tables||[]);
+          if(!result.tables?.length)setError("No encontramos mesas disponibles.");
+        }catch(e){setError(e instanceof Error?e.message:"Error al consultar las mesas.");}
+        finally{setLoading(false);}
+      })();
+    }else void loadContext(identity);
+  },[]);
+
+  const cartKey=context?.table?.id?"deli-qr-cart-v2:"+context.table.id:"";
+  useEffect(()=>{
+    if(!cartKey||!context||restored)return;
+    try{
+      const previous=window.sessionStorage.getItem(cartKey);
+      if(previous){
+        const parsed=JSON.parse(previous) as Record<string,unknown>;
+        const allowed=new Set(context.products.map(p=>p.id));
+        const result:Cart={};
+        for(const [id,qty] of Object.entries(parsed))
+          if(allowed.has(id)&&Number.isInteger(qty)&&Number(qty)>0)
+            result[id]=Math.min(25,Number(qty));
+        setCart(result);
+      }
+      const saved=window.sessionStorage.getItem(cartKey+":key");
+      if(saved && /^[a-f0-9-]{36}$/.test(saved))setSourceKey(saved);
+      else{
+        const fresh=crypto.randomUUID();
+        setSourceKey(fresh);
+        window.sessionStorage.setItem(cartKey+":key",fresh);
+      }
+    }catch{
+      const fresh=crypto.randomUUID();setSourceKey(fresh);
+      window.sessionStorage.setItem(cartKey+":key",fresh);
+    }finally{setRestored(true);}
+  },[cartKey,context,restored]);
+  useEffect(()=>{
+    if(restored&&cartKey&&!receipt)
+      window.sessionStorage.setItem(cartKey,JSON.stringify(cart));
+  },[cart,cartKey,receipt,restored]);
+
+  const categories=useMemo(()=>{
+    if(!context)return [];
+    const distinct=Array.from(new Set(context.products.map(p=>p.category||"Otros")));
+    const ordered=context.categories
+      .filter(c=>distinct.includes(c.name))
+      .map(c=>({name:c.name,label:c.label||c.name}));
+    for(const c of distinct)if(!ordered.some(x=>x.name===c))
+      ordered.push({name:c,label:c});
+    return ordered;
+  },[context]);
+
+  const visible=useMemo(()=>{
+    if(!context)return [];
+    const search=query.trim().toLocaleLowerCase("es-CO");
+    return context.products.filter(p=>
+      (category==="all"||(p.category||"Otros")===category)&&
+      (!search||(p.name+" "+p.description+" "+p.category)
+        .toLocaleLowerCase("es-CO").includes(search)));
+  },[context,category,query]);
+  const selected=useMemo(()=>
+    (context?.products||[]).filter(p=>(cart[p.id]||0)>0)
+      .map(p=>({...p,quantity:cart[p.id]}))
+  ,[cart,context]);
+  const total=selected.reduce((sum,p)=>sum+p.priceCOP*p.quantity,0);
+  const units=selected.reduce((sum,p)=>sum+p.quantity,0);
+
+  function change(id:string,amount:number){
+    if(busy||receipt||uncertain)return;
+    setCart(previous=>{
+      const quantity=Math.max(0,Math.min(25,(previous[id]||0)+amount));
+      const result={...previous};
+      if(quantity===0)delete result[id];else result[id]=quantity;
+      return result;
+    });
+    setError("");
+  }
+  function chooseTable(id:string){
+    if(!qr||qr.kind!=="general")return;
+    const next={...qr,tableId:id};
+    setQr(next);setTableChoices([]);setCart({});setNotes({});
+    setCategory("all");setQuery("");setCartOpen(false);
+    void loadContext(next);
+  }
+  async function checkout(){
+    if(!qr?.tableId||!context||!sourceKey||busy||uncertain||receipt||
+       !context.ordersEnabled)return;
+    if(!selected.length){setError("Agregá al menos un producto.");return;}
+    if(name.trim().length<2||!(/^[0-9]{8,15}$/).test(phone)){
+      setError("Completá tu nombre y teléfono con indicativo de país.");return;
+    }
+    setBusy(true);setError("");
+    try{
+      const response=await fetch("/api/delibocados-qr/order",{
+        method:"POST",credentials:"omit",cache:"no-store",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({...qr,sourceKey,customerName:name.trim(),
+          customerPhone:phone,expectedMenuRevision:context.revision,
+          items:selected.map(p=>({
+            productId:p.id,quantity:p.quantity,
+            instructions:(notes[p.id]||"").slice(0,500)
+          })),
+          paymentMethod:payment,customerNote:customerNote.slice(0,2000),
+          customerConfirmed:true})
+      });
+      const payload=safeParse(await response.text()) as PanelError&{order?:Receipt};
+      if(!response.ok||!payload.ok){
+        const code=payload.error||"QR_OPERATION_UNAVAILABLE";
+        // Only explicit pre-write rejections can safely be retried/edited.
+        if([400,404,413,415,422,429].includes(response.status)||
+           (response.status===503&&
+             ["QR_CHECKOUT_NOT_ENABLED","QR_NOT_ENABLED_FOR_TABLE","MENU_NOT_AVAILABLE"]
+               .includes(code))){
+          setError(message(code));return;
+        }
+        setUncertain(true);
+        setError("No podemos confirmar si el restaurante registró este pedido. No lo repitas: consultá con el encargado.");
+        return;
+      }
+      if(!payload.order?.id)throw new Error("RESPONSE_UNCERTAIN");
+      setReceipt(payload.order);setCartOpen(false);setReview(false);
+      if(cartKey){
+        window.sessionStorage.removeItem(cartKey);
+        window.sessionStorage.removeItem(cartKey+":key");
+      }
+    }catch{
+      setUncertain(true);
+      setError("Se perdió la confirmación. El pedido podría estar registrado. No lo repitas: consultá con el encargado.");
+    }finally{setBusy(false);}
+  }
+
+  return <main className={styles.page}>
+    <header className={styles.topbar}>
+      <div className={styles.identity}>
+        <img src="https://delibocados.online/delibocados/assets/logo.webp"
+          alt="Delibocados" className={styles.logo}/>
+        <div><strong>Delibocados</strong><small>Funza · Hecho con sabor</small></div>
+      </div>
+      <div className={styles.topRight}>
+        {context?<span className={styles.tablePill}>{context.table.label}</span>:null}
+        {units>0&&context&&!receipt?
+          <button type="button" className={styles.cartTop}
+            onClick={()=>setCartOpen(true)} aria-label={"Abrir carrito con "+units+" productos"}>
+            Ver carrito <b>{units}</b>
+          </button>:null}
+      </div>
+    </header>
+
+    <section className={styles.hero}>
+      <div className={styles.heroCopy}>
+        <span>LA CARTA DE DELIBOCADOS</span>
+        <h1>Todo lo rico, directo a tu mesa.</h1>
+        <p>Elegí lo que se te antoje, armá tu carrito y revisá tu pedido antes de enviarlo.</p>
+        {context?<div className={styles.heroTable}>Mesa confirmada <strong>{context.table.label}</strong></div>:null}
+      </div>
+      <div className={styles.heroOrnament} aria-hidden="true">
+        <span>Delibocados</span><strong>¡Buen provecho!</strong>
+      </div>
+    </section>
+
+    {loading?<div className={styles.loading} role="status">Cargando productos y verificando tu mesa…</div>:null}
+    {error?<div className={styles.error} role="alert">{error}</div>:null}
+    {!loading&&!context&&error?
+      <button type="button" className={styles.retry}
+        onClick={()=>qr?.tableId&&void loadContext(qr)}>Volver a intentar</button>:null}
+    {tableChoices.length>0&&!context?
+      <section className={styles.chooseTable}>
+        <h2>¿En qué mesa estás?</h2><p>Seleccioná la mesa indicada en el restaurante.</p>
+        <div className={styles.tableGrid}>
+          {tableChoices.map(t=><button type="button" key={t.id}
+            onClick={()=>chooseTable(t.id)}>{t.label}</button>)}
+        </div>
+      </section>:null}
+
+    {receipt?<section className={styles.success}>
+      <span className={styles.successSymbol} aria-hidden="true">✓</span>
+      <h2>Pedido #{receipt.number} registrado</h2>
+      <p>Recibimos tu pedido para <strong>{receipt.table}</strong>.</p>
+      <div className={styles.receiptDetails}>
+        <p><span>Total</span><strong>{peso(receipt.totalCOP)}</strong></p>
+        <p><span>Estado</span><strong>Registrado en Neuromind</strong></p>
+        <p><span>Pago</span><strong>{receipt.paymentStatus==="pending"?
+          "Transferencia pendiente de verificar":"Cobro pendiente"}</strong></p>
+      </div>
+      <p className={styles.receiptNote}>El registro interno no confirma impresión en POS360.
+        El personal puede consultar el ticket en el panel de cocina.</p>
+      <button type="button" className={styles.retry} onClick={()=>window.location.reload()}>
+        Volver a ver la carta
+      </button>
+    </section>:null}
+
+    {context&&!receipt?<div className={styles.layout}>
+      <section className={styles.menuArea}>
+        {!context.ordersEnabled?
+          <div className={styles.preview} role="status">
+            <strong>Carta en modo prueba</strong>
+            <span>Podés explorar y armar tu carrito. El envío a cocina todavía está desactivado.</span>
+          </div>:null}
+        <div className={styles.menuHeading}>
+          <div><span className={styles.eyebrow}>CONOCÉ NUESTRA CARTA</span>
+            <h2>¿Qué vas a pedir hoy?</h2>
+            <p>{context.products.length} productos disponibles</p>
+          </div>
+          <label className={styles.searchLabel}>
+            <span>Buscar producto</span>
+            <input type="search" placeholder="Hamburguesa, jugo, almuerzo…"
+              value={query} onChange={e=>setQuery(e.target.value)}
+              aria-label="Buscar productos"/>
+          </label>
+        </div>
+
+        <nav className={styles.categories} aria-label="Categorías de la carta">
+          <button type="button" className={category==="all"?styles.activeCategory:""}
+            onClick={()=>setCategory("all")}>Todo el menú</button>
+          {categories.map(c=><button key={c.name} type="button"
+            className={category===c.name?styles.activeCategory:""}
+            onClick={()=>setCategory(c.name)}>{c.label}</button>)}
+        </nav>
+
+        {visible.length?
+          <div className={styles.products}>
+            {visible.map(p=><article className={styles.product} key={p.id}>
+              <div className={styles.photo}>
+                {p.imageUrl?<img src={p.imageUrl} loading="lazy" alt={p.name}/>:<div
+                  className={styles.photoFallback} aria-hidden="true">D</div>}
+              </div>
+              <div className={styles.productBody}>
+                <span className={styles.productCategory}>{p.category||"Delibocados"}</span>
+                <h3>{p.name}</h3>
+                {p.description?<p className={styles.description}>{p.description}</p>:null}
+                <div className={styles.productBottom}>
+                  <strong>{peso(p.priceCOP)}</strong>
+                  {(cart[p.id]||0)>0?
+                    <div className={styles.quantity}>
+                      <button type="button" onClick={()=>change(p.id,-1)}
+                        aria-label={"Quitar una unidad de "+p.name}>−</button>
+                      <span>{cart[p.id]}</span>
+                      <button type="button" onClick={()=>change(p.id,1)}
+                        disabled={cart[p.id]>=25}
+                        aria-label={"Agregar una unidad de "+p.name}>+</button>
+                    </div>:
+                    <button type="button" className={styles.add}
+                      onClick={()=>change(p.id,1)}
+                      aria-label={"Agregar "+p.name+" al carrito"}>Agregar +</button>}
+                </div>
+              </div>
+            </article>)}
+          </div>:
+          <div className={styles.emptyResults}>No encontramos productos con ese nombre.
+            <button type="button" onClick={()=>{setQuery("");setCategory("all");}}>
+              Mostrar toda la carta
+            </button>
+          </div>}
+      </section>
+
+      {cartOpen?<button type="button" className={styles.backdrop}
+        aria-label="Cerrar carrito" onClick={()=>setCartOpen(false)}/>:null}
+      <aside className={[styles.cartPanel,cartOpen?styles.cartOpen:""].join(" ")}
+        aria-label="Tu carrito">
+        <div className={styles.cartHead}>
+          <div><span className={styles.eyebrow}>TU PEDIDO</span>
+            <h2>Mi carrito <small>{units} {units===1?"producto":"productos"}</small></h2>
+          </div>
+          <button type="button" className={styles.closeCart}
+            onClick={()=>setCartOpen(false)} aria-label="Cerrar carrito">×</button>
+        </div>
+        <div className={styles.cartContent}>
+          {selected.length===0?<div className={styles.emptyCart}>
+            <div className={styles.emptyArt} aria-hidden="true">+</div>
+            <strong>Tu carrito está vacío</strong>
+            <p>Agregá tus favoritos de la carta y los verás acá.</p>
+          </div>:<>
+            <div className={styles.cartList}>
+              {selected.map(p=><div key={p.id} className={styles.cartItem}>
+                <div className={styles.cartItemTitle}><strong>{p.name}</strong>
+                  <strong>{peso(p.priceCOP*p.quantity)}</strong></div>
+                <div className={styles.cartLine}>
+                  <span>{peso(p.priceCOP)} c/u</span>
+                  <div className={styles.quantity}>
+                    <button type="button" onClick={()=>change(p.id,-1)}
+                      aria-label={"Quitar "+p.name}>−</button>
+                    <span>{p.quantity}</span>
+                    <button type="button" onClick={()=>change(p.id,1)}
+                      aria-label={"Sumar "+p.name} disabled={p.quantity>=25}>+</button>
+                  </div>
+                </div>
+                <input className={styles.itemNote} value={notes[p.id]||""}
+                  placeholder="Sin cebolla, poco picante…"
+                  aria-label={"Observaciones para "+p.name}
+                  maxLength={500} onChange={e=>setNotes(n=>({...n,[p.id]:e.target.value}))}/>
+              </div>)}
+            </div>
+            <div className={styles.orderTotal}>
+              <div><span>Subtotal</span><strong>{peso(total)}</strong></div>
+              <div><span>Servicio en mesa</span><strong>{peso(0)}</strong></div>
+              <div className={styles.grandTotal}><span>Total</span><strong>{peso(total)}</strong></div>
+            </div>
+            {review?<form className={styles.checkoutForm}
+              onSubmit={e=>{e.preventDefault();void checkout();}}>
+              <h3>Confirmá tus datos</h3>
+              <label>Nombre<input required minLength={2} maxLength={120}
+                value={name} autoComplete="name"
+                onChange={e=>setName(e.target.value)}/></label>
+              <label>WhatsApp con indicativo<input required inputMode="tel" type="tel"
+                placeholder="573001234567" minLength={8} maxLength={15}
+                value={phone} autoComplete="tel"
+                onChange={e=>setPhone(e.target.value.replace(/\D/g,"").slice(0,15))}/></label>
+              <label>Medio de pago<select value={payment}
+                onChange={e=>setPayment(e.target.value as "cash"|"transfer")}>
+                <option value="cash">Efectivo en el restaurante</option>
+                <option value="transfer">Transferencia (por verificar)</option>
+              </select></label>
+              <label>Observaciones del pedido<textarea maxLength={2000}
+                value={customerNote} placeholder="¿Algo que debamos saber?"
+                onChange={e=>setCustomerNote(e.target.value)}/></label>
+              <button type="submit" className={styles.confirm}
+                disabled={!context.ordersEnabled||busy||uncertain}>
+                {busy?"Registrando pedido…":context.ordersEnabled?
+                  "Confirmar y enviar pedido":"Envío desactivado durante la prueba"}
+              </button>
+              <small>Al confirmar se registrará el pedido en Neuromind. El pago por
+                transferencia quedará pendiente de comprobación.</small>
+            </form>:<button className={styles.confirm} type="button"
+              onClick={()=>setReview(true)}>
+              Revisar pedido · {peso(total)}
+            </button>}
+          </>}
+        </div>
+        <div className={styles.cartFooter}>
+          <span>{context.table.label} · Delibocados Funza</span>
+          {review?<button type="button" onClick={()=>setReview(false)}>← Seguir comprando</button>:null}
+        </div>
+      </aside>
+    </div>:null}
+    {context&&units>0&&!receipt?<button type="button"
+      className={styles.mobileBar} onClick={()=>setCartOpen(true)}>
+      <span><b>{units}</b> Ver mi carrito</span><strong>{peso(total)}</strong>
+    </button>:null}
+  </main>;
 }
