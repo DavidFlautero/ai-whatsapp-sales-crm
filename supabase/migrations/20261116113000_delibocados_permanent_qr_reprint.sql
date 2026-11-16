@@ -8,7 +8,7 @@ ALTER TABLE public.restaurant_ops_qr_tables
  ADD CONSTRAINT restaurant_ops_printable_qr_envelope_check
  CHECK (qr_token_ciphertext IS NULL OR (
    length(qr_token_ciphertext) BETWEEN 40 AND 512
-   AND qr_token_ciphertext ~ '^qr-v1\\.[A-Za-z0-9_-]+$'
+   AND qr_token_ciphertext ~ '^qr-v1\.[A-Za-z0-9_-]+$'
  ));
 INSERT INTO public.commerce_schema_migrations(version,description)
 VALUES('20261116113000','Delibocados encrypted printable QR recovery, no expiration')
