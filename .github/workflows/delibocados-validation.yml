@@ -33,6 +33,8 @@ jobs:
         run: pnpm --filter @ventas/api exec tsx --test src/services/integrations/company-secret-master-key.test.ts
       - name: Typecheck dashboard
         run: pnpm --filter @ventas/dashboard typecheck
+      - name: Test QR proxy checkout gate and origin isolation
+        run: pnpm --filter @ventas/dashboard exec vitest run src/app/api/delibocados-qr
       - name: Build isolated Delibocados dashboard
         env:
           DELIBOCADOS_BUILD: "1"
