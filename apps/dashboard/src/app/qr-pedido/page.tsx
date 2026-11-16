@@ -41,7 +41,7 @@ export default function DelibocadosQrCheckoutPage(){
  const [receipt,setReceipt]=useState<Receipt|null>(null);
  const [uncertain,setUncertain]=useState(false);
  const [sourceKey,setSourceKey]=useState("");
- const loadContext=async(t:Token)=>{
+ const loadContext=async(t:Token,refresh=false)=>{
    if(!t.tableId){setError("Seleccioná una mesa.");setLoading(false);return;}
    try{
      const res=await fetch("/api/delibocados-qr/context",{
@@ -51,8 +51,13 @@ export default function DelibocadosQrCheckoutPage(){
      const payload=await res.json();
      if(!res.ok||!payload.ok)throw new Error(failure(payload.error??"QR_SERVICE_UNAVAILABLE") + (payload.error?" ("+payload.error+")":""));
      setContext({table:payload.table,revision:payload.revision,products:payload.products,ordersEnabled:payload.ordersEnabled===true});
-     setSourceKey(crypto.randomUUID());
-   }catch(e){setError(e instanceof Error?e.message:"No se pudo cargar la carta");}
+     if(t.kind==="general"&&t.tableId)setTables([]);
+     // Rechecking availability must not replace an idempotency key already used.
+     if(!refresh)setSourceKey(crypto.randomUUID());
+   }catch(e){
+     if(refresh)setContext(current=>current?{...current,ordersEnabled:false}:null);
+     setError(e instanceof Error?e.message:"No se pudo cargar la carta");
+   }
    finally{setLoading(false);}
  };
  useEffect(()=>{
@@ -85,7 +90,7 @@ export default function DelibocadosQrCheckoutPage(){
  const chooseTable=(id:string)=>{
    if(!token||token.kind!=="general")return;
    const chosen={...token,tableId:id};
-   setToken(chosen);setTables([]);setError("");setLoading(true);
+   setToken(chosen);setError("");setLoading(true);
    void loadContext(chosen);
  };
  const selected=useMemo(()=>Object.entries(cart).flatMap(([id,quantity])=>{
@@ -117,7 +122,13 @@ export default function DelibocadosQrCheckoutPage(){
      const payload=await response.json();
      if(!response.ok||!payload.ok){
        const code=payload.error??"QR_OPERATION_UNAVAILABLE";
-       if([400,404,413,415,422,429].includes(response.status)){
+       // These 503 codes are returned before the API starts creating an order.
+       // Do not lock the customer into an ambiguous-outcome state for a known
+       // disabled checkout; keep the same cart and idempotency key.
+       const disabled=(response.status===503&&
+         ["QR_CHECKOUT_NOT_ENABLED","QR_NOT_ENABLED_FOR_TABLE"].includes(code));
+       if([400,404,413,415,422,429].includes(response.status)||disabled){
+         if(disabled)setContext(current=>current?{...current,ordersEnabled:false}:null);
          setError(failure(code));setBusy(false);return;
        }
        // Unknown network/database outcome: NEVER generate a new sourceKey
@@ -140,5 +151,9 @@ export default function DelibocadosQrCheckoutPage(){
    onChangeNotes={(id,value)=>setNotes(n=>({...n,[id]:value}))}
    onName={setName} onPhone={setPhone} onPayment={setPayment}
    onCustomerNote={setCustomerNote} onCheckout={()=>void checkout()}
+   onRefreshContext={()=>{
+     if(!token?.tableId||busy||uncertain||receipt||loading)return;
+     setError("");setLoading(true);void loadContext(token,true);
+   }}
  />;
 }

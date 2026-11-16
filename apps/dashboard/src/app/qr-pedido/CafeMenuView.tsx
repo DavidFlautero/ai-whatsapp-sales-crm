@@ -15,7 +15,7 @@ type Props={
   onChooseTable:(id:string)=>void;onChangeQty:(id:string,delta:number)=>void;
   onChangeNotes:(id:string,value:string)=>void;onName:(value:string)=>void;onPhone:(value:string)=>void;
   onPayment:(value:"cash"|"transfer")=>void;onCustomerNote:(value:string)=>void;
-  onCheckout:()=>void;
+  onCheckout:()=>void;onRefreshContext:()=>void;
 };
 const money=(value:number)=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(value);
 const defaultBanners:Banner[]=[
@@ -163,11 +163,16 @@ export default function CafeMenuView(props:Props){
             <label>Forma de pago<select value={props.payment} disabled={busy||uncertain} onChange={e=>props.onPayment(e.target.value as "cash"|"transfer")}><option value="cash">Efectivo · pendiente de cobrar</option><option value="transfer">Transferencia · por verificar</option></select></label>
             <label>Observaciones generales<textarea value={props.customerNote} maxLength={2000} placeholder="Alguna indicación para la cocina" disabled={busy||uncertain} onChange={e=>props.onCustomerNote(e.target.value)}/></label>
           </div>
-          {!ordersEnabled?<p className={styles.checkoutWarning} role="status">La carta está disponible para consultar. El envío automático de pedidos por QR todavía no está habilitado; pedí ayuda al personal para finalizar.</p>:null}
+          {!ordersEnabled?<div className={styles.checkoutWarning} role="status">
+            <p>La carta está disponible para consultar. Esta mesa todavía no está habilitada para enviar pedidos.</p>
+            {hasTable?<button type="button" onClick={props.onRefreshContext} disabled={loading||busy||uncertain}>
+              {loading?"Comprobando autorización…":"Comprobar si ya está habilitada"}
+            </button>:null}
+          </div>:null}
           {uncertain?<p className={styles.checkoutWarning} role="alert">No confirmamos el resultado anterior. Consultá al personal antes de intentar otro pedido.</p>:null}
           {error?<p className={styles.error} role="alert">{error}</p>:null}
         </div>
-        <div className={styles.modalFooter}><button type="button" className={styles.confirm} disabled={!canOrder} onClick={props.onCheckout}>{busy?"Registrando…":!hasTable?"Seleccioná tu mesa":!ordersEnabled?"Pedidos QR aún no habilitados":"Confirmar pedido"}</button><small>Los cobros por transferencia se verifican antes de marcarse como pagados.</small></div>
+        <div className={styles.modalFooter}><button type="button" className={styles.confirm} disabled={!canOrder} onClick={props.onCheckout}>{busy?"Registrando…":!hasTable?"Seleccioná tu mesa":!ordersEnabled?"Pedidos QR aún no habilitados":!count?"Agregá un producto":"Confirmar pedido"}</button><small>Los cobros por transferencia se verifican antes de marcarse como pagados.</small></div>
       </section>
     </div>:null}
     <footer className={styles.footer}>© Delibocados · Funza · Tu carta digital</footer>

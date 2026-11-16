@@ -8,12 +8,13 @@ function error(status:number,code:string){
 export async function POST(request:NextRequest,context:Context){
  const {action}=await context.params;
  if(!["context","order","tables"].includes(action))return error(404,"NOT_FOUND");
- // The readonly context preview never permits order or general table listing.
- const enabled=process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED==="1";
- const preview=process.env.DELIBOCADOS_QR_MENU_PREVIEW_ENABLED==="1";
- /* DELI_PUBLIC_PREVIEW_PROXY */
- if(process.env.NEXT_PUBLIC_PANEL_INSTANCE!=="delibocados"||
-    (action==="order"&&process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED!=="1"))
+ // Only the isolated Delibocados dashboard may expose this customer endpoint.
+ // Never duplicate the checkout feature flag in the Next.js process: PM2 can
+ // update the API without restarting Next, otherwise the menu reports
+ // ordersEnabled:true while POST /order fails here with HTTP 503.
+ // The API at 127.0.0.1:4000 remains the single authority for token validation,
+ // table-pilot restrictions and DELIBOCADOS_QR_CHECKOUT_ENABLED.
+ if(process.env.NEXT_PUBLIC_PANEL_INSTANCE!=="delibocados")
    return error(503,"QR_CHECKOUT_NOT_ENABLED");
  const origin=request.headers.get("origin");
  // Nginx forwards to loopback; request.url may resolve to http://127.0.0.1:3700.
