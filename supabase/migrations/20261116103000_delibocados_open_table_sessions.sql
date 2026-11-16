@@ -65,7 +65,8 @@ BEGIN
  IF p_customer_confirmed IS DISTINCT FROM true THEN RAISE EXCEPTION 'CUSTOMER_CONFIRMATION_REQUIRED'; END IF;
  IF p_company_id IS NULL OR p_source NOT IN ('whatsapp','panel','web','qr','external')
    OR length(trim(coalesce(p_source_key,''))) NOT BETWEEN 8 AND 200
-   OR (p_source<>'qr' AND coalesce(p_customer_phone,'') !~ '^[0-9]{8,15}
+   OR (p_source<>'qr' AND coalesce(p_customer_phone,'') !~ '^[0-9]{8,15}$')
+   OR (p_source='qr' AND p_customer_phone IS NOT NULL AND p_customer_phone !~ '^[0-9]{8,15}$')
    OR length(trim(coalesce(p_customer_name,''))) NOT BETWEEN 2 AND 120
    OR p_fulfillment_mode NOT IN ('pickup','delivery')
    OR jsonb_typeof(p_items) IS DISTINCT FROM 'array'
