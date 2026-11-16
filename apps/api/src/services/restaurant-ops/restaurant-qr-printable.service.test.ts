@@ -30,7 +30,7 @@ describe("permanent table QR envelopes",()=>{
    const badDigest=createHash("sha256").update("different").digest("hex");
    assert.throws(()=>decryptPrintableTableQrToken(sealed,id,badDigest,key));
    assert.throws(()=>decryptPrintableTableQrToken(sealed,id,hashTableQrToken(token),Buffer.alloc(32,24)));
-   const changed=sealed.slice(0,-1)+(sealed.endsWith("A")?"B":"A");
+   const changed=sealed.slice(0,30)+(sealed[30]==="A"?"B":"A")+sealed.slice(31);
    assert.throws(()=>decryptPrintableTableQrToken(changed,id,hashTableQrToken(token),key));
  });
  it("never derives a token from a public table number",()=>{
