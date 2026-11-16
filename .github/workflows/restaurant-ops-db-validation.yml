@@ -124,7 +124,7 @@ jobs:
       - name: Verify legacy table tokens remained unchanged
         run: |
           psql -v ON_ERROR_STOP=1 <<'SQL'
-          DO $
+          DO $qrverify$
           BEGIN
             IF NOT EXISTS(SELECT 1 FROM public.restaurant_ops_qr_tables)
             THEN RAISE EXCEPTION 'NO_QR_TABLES_TO_CHECK'; END IF;
@@ -135,5 +135,5 @@ jobs:
               WHERE version='20261116113000')
             THEN RAISE EXCEPTION 'QR_REPRINT_MIGRATION_MISSING'; END IF;
             RAISE NOTICE 'OLD_QR_DIGESTS_PRESERVED_NO_EXPIRATION';
-          END $;
+          END $qrverify$;
           SQL
