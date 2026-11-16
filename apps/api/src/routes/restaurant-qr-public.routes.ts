@@ -101,10 +101,9 @@ async function handler(req:Request,res:Response,checkout:boolean){
   // Read-only preview can load verified products but cannot place an order.
   if(!ordersEnabled && (checkout || !previewEnabled))
     return jsonError(res,503,"QR_CHECKOUT_NOT_ENABLED");
-  // Pilot allowlist: accept orders/context only for one secure table UUID.
-  // Never rely on a browser-provided label or editor ID to bypass this gate.
-  const pilot=process.env.DELIBOCADOS_QR_PILOT_TABLE_ID?.trim();
-  // La mesa piloto se comprueba después de resolver y validar el QR.
+  // Enabled tables with a valid per-table or general QR capability can order.
+  // Identity is verified against the enabled Supabase registry, never a
+  // browser-submitted table label or an unverified editor identifier.
   if(limited(req,checkout?5:20))
     return jsonError(res,429,"QR_RATE_LIMIT");
   if(!req.is("application/json"))
@@ -119,17 +118,9 @@ async function handler(req:Request,res:Response,checkout:boolean){
     const table=await verifiedTable(input);
     if(!table)return jsonError(res,404,"QR_NOT_AVAILABLE");
 
-    // Pilot fail-closed: no pilot UUID means no QR checkout.
-    // Both general and individual QR require verifiedTable(input).
-    const pilotAllowed=Boolean(
-      pilot &&
-      /^[0-9a-f-]{36}$/i.test(pilot) &&
-      table.id.toLowerCase()===pilot.toLowerCase()
-    );
-    if(checkout && !pilotAllowed){
-      return jsonError(res,503,"QR_NOT_ENABLED_FOR_TABLE");
-    }
-
+    // No extra single-table pilot gate. verifiedTable already checks that
+    // the selected table is enabled and the opaque QR token matches its
+    // per-table digest (or the enabled general QR digest).
     if(!checkout){
       const menus=await supabaseRequest<MenuDoc[]>({
         table:"restaurant_menu_documents",
@@ -146,7 +137,7 @@ async function handler(req:Request,res:Response,checkout:boolean){
       }));
       const richProducts=enrichMenuProducts(menu,products);
       res.setHeader("Cache-Control","no-store");
-      return res.json({ok:true,table,revision:menu.revision,products:richProducts,ordersEnabled:ordersEnabled && pilotAllowed});
+      return res.json({ok:true,table,revision:menu.revision,products:richProducts,ordersEnabled});
     }
     const payload=input as z.infer<typeof orderInput>;
     const order=await supabaseRpc<Row>("restaurant_ops_create_qr_order",{
