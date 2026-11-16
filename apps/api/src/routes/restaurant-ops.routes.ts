@@ -2,7 +2,7 @@ import { polygonSchema, containsPoint } from "../services/restaurant-ops/restaur
 import { listContacts } from "../services/crm/crm.repository.js";
 import { dispatchDelibocadosTestNotifications } from "../services/restaurant-ops/restaurant-notifications.service.js";
 import { buildKitchenBoard, type KitchenOrder, type KitchenTicket, type KitchenExport } from "../services/restaurant-ops/restaurant-kitchen-board.service.js";
-import { createHash, randomBytes } from "node:crypto";
+
 import {
   issuePrintableTableQrToken,recoverPrintableTableQrToken,printableTableQrUrl
 } from "../services/restaurant-ops/restaurant-qr-printable.service.js";
