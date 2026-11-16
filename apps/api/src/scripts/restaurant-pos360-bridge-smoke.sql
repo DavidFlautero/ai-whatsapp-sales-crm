@@ -22,6 +22,12 @@ BEGIN
    NULL,'Prueba POS360','[{"productId":"burger","quantity":1}]'::jsonb,
    1,'cash','cash_on_delivery',true,'sin cebolla'
  );
+ -- Previous CI smoke suites intentionally leave fixture table orders behind.
+ -- Isolate the tested queue within this rollback-only transaction.
+ UPDATE public.restaurant_ops_pos_exports SET status='suppressed'
+ WHERE company_id='delibocados' AND provider='pos360'
+   AND order_id<>(v_order->>'id')::uuid AND status IN ('pending','blocked');
+
  -- No integration enabled, no claims.
  IF public.restaurant_ops_pos360_claim('delibocados') IS NOT NULL
  THEN RAISE EXCEPTION 'CLAIM_WITHOUT_INTEGRATION'; END IF;
@@ -35,7 +41,6 @@ BEGIN
  ) VALUES('delibocados','pos360','burger','DLB-0004',true,now());
 
  v_claim:=public.restaurant_ops_pos360_claim('delibocados');
- RAISE NOTICE 'POS360_TEST_CLAIM: %',v_claim;
  IF v_claim IS NULL
    OR v_claim->>'orderId'<>v_order->>'id'
    OR v_claim->>'externalReference'<>'delibocados-qr-'||(v_order->>'id')
