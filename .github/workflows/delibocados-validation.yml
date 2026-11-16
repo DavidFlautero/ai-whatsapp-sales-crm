@@ -40,6 +40,8 @@ jobs:
         run: pnpm --filter @ventas/dashboard typecheck
       - name: Test QR proxy checkout gate and origin isolation
         run: pnpm --filter @ventas/dashboard exec vitest run src/app/api/delibocados-qr
+      - name: Test cumulative QR table bill
+        run: pnpm --filter @ventas/dashboard exec vitest run src/app/qr-pedido/account-totals.test.ts
       - name: Build isolated Delibocados dashboard
         env:
           DELIBOCADOS_BUILD: "1"
