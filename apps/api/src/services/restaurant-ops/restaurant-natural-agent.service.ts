@@ -11,6 +11,8 @@ import {
 import { handleRestaurantProductFollowup } from "./restaurant-product-followup.service.js";
 import {handleRestaurantLineModification} from "./restaurant-line-modification.service.js";
 import {isSplitPaymentRequest} from "./restaurant-split-payment.service.js";
+import {shouldDeterministicallyCheckout} from "./restaurant-natural-checkout-routing.service.js";
+import {isFoodSafetyMessage} from "./restaurant-cart-intake.service.js";
 import {
   detectRestaurantException,restaurantExceptionResponse,
   RESTAURANT_CONVERSATION_GUIDANCE
@@ -105,6 +107,18 @@ export async function handleNaturalRestaurantTurn(input:{
 }):Promise<CheckoutReply> {
   if(input.companyId!==COMPANY||!/^[0-9]{8,15}$/.test(input.phone))
     return {handled:false,text:""};
+  // Food safety is a human-only concern even when mentioned in an explicit
+  // purchase, before the deterministic route can touch an order draft.
+  if(isFoodSafetyMessage(input.message)){
+    await updateConversationMetadata(input.phone,{
+      restaurant_attention:{type:"food_safety_review",status:"needs_human",
+        reason:"ALLERGEN_REQUIRES_HUMAN_REVIEW",
+        last_source_message_id:input.currentMessageId??null,
+        reported_at:new Date().toISOString()}
+    },COMPANY);
+    return {handled:true,humanHandoff:true,handoffReason:"food_safety_review",
+      text:"Una persona de Delibocados debe confirmar ingredientes y alérgenos antes de aceptar tu pedido. No hice cambios automáticos en tu carrito."};
+  }
   // An explicit menu request must never be delegated to a probabilistic model.
   // It may arrive after a completed order or while a customer has an open cart.
   if(isMenuRequest(input.message)||isMenuLinkRequest(input.message)){
@@ -137,6 +151,12 @@ export async function handleNaturalRestaurantTurn(input:{
   if(lineChange.handled)return lineChange;
   const current=await getConversationByPhone(input.phone,COMPANY);
   const stage=(current?.metadata?.restaurant_checkout_v1 as CheckoutDraft|undefined)?.stage;
+  // A purchase containing "para retirar" and "cuánto cuesta" must first create
+  // the verified cart; an LLM may answer prices but may never skip a purchase.
+  // Explicit checkout slot answers and final confirmation are also deterministic.
+  if(shouldDeterministicallyCheckout(input.message,stage)){
+    return handleRestaurantCheckoutMessage(input);
+  }
   // A mixed payment belongs to the auditable order engine, not a free-form
   // LLM or the legacy handoff response.
   if(stage==="split_amount" || stage==="split_confirm" ||
