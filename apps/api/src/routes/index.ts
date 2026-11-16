@@ -65,6 +65,7 @@ import { crmRoutes } from "./crm.routes.js";
 import { ordersRoutes } from "./orders.routes.js";
 import { restaurantOpsRoutes } from "./restaurant-ops.routes.js";
 import { restaurantQrPublicRoutes } from "./restaurant-qr-public.routes.js";
+import {restaurantPos360BridgeRoutes} from "./restaurant-pos360-bridge.routes.js";
 import { stockRoutes } from "./stock.routes.js";
 import { adminStatusRoutes } from "./admin/status.routes.js";
 import { adminDataRoutes } from "./admin/data.routes.js";
@@ -140,6 +141,9 @@ router.use(
 router.use("/health", healthRoutes);
 // Off by default. Public QR checkout requires server-validated token/table.
 router.use("/public/delibocados-qr", restaurantQrPublicRoutes);
+/** Only the Windows connector with its separate high-entropy key can use it.
+ * Does not bypass the orders outbox, tenant, or reviewed product mapping. */
+router.use("/public/delibocados-pos360-bridge",restaurantPos360BridgeRoutes);
 
 // panel.delibocados.online Nginx already forwards /api/ to the API (4000)
 // with a trailing-slash proxy_pass, stripping the /api prefix. Expose an
