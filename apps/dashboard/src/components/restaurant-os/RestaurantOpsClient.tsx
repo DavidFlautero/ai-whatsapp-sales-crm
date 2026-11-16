@@ -8,6 +8,7 @@ type Tab = "orders" | "kitchen" | "dispatch" | "zones" | "incidents" | "reports"
 type Item = { id: string; product_id: string; product_name: string; quantity: number;
   unit_price_cop: number; line_total_cop: number; instructions: string };
 type Order = { id: string; number: number; customer_name: string; customer_phone: string;
+  qr_table_id?: string | null; qr_table_label?: string | null;
   fulfillment_mode: "pickup" | "delivery" | "dine_in"; status: Status; payment_status: string; payment_method?: string;
   version: number; created_at: string; preparing_at?: string; ready_at?: string;
   customer_note?: string; address?: string; zone_id?: string; courier_id?: string;
@@ -247,7 +248,7 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
       <div className="rops-order-head">
         <div><strong>#{order.number} · {order.customer_name}</strong>
           <small>{order.fulfillment_mode === "pickup" ? "Retiro en el local" :
-             order.fulfillment_mode === "dine_in" ? "Consumo en mesa" : "Domicilio"} · Hace {relative(order.created_at)}</small>
+             order.fulfillment_mode === "dine_in" ? (order.qr_table_label || "Consumo en mesa · sin identificación") : "Domicilio"} · Hace {relative(order.created_at)}</small>
         </div>
         <StatusLabel status={order.status}/>
       </div>
@@ -293,6 +294,7 @@ export default function RestaurantOpsClient({ initialTab = "orders" }: { initial
         <p>Una operación continua desde WhatsApp hasta la entrega, con trazabilidad por pedido.</p>
       </div>
       <div className="rops-header-actions">
+        <a href="/panel/mesas">Mesas con pedidos</a>
         <button type="button" onClick={() => void refresh()} disabled={busy}>Actualizar</button>
         <button type="button" className="rops-primary" onClick={() => { setTab("orders"); setShowNew(true); }}>+ Nuevo pedido</button>
       </div>

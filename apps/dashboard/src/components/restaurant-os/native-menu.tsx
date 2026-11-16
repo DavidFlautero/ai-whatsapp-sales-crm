@@ -227,7 +227,7 @@ export default function NativeMenuEditor() {
       <div><div className={styles.kicker}>DELIBOCADOS / RESTAURANTE</div>
         <h1>Menú digital</h1><p>Administrá productos, categorías, precios, fotografías y disponibilidad en el mismo catálogo que publica la carta.</p></div>
       <div className={styles.actions}>
-        <a className={styles.secondary} href={`${PUBLIC}/menu`} target="_blank" rel="noopener noreferrer">Ver carta pública</a>
+        <span className={styles.secondary}>Carta antigua retirada</span>
         <Link className={styles.secondary} href="/panel/qr">QR y mesas</Link>
         <button className={styles.primary} type="button" onClick={() => void publish()} disabled={!dirty || busy || loading}> {busy ? "Procesando…" : dirty ? "Publicar cambios" : "Sin cambios"}</button>
       </div>

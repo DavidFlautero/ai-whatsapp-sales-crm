@@ -33,3 +33,213 @@
 
 .tableChoice{display:inline-block;margin:8px;padding:14px 18px;border:1px solid #a9c8b4;border-radius:12px;background:#edf8f0;font:inherit;font-weight:650;color:#164a31;cursor:pointer}
 .tableChoice:hover{background:#d8eddf}
+
+/* DELIBOCADOS WHITE DESIGN START */
+
+/* Identidad Delibocados */
+.page {
+  --deli-bg: #FAF8F4;
+  --deli-white: #FFFFFF;
+  --deli-gold: #B68446;
+  --deli-gold-dark: #94662E;
+  --deli-text: #35291F;
+  --deli-muted: #75695D;
+  --deli-border: #E7DED2;
+
+  min-height: 100vh;
+  background: #FAF8F4;
+  color: #35291F;
+  font-family: inherit;
+}
+
+/* Cabecera blanca */
+.hero {
+  background: linear-gradient(
+    135deg,
+    #FFFFFF 0%,
+    #FBF6EE 100%
+  );
+  color: #35291F;
+  border-bottom: 1px solid #E7DED2;
+  box-shadow: 0 4px 24px rgba(64, 42, 22, .04);
+}
+
+.hero h1 {
+  color: #35291F;
+  font-weight: 800;
+  letter-spacing: -.035em;
+}
+
+.hero p {
+  color: #75695D;
+}
+
+.hero span {
+  color: #94662E;
+  font-weight: 700;
+  letter-spacing: .1em;
+}
+
+/* Contenedores principales */
+.content {
+  gap: 24px;
+}
+
+.catalog,
+.summary {
+  background: #FFFFFF;
+  color: #35291F;
+  border: 1px solid #E7DED2;
+  border-radius: 22px;
+  box-shadow: 0 12px 36px rgba(69, 48, 26, .055);
+}
+
+.catalog h2,
+.summary h2 {
+  color: #35291F;
+  letter-spacing: -.02em;
+}
+
+/* Tarjetas de productos */
+.product {
+  background: #FFFFFF;
+  border: 1px solid #EBE3D9;
+  border-radius: 16px;
+  padding: 18px;
+  margin: 12px 0;
+  box-shadow: 0 4px 14px rgba(65, 45, 26, .035);
+  transition: border-color .2s, box-shadow .2s;
+}
+
+.product:hover {
+  border-color: #D3B58F;
+  box-shadow: 0 9px 26px rgba(65, 45, 26, .085);
+}
+
+.product:last-child {
+  border-bottom: 1px solid #EBE3D9;
+}
+
+.product h3 {
+  color: #35291F;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.product small {
+  color: #817568;
+}
+
+.product p {
+  color: #94662E;
+  font-weight: 800;
+}
+
+.product input {
+  background: #FFFFFF;
+  color: #35291F;
+  border: 1px solid #DFD3C5;
+  border-radius: 9px;
+}
+
+/* Controles de cantidades */
+.qty button {
+  background: #FFF7E9;
+  color: #94662E;
+  border: 1px solid #E3C9A6;
+  font-weight: 700;
+}
+
+.qty button:hover:not(:disabled) {
+  background: #F5E6D0;
+}
+
+/* Resumen del pedido */
+.summary label {
+  color: #4A3B30;
+}
+
+.summary input,
+.summary select,
+.summary textarea {
+  background: #FFFFFF;
+  color: #35291F;
+  border: 1px solid #DFD3C5;
+  border-radius: 10px;
+}
+
+.summary input:focus,
+.summary select:focus,
+.summary textarea:focus {
+  outline: 2px solid #D2AA72;
+  outline-offset: 1px;
+}
+
+.summary small {
+  color: #75695D;
+}
+
+.total {
+  color: #35291F;
+  border-top: 1px solid #E7DED2;
+  font-weight: 800;
+}
+
+/* Botón principal */
+.confirm {
+  background: #A87337;
+  color: #FFFFFF;
+  border-radius: 12px;
+  font-weight: 800;
+  box-shadow: 0 5px 15px rgba(148, 102, 46, .15);
+}
+
+.confirm:hover:not(:disabled) {
+  background: #8E5F2D;
+}
+
+.confirm:disabled {
+  background: #D9C9B5;
+  color: #766A5E;
+  box-shadow: none;
+}
+
+/* Selección de mesas */
+.tableChoice {
+  background: #FFF9F0;
+  border: 1px solid #DCC5A6;
+  color: #71502F;
+  border-radius: 12px;
+}
+
+.tableChoice:hover {
+  background: #F5E7D4;
+}
+
+/* Dispositivos móviles */
+@media (max-width: 740px) {
+  .page {
+    background: #FAF8F4;
+  }
+
+  .hero {
+    padding: 28px 22px;
+  }
+
+  .catalog,
+  .summary {
+    padding: 20px;
+    border-radius: 16px;
+  }
+
+  .product {
+    padding: 15px;
+    border-radius: 13px;
+  }
+
+  .confirm {
+    min-height: 52px;
+  }
+}
+
+/* DELIBOCADOS WHITE DESIGN END */

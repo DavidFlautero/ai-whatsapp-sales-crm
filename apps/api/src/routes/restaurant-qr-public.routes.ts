@@ -7,13 +7,18 @@ import { createHash } from "node:crypto";
 import { Router, type Request, type Response } from "express";
 import { z, ZodError } from "zod";
 import { supabaseRequest, supabaseRpc } from "../services/db/supabase-rest.client.js";
+import { quoteVerifiedDeliveryAddress } from "../services/restaurant-ops/restaurant-delivery-routing.service.js";
 
 export const restaurantQrPublicRoutes=Router();
+// /context accepts a UUID or the editor ID (mesa_<32 hex>).
+// /order still requires the verified UUID returned by /context.
 const base=z.object({
-  kind:z.enum(["table","general"]),tableId:z.string().uuid(),
+  kind:z.enum(["table","general"]),
+  tableId:z.union([z.string().uuid(),z.string().regex(/^mesa_[0-9a-f]{32}$/)]),
   token:z.string().min(32).max(200).regex(/^[A-Za-z0-9_-]+$/)
 }).strict();
 const orderInput=base.extend({
+  tableId:z.string().uuid(),
   sourceKey:z.string().uuid(),
   customerName:z.string().trim().min(2).max(120),
   customerPhone:z.string().regex(/^[0-9]{8,15}$/),
@@ -51,8 +56,12 @@ function jsonError(res:Response,status:number,error:string){
 }
 async function verifiedTable(input:z.infer<typeof base>):Promise<{id:string;label:string}|null>{
   const hash=createHash("sha256").update(input.token).digest("hex");
+  // Resolve the editor's public identifier to a DB UUID before checkout.
+  // The editor ID alone never grants authority; the active table's token hash
+  // must still match. Raw tokens are never logged or returned.
+  const lookupColumn=input.tableId.startsWith("mesa_")?"editor_table_id":"id";
   const tables=await supabaseRequest<Table[]>({table:"restaurant_ops_qr_tables",
-    query:"?company_id=eq.delibocados&id=eq."+encodeURIComponent(input.tableId)+
+    query:"?company_id=eq.delibocados&"+lookupColumn+"=eq."+encodeURIComponent(input.tableId)+
       "&enabled=eq.true&select=id,company_id,label,enabled,qr_token_sha256&limit=1"});
   const table=tables[0];
   if(!table)return null;
@@ -66,9 +75,36 @@ async function verifiedTable(input:z.infer<typeof base>):Promise<{id:string;labe
   }
   return {id:table.id,label:table.label};
 }
+
+/** Public menu photo/description adapter. Do not expose arbitrary URLs or credentials. */
+function enrichMenuProducts<T extends {id?:string}>(menu:MenuDoc,products:T[]){
+ const originals=menu.payload.products??[];
+ const details=new Map<string,(typeof originals)[number]>();
+ for(const p of originals){if(typeof p.id==="string")details.set(p.id,p);}
+ const assets=(menu.payload as {images?:Record<string,unknown>}).images??{};
+ return products.map(p=>{
+   const original=details.get(p.id??"") as (typeof originals)[number]&{description?:unknown;imageId?:unknown}|undefined;
+   const description=typeof original?.description==="string"?original.description.slice(0,400):"";
+   const img=assets[String(original?.imageId??"")];
+   const value=typeof img==="string"?img:"";
+   let imageUrl:string|null=null;
+   if(/^\/restaurant-menu-media\/[a-f0-9]{32}\.(png|jpg|webp)$/i.test(value))imageUrl="https://delibocados.online"+value;
+   else if(/^https:\/\/delibocados\.online\/restaurant-menu-media\/[a-f0-9]{32}\.(png|jpg|webp)$/i.test(value))imageUrl=value;
+   else if(value.length<250000&&/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value))imageUrl=value;
+   return {...p,description,imageUrl};
+ });
+}
+
 async function handler(req:Request,res:Response,checkout:boolean){
-  if(process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED!=="1")
+  const ordersEnabled=process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED==="1";
+  const previewEnabled=process.env.DELIBOCADOS_QR_MENU_PREVIEW_ENABLED==="1";
+  // Read-only preview can load verified products but cannot place an order.
+  if(!ordersEnabled && (checkout || !previewEnabled))
     return jsonError(res,503,"QR_CHECKOUT_NOT_ENABLED");
+  // Pilot allowlist: accept orders/context only for one secure table UUID.
+  // Never rely on a browser-provided label or editor ID to bypass this gate.
+  const pilot=process.env.DELIBOCADOS_QR_PILOT_TABLE_ID?.trim();
+  // La mesa piloto se comprueba después de resolver y validar el QR.
   if(limited(req,checkout?5:20))
     return jsonError(res,429,"QR_RATE_LIMIT");
   if(!req.is("application/json"))
@@ -82,6 +118,18 @@ async function handler(req:Request,res:Response,checkout:boolean){
   try{
     const table=await verifiedTable(input);
     if(!table)return jsonError(res,404,"QR_NOT_AVAILABLE");
+
+    // Pilot fail-closed: no pilot UUID means no QR checkout.
+    // Both general and individual QR require verifiedTable(input).
+    const pilotAllowed=Boolean(
+      pilot &&
+      /^[0-9a-f-]{36}$/i.test(pilot) &&
+      table.id.toLowerCase()===pilot.toLowerCase()
+    );
+    if(checkout && !pilotAllowed){
+      return jsonError(res,503,"QR_NOT_ENABLED_FOR_TABLE");
+    }
+
     if(!checkout){
       const menus=await supabaseRequest<MenuDoc[]>({
         table:"restaurant_menu_documents",
@@ -96,8 +144,9 @@ async function handler(req:Request,res:Response,checkout:boolean){
       ).slice(0,600).map(p=>({
         id:p.id,name:p.name,category:p.category??"",priceCOP:p.priceCOP
       }));
+      const richProducts=enrichMenuProducts(menu,products);
       res.setHeader("Cache-Control","no-store");
-      return res.json({ok:true,table,revision:menu.revision,products});
+      return res.json({ok:true,table,revision:menu.revision,products:richProducts,ordersEnabled:ordersEnabled && pilotAllowed});
     }
     const payload=input as z.infer<typeof orderInput>;
     const order=await supabaseRpc<Row>("restaurant_ops_create_qr_order",{
@@ -131,15 +180,115 @@ async function handler(req:Request,res:Response,checkout:boolean){
     return jsonError(res,503,"QR_OPERATION_UNAVAILABLE");
   }
 }
-restaurantQrPublicRoutes.post("/context",async(req,res)=>{await handler(req,res,false);});
-restaurantQrPublicRoutes.post("/order",async(req,res)=>{await handler(req,res,true);});
+
+/**
+ * Public checkout on the already-published /context and /order paths.
+ * No user-supplied price, fee or zone is trusted. Public orders remain
+ * OFF unless DELIBOCADOS_WEB_CHECKOUT_ENABLED=1.
+ */
+const webLine=z.object({
+  productId:z.string().trim().min(1).max(100),
+  quantity:z.number().int().min(1).max(25),
+  instructions:z.string().max(500).optional()
+}).strict();
+const webContext=z.object({
+  kind:z.enum(["pickup","delivery"]),
+  address:z.string().trim().max(300).optional()
+}).strict();
+const webOrder=webContext.extend({
+  sourceKey:z.string().uuid(),
+  customerName:z.string().trim().min(2).max(120),
+  customerPhone:z.string().regex(/^[0-9]{8,15}$/),
+  items:z.array(webLine).min(1).max(60),
+  expectedMenuRevision:z.number().int().positive(),
+  paymentMethod:z.enum(["cash","transfer"]),
+  customerNote:z.string().max(2000).optional(),
+  addressNote:z.string().max(500).optional(),
+  customerConfirmed:z.literal(true)
+}).strict();
+
+async function handleWeb(req:Request,res:Response,checkout:boolean){
+  if(process.env.DELIBOCADOS_WEB_CHECKOUT_ENABLED!=="1")
+    return jsonError(res,503,"WEB_CHECKOUT_NOT_ENABLED");
+  if(limited(req,checkout?3:20))return jsonError(res,429,"WEB_RATE_LIMIT");
+  if(!req.is("application/json"))return jsonError(res,415,"JSON_REQUIRED");
+  const parsed=(checkout?webOrder:webContext).safeParse(req.body);
+  if(!parsed.success)return jsonError(res,400,"INVALID_INPUT");
+  try{
+    if(!checkout){
+      const v=parsed.data as z.infer<typeof webContext>;
+      const docs=await supabaseRequest<MenuDoc[]>({
+        table:"restaurant_menu_documents",
+        query:"?company_id=eq.delibocados&select=revision,payload&limit=1"
+      });
+      const doc=docs[0];
+      if(!doc)return jsonError(res,503,"MENU_NOT_AVAILABLE");
+      const products=(doc.payload.products??[]).filter(p=>
+        typeof p.id==="string"&&typeof p.name==="string"&&
+        p.available!==false&&p.priceNeedsReview!==true&&
+        Number.isSafeInteger(p.priceCOP)&&Number(p.priceCOP)>=0
+      ).slice(0,600).map(p=>({
+        id:p.id,name:p.name,category:p.category??"",priceCOP:p.priceCOP
+      }));
+      let quote:unknown=null;
+      if(v.kind==="delivery"&&v.address&&v.address.length>=8)
+        quote=await quoteVerifiedDeliveryAddress(v.address);
+      res.setHeader("Cache-Control","no-store");
+      return res.json({ok:true,revision:doc.revision,products,quote});
+    }
+    const v=parsed.data as z.infer<typeof webOrder>;
+    let zoneId:string|null=null;
+    if(v.kind==="delivery"){
+      if(!v.address || v.address.length<8)
+        return jsonError(res,422,"DELIVERY_ADDRESS_REQUIRED");
+      const quote=await quoteVerifiedDeliveryAddress(v.address);
+      if(!quote.covered||!quote.zone?.id)
+        return jsonError(res,422,"DELIVERY_NOT_AVAILABLE");
+      zoneId=quote.zone.id;
+    }
+    const order=await supabaseRpc<Row>("restaurant_ops_create_order",{
+      p_company_id:"delibocados",p_source:"web",
+      p_source_key:v.sourceKey,p_customer_phone:v.customerPhone,
+      p_customer_name:v.customerName,p_fulfillment_mode:v.kind,
+      p_items:v.items,p_zone_id:zoneId,p_address:v.kind==="delivery"?v.address:null,
+      p_address_note:v.addressNote??null,p_customer_note:v.customerNote??null,
+      p_pickup_due_at:null,p_actor_id:"web-checkout",p_actor_role:"system",
+      p_customer_confirmed:true,p_expected_menu_revision:v.expectedMenuRevision,
+      p_payment_method:v.paymentMethod,
+      p_payment_status:v.paymentMethod==="cash"?"cash_on_delivery":"pending"
+    });
+    if(order.source!=="web"||order.fulfillment_mode!==v.kind)
+      return jsonError(res,503,"WEB_ORDER_UNVERIFIED");
+    res.setHeader("Cache-Control","no-store");
+    return res.status(201).json({ok:true,
+      order:{id:order.id,number:order.number,status:order.status,
+        paymentStatus:order.payment_status,totalCOP:order.total_cop,
+        fulfillmentMode:order.fulfillment_mode},
+      note:"Pedido registrado en Neuromind. Cocina debe confirmar recepción; no implica impresión en SmartPOS."
+    });
+  }catch{
+    // Never print customer info, payloads, RPC parameters or payment details.
+    console.error("[DELIBOCADOS WEB CHECKOUT]",{error:"OPERATION_FAILED"});
+    return jsonError(res,503,"WEB_OPERATION_UNAVAILABLE");
+  }
+}
+
+restaurantQrPublicRoutes.post("/context",async(req,res)=>{
+  if(req.body?.kind==="pickup"||req.body?.kind==="delivery")return void await handleWeb(req,res,false);
+  await handler(req,res,false);
+});
+restaurantQrPublicRoutes.post("/order",async(req,res)=>{
+  if(req.body?.kind==="pickup"||req.body?.kind==="delivery")return void await handleWeb(req,res,true);
+  await handler(req,res,true);
+});
 
 /**
  * General QR: list ACTIVE tables only after verifying the opaque general token.
  * No customer identity or raw QR secrets are included in the response.
  */
 restaurantQrPublicRoutes.post("/tables",async(req,res)=>{
- if(process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED!=="1")
+ if(process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED!=="1" &&
+    process.env.DELIBOCADOS_QR_MENU_PREVIEW_ENABLED!=="1")
    return jsonError(res,503,"QR_CHECKOUT_NOT_ENABLED");
  if(limited(req,20))return jsonError(res,429,"QR_RATE_LIMIT");
  if(!req.is("application/json"))return jsonError(res,415,"JSON_REQUIRED");
@@ -159,7 +308,17 @@ restaurantQrPublicRoutes.post("/tables",async(req,res)=>{
        "&select=id,label&order=label.asc&limit=80"
    });
    res.setHeader("Cache-Control","no-store");
-   return res.json({ok:true,tables});
+   const menuDocs=await supabaseRequest<MenuDoc[]>({table:"restaurant_menu_documents",
+      query:"?company_id=eq.delibocados&select=revision,payload&limit=1"});
+    const menu=menuDocs[0];
+    if(!menu)return jsonError(res,503,"MENU_NOT_AVAILABLE");
+    const rawProducts=(menu.payload.products??[])
+      .filter(p=>typeof p.id==="string"&&typeof p.name==="string"&&p.available!==false&&
+        p.priceNeedsReview!==true&&Number.isSafeInteger(p.priceCOP)&&Number(p.priceCOP)>=0)
+      .slice(0,600)
+      .map(p=>({id:String(p.id),name:String(p.name),category:String(p.category??""),priceCOP:Number(p.priceCOP)}));
+    const generalProducts=enrichMenuProducts(menu,rawProducts);
+    return res.json({ok:true,tables,revision:menu.revision,products:generalProducts});
  }catch{
    return jsonError(res,503,"QR_SERVICE_UNAVAILABLE");
  }

@@ -140,6 +140,21 @@ router.use(
 router.use("/health", healthRoutes);
 // Off by default. Public QR checkout requires server-validated token/table.
 router.use("/public/delibocados-qr", restaurantQrPublicRoutes);
+
+// panel.delibocados.online Nginx already forwards /api/ to the API (4000)
+// with a trailing-slash proxy_pass, stripping the /api prefix. Expose an
+// exact QR alias to avoid forwarding the customer-facing POST through an
+// unrelated catch-all API route. Every request still validates its opaque
+// token, enabled state, company ID and optional one-table pilot.
+router.use("/delibocados-qr", (req,res,next)=>{
+  // Marker proves the HTTPS request reached the QR handler, not the catch-all.
+  res.setHeader("X-Deli-QR-Handler","api-qr-alias-v1");
+  // No credentials or cross-origin browser access to another tenant.
+  if(req.headers.origin!=="https://panel.delibocados.online")
+    return res.status(403).setHeader("Cache-Control","no-store")
+      .json({ok:false,error:"ORIGIN_DENIED"});
+  next();
+}, restaurantQrPublicRoutes);
 router.use(
   "/public/catalog",
   publicCatalogRoutes,

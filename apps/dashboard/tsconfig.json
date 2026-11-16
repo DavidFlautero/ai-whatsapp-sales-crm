@@ -38,7 +38,9 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".next-delibocados/types/**/*.ts",
-    ".next-delibocados/dev/types/**/*.ts"
+    ".next-delibocados/dev/types/**/*.ts",
+    ".next-delibocados-candidate/types/**/*.ts",
+    ".next-delibocados-candidate/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
