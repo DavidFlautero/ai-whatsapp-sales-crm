@@ -2,6 +2,7 @@
 
 import {useEffect,useMemo,useState} from "react";
 import styles from "./CafeMenuView.module.css";
+import { calculateTableBill } from "./account-totals";
 
 type Product={id:string;name:string;category:string;priceCOP:number;description?:string;imageUrl?:string|null};
 type TableChoice={id:string;label:string};
@@ -9,7 +10,8 @@ type Account={id:string;openedAt:string;totalCOP:number;truncated:boolean;
  orders:Array<{number:number;status:string;createdAt:string;totalCOP:number;
   items:Array<{name:string;quantity:number;totalCOP:number;instructions:string}>}>};
 type MenuContext={table:{id:string;label:string}|null;revision:number;products:Product[];ordersEnabled?:boolean;account?:Account|null};
-type Receipt={id:string;number:number;status:string;paymentStatus:string;totalCOP:number;table:string};
+type Receipt={id:string;number:number;status:string;paymentStatus:string;totalCOP:number;table:string;
+ accountTotalCOP:number|null;estimatedTotalCOP:number};
 type Banner={eyebrow:string;title:string;detail:string};
 type Props={
   loading:boolean;error:string;context:MenuContext|null;tables:TableChoice[];receipt:Receipt|null;
@@ -21,6 +23,15 @@ type Props={
   onCheckout:()=>void;onRefreshContext:()=>void;onAnotherOrder:()=>void;
 };
 const money=(value:number)=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(value);
+function TableBillBreakdown({previousCOP,additionalCOP,hasAccount}:{previousCOP:number;additionalCOP:number;hasAccount:boolean}){
+ const amounts=calculateTableBill(previousCOP,additionalCOP);
+ return <section className={styles.billBreakdown} aria-label="Total acumulado de la mesa">
+  {hasAccount?<div className={styles.billLine}><span>Cuenta anterior</span><strong>{money(amounts.previousCOP)}</strong></div>:null}
+  <div className={styles.billLine}><span>Productos nuevos</span><strong>{money(amounts.additionalCOP)}</strong></div>
+  <div className={styles.billGrand}><span>{hasAccount?"Total acumulado con lo nuevo":"Total de este pedido"}</span><strong>{money(amounts.projectedCOP)}</strong></div>
+  {hasAccount?<small>Solo los productos nuevos se enviarán a cocina. La cuenta anterior permanece abierta.</small>:null}
+ </section>;
+}
 const defaultBanners:Banner[]=[
   {eyebrow:"BIENVENIDOS A DELIBOCADOS",title:"Comé rico, disfrutá más",detail:"Elegí tus favoritos de nuestra carta digital."},
   {eyebrow:"ALMUERZOS",title:"El sabor de todos los días",detail:"Consultá en el restaurante el almuerzo disponible hoy."},
@@ -63,6 +74,8 @@ export default function CafeMenuView(props:Props){
   }),[cart,context]);
   const count=selected.reduce((sum,p)=>sum+p.quantity,0);
   const total=selected.reduce((sum,p)=>sum+p.priceCOP*p.quantity,0);
+  const previousTotal=context?.account?.totalCOP??0;
+  const bill=calculateTableBill(previousTotal,total);
   const ordersEnabled=context?.ordersEnabled===true;
   const hasTable=!!context?.table?.id;
   const canOrder=ordersEnabled&&hasTable&&count>0&&!busy&&!uncertain&&!receipt;
@@ -74,11 +87,31 @@ export default function CafeMenuView(props:Props){
         <img src="https://delibocados.online/delibocados/assets/logo.webp" alt="Delibocados" onError={e=>{e.currentTarget.style.display="none"}}/>
         <span><strong>DELIBOCADOS</strong><small>RESTAURANTE · FUNZA</small></span>
       </a>
-      <button type="button" className={styles.headerCart} onClick={()=>setCartOpen(true)}>
-        <span aria-hidden="true">🛒</span> Mi pedido <strong>{count}</strong>
+      <button type="button" className={styles.headerCart} onClick={()=>{
+        if(context?.account&&!count)document.getElementById("qr-account-history")?.scrollIntoView({behavior:"smooth"});
+        else setCartOpen(true);
+      }}>
+        <span aria-hidden="true">🛒</span> {context?.account&&!count?"Mi cuenta":"Mi pedido"} <strong>{count||context?.account?.orders.length||0}</strong>
       </button>
     </header>
     <div className={styles.container} id="inicio">
+        {!receipt&&context?.account?<section className={styles.accountCard} id="qr-account-history" aria-label="Cuenta abierta de la mesa">
+          <div className={styles.accountHeader}>
+            <div><strong>Cuenta abierta · {context.table?.label}</strong>
+            <small>Todo lo registrado en esta mesa hasta ahora</small></div>
+            <b>{money(context.account.totalCOP)}</b>
+          </div>
+          {context.account.orders.map(o=><div className={styles.accountOrder} key={o.number}>
+            <strong>Comanda #{o.number} · {o.status}</strong>
+            {o.items.map((item,index)=><div key={index}>
+              <span>{item.quantity} × {item.name}</span><span>{money(item.totalCOP)}</span>
+            </div>)}
+          </div>)}
+          {context.account.truncated?<p>La cuenta tiene muchas comandas: consultá el total completo con el encargado.</p>:null}
+          <div className={styles.billLine}><span>Pedido adicional que estás armando</span><strong>{money(bill.additionalCOP)}</strong></div>
+          <div className={styles.billGrand}><span>Total si confirmás los productos nuevos</span><strong>{money(bill.projectedCOP)}</strong></div>
+          <small>Los productos anteriores están registrados. Agregá otros desde la carta: la cocina recibirá solamente los nuevos.</small>
+        </section>:null}
       <section className={styles.promo} aria-label="Promociones y novedades">
         <div className={styles.promoText} key={slide}>
           <span className={styles.eyebrow}>{banner.eyebrow}</span>
@@ -100,7 +133,15 @@ export default function CafeMenuView(props:Props){
       {!loading&&!context&&!error?<p className={styles.notice}>Escaneá un QR vigente del restaurante para consultar la carta.</p>:null}
       {receipt?<section className={styles.receipt}>
         <div className={styles.receiptCheck}>✓</div><h2>Pedido #{receipt.number} registrado</h2>
-        <p>Mesa: <strong>{receipt.table}</strong></p><p>Total: <strong>{money(receipt.totalCOP)}</strong></p>
+        <p>Mesa: <strong>{receipt.table}</strong></p>
+        <p>Importe de esta comanda: <strong>{money(receipt.totalCOP)}</strong></p>
+        {receipt.accountTotalCOP!==null?<>
+          <div className={styles.billGrand}><span>Total actualizado de la mesa</span><strong>{money(receipt.accountTotalCOP)}</strong></div>
+          <p>La cuenta anterior continúa abierta y los productos nuevos se sumaron correctamente.</p>
+        </>:<>
+          <div className={styles.billGrand}><span>Total previsto de la mesa</span><strong>{money(receipt.estimatedTotalCOP)}</strong></div>
+          <p>Este total es estimado: consultá el importe actualizado con el personal.</p>
+        </>}
         <p>Confirmá con el personal que el pedido llegó a cocina.</p>
         <p>{receipt.paymentStatus==="pending"?"Transferencia pendiente de verificar.":"Pago pendiente de cobrar."}</p>
         <button type="button" className={styles.confirm} onClick={props.onAnotherOrder}>
@@ -111,21 +152,6 @@ export default function CafeMenuView(props:Props){
         <section className={styles.menuHeading} id="carta"><div><span>EXPLORÁ NUESTRA CARTA</span><h2>Algo rico para cada momento</h2></div>
           <div className={styles.tableStatus}>{hasTable?<><span className={styles.statusDot}/> Mesa identificada: <strong>{context.table?.label}</strong></>:<>QR general · <strong>Sin mesa asignada</strong></>}</div>
         </section>
-        {context.account?<section className={styles.accountCard} aria-label="Cuenta abierta de la mesa">
-          <div className={styles.accountHeader}>
-            <div><strong>Cuenta abierta · {context.table?.label}</strong>
-            <small>Todo lo registrado en esta mesa hasta ahora</small></div>
-            <b>{money(context.account.totalCOP)}</b>
-          </div>
-          {context.account.orders.map(o=><div className={styles.accountOrder} key={o.number}>
-            <strong>Comanda #{o.number} · {o.status}</strong>
-            {o.items.map((item,index)=><div key={index}>
-              <span>{item.quantity} × {item.name}</span><span>{money(item.totalCOP)}</span>
-            </div>)}
-          </div>)}
-          {context.account.truncated?<p>La cuenta tiene muchas comandas: consultá el total completo con el encargado.</p>:null}
-          <small>Para agregar algo más, seleccioná productos abajo. Se enviará solo una comanda nueva.</small>
-        </section>:null}
         {!hasTable&&props.tables.length>0?<section className={styles.tablePicker}>
           <h3>¿Vas a pedir desde una mesa?</h3>
           <p>Podés explorar toda la carta. Si estás sentado en el local, seleccioná tu mesa antes de confirmar.</p>
@@ -162,7 +188,7 @@ export default function CafeMenuView(props:Props){
           <aside className={styles.cartPanel} aria-label="Resumen del pedido">
             <div className={styles.cartTitle}><span>🛒</span><div><h3>Tu pedido</h3><small>{count} {count===1?"producto":"productos"}</small></div></div>
             {selected.length===0?<div className={styles.emptyCart}><span>🛍</span><p>Tu carrito está vacío</p><small>Sumá tus favoritos desde nuestra carta.</small></div>:<div className={styles.cartItems}>{selected.map(p=><div className={styles.cartLine} key={p.id}><span>{p.quantity} × {p.name}</span><b>{money(p.priceCOP*p.quantity)}</b></div>)}</div>}
-            <div className={styles.cartTotal}><span>Total estimado</span><strong>{money(total)}</strong></div>
+            <TableBillBreakdown previousCOP={bill.previousCOP} additionalCOP={bill.additionalCOP} hasAccount={!!context.account}/>
             {hasTable?<div className={styles.cartMesa}>Mesa: <b>{context.table?.label}</b></div>:<div className={styles.cartMesa}>QR general: sin mesa asignada</div>}
             <button type="button" className={styles.cartAction} onClick={()=>setCartOpen(true)} disabled={!count}>Revisar pedido <span>→</span></button>
             <p className={styles.cartDisclaimer}>El total se valida con los precios oficiales del restaurante.</p>
@@ -170,13 +196,13 @@ export default function CafeMenuView(props:Props){
         </div>
       </>:null}
     </div>
-    {context&&!receipt&&count>0?<button type="button" className={styles.mobileCart} onClick={()=>setCartOpen(true)}><span>🛒 {count} productos</span><strong>{money(total)}</strong><span>Ver pedido →</span></button>:null}
+    {context&&!receipt&&count>0?<button type="button" className={styles.mobileCart} onClick={()=>setCartOpen(true)}><span>🛒 {count} nuevos</span><strong>{money(bill.projectedCOP)} {context.account?"total mesa":""}</strong><span>Ver cuenta →</span></button>:null}
     {cartOpen&&context&&!receipt?<div className={styles.modalOverlay} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setCartOpen(false)}}>
       <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="deli-cart-title">
         <div className={styles.modalHeader}><div><small>DELIBOCADOS</small><h2 id="deli-cart-title">Revisá tu pedido</h2></div><button type="button" aria-label="Cerrar carrito" onClick={()=>setCartOpen(false)}>×</button></div>
         <div className={styles.modalBody}>
           {selected.length===0?<p>Tu carrito está vacío.</p>:selected.map(p=><div className={styles.modalLine} key={p.id}><div><strong>{p.name}</strong><small>{p.quantity} × {money(p.priceCOP)}</small></div><b>{money(p.priceCOP*p.quantity)}</b></div>)}
-          <div className={styles.modalTotal}><span>Total</span><strong>{money(total)}</strong></div>
+          <TableBillBreakdown previousCOP={bill.previousCOP} additionalCOP={bill.additionalCOP} hasAccount={!!context.account}/>
           {!hasTable?<div className={styles.checkoutWarning}>Estás viendo el menú general. Para realizar un pedido en mesa, seleccioná una mesa válida desde la carta. No se enviará ningún pedido sin identificarla.</div>:<div className={styles.cartMesa}>Pedido para <strong>{context.table?.label}</strong></div>}
           <div className={styles.formGrid}>
             <label>Tu nombre<input autoComplete="name" value={props.name} maxLength={120} placeholder="Nombre para el pedido" disabled={busy||uncertain} onChange={e=>props.onName(e.target.value)}/></label>
@@ -193,7 +219,7 @@ export default function CafeMenuView(props:Props){
           {uncertain?<p className={styles.checkoutWarning} role="alert">No confirmamos el resultado anterior. Consultá al personal antes de intentar otro pedido.</p>:null}
           {error?<p className={styles.error} role="alert">{error}</p>:null}
         </div>
-        <div className={styles.modalFooter}><button type="button" className={styles.confirm} disabled={!canOrder} onClick={props.onCheckout}>{busy?"Registrando…":!hasTable?"Seleccioná tu mesa":!ordersEnabled?"Pedidos QR aún no habilitados":!count?"Agregá un producto":"Confirmar pedido"}</button><small>Los cobros por transferencia se verifican antes de marcarse como pagados.</small></div>
+        <div className={styles.modalFooter}><button type="button" className={styles.confirm} disabled={!canOrder} onClick={props.onCheckout}>{busy?"Registrando…":!hasTable?"Seleccioná tu mesa":!ordersEnabled?"Pedidos QR aún no habilitados":!count?"Agregá un producto":context.account?"Agregar nuevos productos a la cuenta":"Confirmar pedido"}</button><small>Los cobros por transferencia se verifican antes de marcarse como pagados.</small></div>
       </section>
     </div>:null}
     <footer className={styles.footer}>© Delibocados · Funza · Tu carta digital</footer>
