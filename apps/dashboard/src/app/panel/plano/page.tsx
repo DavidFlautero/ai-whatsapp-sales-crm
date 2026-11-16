@@ -1,2 +1,7 @@
-import RestaurantFrame from "../../../components/restaurant-os/restaurant-frame";
-export default function Page() {return <RestaurantFrame module="floorplan" title="Plano de mesas" slug="plano"/>;}
+import { requireModule } from "../../../components/restaurant-os/restaurant-server";
+import MesasPedidosClient from "../../../components/restaurant-os/MesasPedidosClient";
+
+export default async function Page() {
+ await requireModule("orders");
+ return <MesasPedidosClient />;
+}
