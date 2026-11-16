@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CafeMenuView from "./CafeMenuView";
 type Product={id:string;name:string;category:string;priceCOP:number;description?:string;imageUrl?:string|null};
 type Account={id:string;openedAt:string;totalCOP:number;truncated:boolean;
@@ -8,7 +8,8 @@ type Account={id:string;openedAt:string;totalCOP:number;truncated:boolean;
 type Context={table:{id:string;label:string}|null;revision:number;products:Product[];ordersEnabled?:boolean;account?:Account|null};
 type Token={kind:"table"|"general";tableId?:string;token:string};
 type TableChoice={id:string;label:string};
-type Receipt={id:string;number:number;status:string;paymentStatus:string;totalCOP:number;table:string};
+type Receipt={id:string;number:number;status:string;paymentStatus:string;totalCOP:number;table:string;
+ accountTotalCOP:number|null;estimatedTotalCOP:number};
 function failure(code:string):string{
  const messages:Record<string,string>={
   QR_CHECKOUT_NOT_ENABLED:"Este canal todavía no está habilitado para recibir pedidos.",
@@ -44,8 +45,13 @@ export default function DelibocadosQrCheckoutPage(){
  const [receipt,setReceipt]=useState<Receipt|null>(null);
  const [uncertain,setUncertain]=useState(false);
  const [sourceKey,setSourceKey]=useState("");
+ const lastContextAt=useRef(0);
+ const contextLoading=useRef(false);
  const loadContext=async(t:Token,refresh=false)=>{
    if(!t.tableId){setError("Seleccioná una mesa.");setLoading(false);return;}
+   if(contextLoading.current)return;
+   contextLoading.current=true;
+   lastContextAt.current=Date.now();
    try{
      const res=await fetch("/api/delibocados-qr/context",{
        method:"POST",credentials:"omit",cache:"no-store",
@@ -62,7 +68,7 @@ export default function DelibocadosQrCheckoutPage(){
      if(refresh)setContext(current=>current?{...current,ordersEnabled:false}:null);
      setError(e instanceof Error?e.message:"No se pudo cargar la carta");
    }
-   finally{setLoading(false);}
+   finally{setLoading(false);contextLoading.current=false;}
  };
  useEffect(()=>{
    const hash=new URLSearchParams(window.location.hash.replace(/^#/,""));
@@ -91,6 +97,25 @@ export default function DelibocadosQrCheckoutPage(){
      };void loadTables();
    }else void loadContext(t);
  },[]);
+ // Returning to a QR tab (including the browser's back/forward cache) must
+ // re-read the open check. A remembered cart does not become a new order.
+ useEffect(()=>{
+   const refresh=()=>{
+     if(!token?.tableId||receipt||busy||uncertain||loading||
+        document.visibilityState!=="visible"||contextLoading.current||
+        Date.now()-lastContextAt.current<15000)return;
+     void loadContext(token,true);
+   };
+   const fromHistory=(event:PageTransitionEvent)=>{if(event.persisted)refresh();};
+   document.addEventListener("visibilitychange",refresh);
+   window.addEventListener("pageshow",fromHistory);
+   window.addEventListener("focus",refresh);
+   return()=>{
+     document.removeEventListener("visibilitychange",refresh);
+     window.removeEventListener("pageshow",fromHistory);
+     window.removeEventListener("focus",refresh);
+   };
+ },[token,receipt,busy,uncertain,loading]);
  const chooseTable=(id:string)=>{
    if(!token||token.kind!=="general")return;
    const chosen={...token,tableId:id};
@@ -142,7 +167,19 @@ export default function DelibocadosQrCheckoutPage(){
          +"No repitas el pedido; consultá con el encargado usando tu teléfono.");
        return;
      }
-     setReceipt(payload.order as Receipt);
+     // Show the authoritative running total when the backend could re-read
+     // the account after commit. Retain the successful receipt even when this
+     // secondary read is temporarily unavailable.
+     const account=payload.account as Account|null|undefined;
+     const verifiedTotal=account && Number.isSafeInteger(account.totalCOP)
+       ? account.totalCOP : null;
+     if(verifiedTotal!==null)setContext(current=>
+       current?{...current,account}:current
+     );
+     setReceipt({...payload.order,
+       accountTotalCOP:verifiedTotal,
+       estimatedTotalCOP:(context.account?.totalCOP??0)+Number(payload.order.totalCOP)
+     } as Receipt);
    }catch{
      setUncertain(true);setError("Conexión interrumpida. El pedido podría estar "
        +"registrado. No lo repitas; consultá al encargado.");
