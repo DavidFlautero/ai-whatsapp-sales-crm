@@ -33,6 +33,9 @@ jobs:
         run: pnpm --filter @ventas/api exec tsx --test src/services/integrations/company-secret-master-key.test.ts
       - name: Test permanent QR encryption, reprinting and table isolation
         run: pnpm --filter @ventas/api exec tsx --test src/services/restaurant-ops/restaurant-qr-printable.service.test.ts
+      - name: Compile POS360 Windows bridge route
+        run: pnpm --filter @ventas/api typecheck
+
       - name: Typecheck dashboard
         run: pnpm --filter @ventas/dashboard typecheck
       - name: Test QR proxy checkout gate and origin isolation
