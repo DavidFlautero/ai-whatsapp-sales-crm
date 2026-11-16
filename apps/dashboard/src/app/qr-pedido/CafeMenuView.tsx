@@ -28,7 +28,7 @@ function TableBillBreakdown({previousCOP,additionalCOP,hasAccount}:{previousCOP:
  return <section className={styles.billBreakdown} aria-label="Total acumulado de la mesa">
   {hasAccount?<div className={styles.billLine}><span>Cuenta anterior</span><strong>{money(amounts.previousCOP)}</strong></div>:null}
   <div className={styles.billLine}><span>Productos nuevos</span><strong>{money(amounts.additionalCOP)}</strong></div>
-  <div className={styles.billGrand}><span>{hasAccount?"Total acumulado con lo nuevo":"Total de este pedido"}</span><strong>{money(amounts.projectedCOP)}</strong></div>
+  <div className={styles.billGrand}><span>{hasAccount?"Total previsto de la mesa":"Total de este pedido"}</span><strong>{money(amounts.projectedCOP)}</strong></div>
   {hasAccount?<small>Solo los productos nuevos se enviarán a cocina. La cuenta anterior permanece abierta.</small>:null}
  </section>;
 }
@@ -201,6 +201,16 @@ export default function CafeMenuView(props:Props){
       <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="deli-cart-title">
         <div className={styles.modalHeader}><div><small>DELIBOCADOS</small><h2 id="deli-cart-title">Revisá tu pedido</h2></div><button type="button" aria-label="Cerrar carrito" onClick={()=>setCartOpen(false)}>×</button></div>
         <div className={styles.modalBody}>
+          {context.account?<details open className={styles.previousOrders}>
+            <summary>Lo que ya pediste · {context.account.orders.length} comanda(s)</summary>
+            {context.account.orders.map(o=><div key={o.number} className={styles.previousOrder}>
+              <strong>Comanda #{o.number} · {o.status}</strong>
+              {o.items.map((item,index)=><div key={index} className={styles.billLine}>
+                <span>{item.quantity} × {item.name}</span><span>{money(item.totalCOP)}</span>
+              </div>)}
+            </div>)}
+          </details>:null}
+          <h3 className={styles.newItemsHeading}>Productos nuevos que vas a agregar</h3>
           {selected.length===0?<p>Tu carrito está vacío.</p>:selected.map(p=><div className={styles.modalLine} key={p.id}><div><strong>{p.name}</strong><small>{p.quantity} × {money(p.priceCOP)}</small></div><b>{money(p.priceCOP*p.quantity)}</b></div>)}
           <TableBillBreakdown previousCOP={bill.previousCOP} additionalCOP={bill.additionalCOP} hasAccount={!!context.account}/>
           {!hasTable?<div className={styles.checkoutWarning}>Estás viendo el menú general. Para realizar un pedido en mesa, seleccioná una mesa válida desde la carta. No se enviará ningún pedido sin identificarla.</div>:<div className={styles.cartMesa}>Pedido para <strong>{context.table?.label}</strong></div>}
