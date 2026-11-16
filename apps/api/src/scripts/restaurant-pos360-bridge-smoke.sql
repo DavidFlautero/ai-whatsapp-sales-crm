@@ -35,6 +35,7 @@ BEGIN
  ) VALUES('delibocados','pos360','burger','DLB-0004',true,now());
 
  v_claim:=public.restaurant_ops_pos360_claim('delibocados');
+ RAISE NOTICE 'POS360_TEST_CLAIM: %',v_claim;
  IF v_claim IS NULL
    OR v_claim->>'orderId'<>v_order->>'id'
    OR v_claim->>'externalReference'<>'delibocados-qr-'||(v_order->>'id')
