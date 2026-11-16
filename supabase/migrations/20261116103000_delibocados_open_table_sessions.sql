@@ -164,6 +164,63 @@ BEGIN
  RETURN to_jsonb(v_order);
 END $$;
 
+-- Delivering the final dish can mark a dine-in kitchen ticket completed.
+CREATE OR REPLACE FUNCTION public.restaurant_ops_transition_order(
+ p_company_id text,p_order_id uuid,p_expected_version integer,
+ p_next_status text,p_actor_id text,p_actor_role text,p_reason text DEFAULT NULL
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+DECLARE v_order public.restaurant_ops_orders%ROWTYPE;
+        v_previous_status text;
+BEGIN
+ SELECT * INTO v_order FROM public.restaurant_ops_orders
+ WHERE id=p_order_id AND company_id=p_company_id FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'ORDER_NOT_FOUND'; END IF;
+ IF v_order.version<>p_expected_version THEN RAISE EXCEPTION 'ORDER_VERSION_CONFLICT'; END IF;
+ v_previous_status := v_order.status;
+ IF NOT (
+   (v_order.status='confirmed' AND p_next_status IN ('preparing','cancelled')) OR
+   (v_order.status='preparing' AND p_next_status IN ('ready','cancelled')) OR
+   (v_order.status='ready' AND v_order.fulfillment_mode IN ('pickup','dine_in') AND p_next_status='completed') OR
+   (v_order.status='ready' AND v_order.fulfillment_mode='delivery' AND p_next_status='out_for_delivery') OR
+   (v_order.status='out_for_delivery' AND p_next_status='completed')
+ ) THEN RAISE EXCEPTION 'INVALID_ORDER_TRANSITION'; END IF;
+ IF p_next_status='preparing' AND v_order.payment_status NOT IN ('verified','cash_on_delivery')
+ THEN RAISE EXCEPTION 'PAYMENT_REVIEW_REQUIRED_BEFORE_KITCHEN'; END IF;
+ IF p_next_status='cancelled' AND length(trim(coalesce(p_reason,'')))<5
+ THEN RAISE EXCEPTION 'CANCELLATION_REASON_REQUIRED'; END IF;
+ IF p_next_status IN ('out_for_delivery','completed')
+   AND v_order.payment_status NOT IN ('verified','cash_on_delivery')
+ THEN RAISE EXCEPTION 'PAYMENT_NOT_CLEARED_OR_COLLECT_ON_DELIVERY'; END IF;
+ IF p_next_status='out_for_delivery' AND v_order.courier_id IS NULL
+ THEN RAISE EXCEPTION 'COURIER_ASSIGNMENT_REQUIRED'; END IF;
+ UPDATE public.restaurant_ops_orders SET status=p_next_status,version=version+1,updated_at=now(),
+   preparing_at=CASE WHEN p_next_status='preparing' THEN now() ELSE preparing_at END,
+   ready_at=CASE WHEN p_next_status='ready' THEN now() ELSE ready_at END,
+   handed_off_at=CASE WHEN p_next_status='out_for_delivery' THEN now() ELSE handed_off_at END,
+   completed_at=CASE WHEN p_next_status='completed' THEN now() ELSE completed_at END,
+   cancelled_at=CASE WHEN p_next_status='cancelled' THEN now() ELSE cancelled_at END
+ WHERE id=p_order_id AND company_id=p_company_id RETURNING * INTO v_order;
+ IF p_next_status IN ('preparing','ready','cancelled') THEN
+  UPDATE public.restaurant_ops_kitchen_tickets
+  SET status=CASE p_next_status WHEN 'preparing' THEN 'working'
+    WHEN 'ready' THEN 'ready' ELSE 'cancelled' END,
+    started_at=CASE WHEN p_next_status='preparing' THEN now() ELSE started_at END,
+    ready_at=CASE WHEN p_next_status='ready' THEN now() ELSE ready_at END
+  WHERE company_id=p_company_id AND order_id=p_order_id;
+ END IF;
+ IF p_next_status IN ('completed','cancelled') AND v_order.courier_id IS NOT NULL THEN
+  UPDATE public.restaurant_ops_couriers SET availability='available'
+  WHERE id=v_order.courier_id AND company_id=p_company_id;
+ END IF;
+ INSERT INTO public.restaurant_ops_order_events(company_id,order_id,event_type,actor_id,actor_role,previous_status,next_status,details)
+ VALUES(p_company_id,p_order_id,'status_changed',p_actor_id,p_actor_role,
+  v_previous_status,
+  p_next_status,jsonb_build_object('reason',coalesce(p_reason,'')));
+ INSERT INTO public.restaurant_ops_outbox(company_id,order_id,kind,payload)
+ VALUES(p_company_id,p_order_id,'order_status_changed',jsonb_build_object('status',p_next_status));
+ RETURN to_jsonb(v_order);
+END $$;
+
 -- Every new QR order joins the current table session; repeat visits create
 -- another order/ticket without reprinting earlier items. No public PII.
 CREATE OR REPLACE FUNCTION public.restaurant_ops_create_qr_order(
