@@ -12,6 +12,8 @@ on:
       - "supabase/migrations/20261108190000_delibocados_pos_export_outbox.sql"
       - "supabase/migrations/20261108210000_restaurant_qr_checkout_foundation.sql"
       - "supabase/migrations/20261108213000_restaurant_pos360_export_queue.sql"
+      - "supabase/migrations/20261116103000_delibocados_open_table_sessions.sql"
+      - "apps/api/src/scripts/restaurant-table-sessions-smoke.sql"
       - "apps/api/src/scripts/restaurant-qr-dine-in-smoke.sql"
       - "apps/api/src/scripts/restaurant-pos-outbox-smoke.sql"
       - "apps/api/src/scripts/delibocados-approved-address-smoke.sql"
@@ -112,3 +114,7 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261108213000_restaurant_pos360_export_queue.sql
       - name: Verify real QR checkout, invalid tokens, payment holds and idempotency
         run: psql -v ON_ERROR_STOP=1 -f apps/api/src/scripts/restaurant-qr-dine-in-smoke.sql
+      - name: Apply open table accounts and nullable QR contact
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261116103000_delibocados_open_table_sessions.sql
+      - name: Verify open check, multiple courses, kitchen tickets, close and reopen
+        run: psql -v ON_ERROR_STOP=1 -f apps/api/src/scripts/restaurant-table-sessions-smoke.sql
