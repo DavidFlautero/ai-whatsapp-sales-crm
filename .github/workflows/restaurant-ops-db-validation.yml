@@ -14,6 +14,8 @@ on:
       - "supabase/migrations/20261108213000_restaurant_pos360_export_queue.sql"
       - "supabase/migrations/20261116103000_delibocados_open_table_sessions.sql"
       - "supabase/migrations/20261116113000_delibocados_permanent_qr_reprint.sql"
+      - "supabase/migrations/20261116170000_delibocados_pos360_bridge_outbox.sql"
+      - "apps/api/src/scripts/restaurant-pos360-bridge-smoke.sql"
       - "apps/api/src/scripts/restaurant-table-sessions-smoke.sql"
       - "apps/api/src/scripts/restaurant-qr-dine-in-smoke.sql"
       - "apps/api/src/scripts/restaurant-pos-outbox-smoke.sql"
@@ -137,3 +139,8 @@ jobs:
             RAISE NOTICE 'OLD_QR_DIGESTS_PRESERVED_NO_EXPIRATION';
           END $qrverify$;
           SQL
+
+      - name: Install POS360 bridge RPC claim/ack (no local SmartPOS connection)
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261116170000_delibocados_pos360_bridge_outbox.sql
+      - name: Test POS360 order claim, reviewed map, second course and receipt
+        run: psql -v ON_ERROR_STOP=1 -f apps/api/src/scripts/restaurant-pos360-bridge-smoke.sql
