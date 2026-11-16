@@ -21,7 +21,7 @@ const orderInput=base.extend({
   tableId:z.string().uuid(),
   sourceKey:z.string().uuid(),
   customerName:z.string().trim().min(2).max(120),
-  customerPhone:z.string().regex(/^[0-9]{8,15}$/),
+  customerPhone:z.union([z.string().regex(/^[0-9]{8,15}$/),z.literal("")]).optional(),
   items:z.array(z.object({
     productId:z.string().trim().min(1).max(100),
     quantity:z.number().int().min(1).max(25),
@@ -40,6 +40,43 @@ type MenuDoc={revision:number;payload:{products?:Array<{
   priceNeedsReview?:boolean;priceCOP?:number
 }>}};
 type Row=Record<string,unknown>;
+type SessionRow={id:string;opened_at:string};
+type AccountOrderRow={
+  id:string;number:number;status:string;total_cop:number;created_at:string;
+  restaurant_ops_order_items?:Array<{
+    product_name:string;quantity:number;line_total_cop:number;instructions:string
+  }>;
+};
+/** A verified table QR is a capability: return its check without customer PII. */
+async function loadOpenTableAccount(tableId:string){
+  const sessions=await supabaseRequest<SessionRow[]>({
+    table:"restaurant_ops_table_sessions",
+    query:"?company_id=eq.delibocados&qr_table_id=eq."+encodeURIComponent(tableId)+
+      "&status=eq.open&select=id,opened_at&limit=1"
+  });
+  const session=sessions[0];
+  if(!session)return null;
+  const orders=await supabaseRequest<AccountOrderRow[]>({
+    table:"restaurant_ops_orders",
+    query:"?company_id=eq.delibocados&table_session_id=eq."+encodeURIComponent(session.id)+
+      "&select=id,number,status,total_cop,created_at,"+
+      "restaurant_ops_order_items(product_name,quantity,line_total_cop,instructions)"+
+      "&order=created_at.asc&limit=200"
+  });
+  return {
+    id:session.id,openedAt:session.opened_at,
+    orders:orders.map(o=>({
+      number:o.number,status:o.status,
+      createdAt:o.created_at,totalCOP:o.status==="cancelled"?0:o.total_cop,
+      items:o.status==="cancelled"?[]:(o.restaurant_ops_order_items??[]).map(i=>({
+        name:i.product_name,quantity:i.quantity,totalCOP:i.line_total_cop,
+        instructions:i.instructions
+      }))
+    })),
+    totalCOP:orders.reduce((n,o)=>n+(o.status==="cancelled"?0:o.total_cop),0),
+    truncated:orders.length===200
+  };
+}
 const counters=new Map<string,{count:number;reset:number}>();
 function limited(req:Request,max:number):boolean{
   const now=Date.now();const key=(req.ip||"unknown").slice(0,100)+":"+(req.path||"");
@@ -136,8 +173,9 @@ async function handler(req:Request,res:Response,checkout:boolean){
         id:p.id,name:p.name,category:p.category??"",priceCOP:p.priceCOP
       }));
       const richProducts=enrichMenuProducts(menu,products);
+      const account=await loadOpenTableAccount(table.id);
       res.setHeader("Cache-Control","no-store");
-      return res.json({ok:true,table,revision:menu.revision,products:richProducts,ordersEnabled});
+      return res.json({ok:true,table,revision:menu.revision,products:richProducts,ordersEnabled,account});
     }
     const payload=input as z.infer<typeof orderInput>;
     const order=await supabaseRpc<Row>("restaurant_ops_create_qr_order",{
@@ -146,7 +184,7 @@ async function handler(req:Request,res:Response,checkout:boolean){
       p_qr_kind:payload.kind,
       p_qr_token:payload.token,
       p_table_id:payload.tableId,
-      p_customer_phone:payload.customerPhone,
+      p_customer_phone:payload.customerPhone?.trim()||null,
       p_customer_name:payload.customerName,
       p_items:payload.items,
       p_expected_menu_revision:payload.expectedMenuRevision,
@@ -163,7 +201,7 @@ async function handler(req:Request,res:Response,checkout:boolean){
       ok:true,order:{id:order.id,number:order.number,
         status:order.status,paymentStatus:order.payment_status,
         totalCOP:order.total_cop,table:table.label},
-      note:"Pedido registrado internamente. Confirmar recepción en cocina."
+      note:"Pedido agregado a la cuenta de mesa. Confirmar recepción en cocina; POS360 no conectado."
     });
   }catch(e){
     // Never print tokens, SQL arguments, raw errors or client identities.

@@ -5,7 +5,10 @@ import styles from "./CafeMenuView.module.css";
 
 type Product={id:string;name:string;category:string;priceCOP:number;description?:string;imageUrl?:string|null};
 type TableChoice={id:string;label:string};
-type MenuContext={table:{id:string;label:string}|null;revision:number;products:Product[];ordersEnabled?:boolean};
+type Account={id:string;openedAt:string;totalCOP:number;truncated:boolean;
+ orders:Array<{number:number;status:string;createdAt:string;totalCOP:number;
+  items:Array<{name:string;quantity:number;totalCOP:number;instructions:string}>}>};
+type MenuContext={table:{id:string;label:string}|null;revision:number;products:Product[];ordersEnabled?:boolean;account?:Account|null};
 type Receipt={id:string;number:number;status:string;paymentStatus:string;totalCOP:number;table:string};
 type Banner={eyebrow:string;title:string;detail:string};
 type Props={
@@ -15,7 +18,7 @@ type Props={
   onChooseTable:(id:string)=>void;onChangeQty:(id:string,delta:number)=>void;
   onChangeNotes:(id:string,value:string)=>void;onName:(value:string)=>void;onPhone:(value:string)=>void;
   onPayment:(value:"cash"|"transfer")=>void;onCustomerNote:(value:string)=>void;
-  onCheckout:()=>void;onRefreshContext:()=>void;
+  onCheckout:()=>void;onRefreshContext:()=>void;onAnotherOrder:()=>void;
 };
 const money=(value:number)=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(value);
 const defaultBanners:Banner[]=[
@@ -100,11 +103,29 @@ export default function CafeMenuView(props:Props){
         <p>Mesa: <strong>{receipt.table}</strong></p><p>Total: <strong>{money(receipt.totalCOP)}</strong></p>
         <p>Confirmá con el personal que el pedido llegó a cocina.</p>
         <p>{receipt.paymentStatus==="pending"?"Transferencia pendiente de verificar.":"Pago pendiente de cobrar."}</p>
+        <button type="button" className={styles.confirm} onClick={props.onAnotherOrder}>
+          Ver cuenta de mesa y agregar otro pedido
+        </button>
       </section>:null}
       {context&&!receipt?<>
         <section className={styles.menuHeading} id="carta"><div><span>EXPLORÁ NUESTRA CARTA</span><h2>Algo rico para cada momento</h2></div>
           <div className={styles.tableStatus}>{hasTable?<><span className={styles.statusDot}/> Mesa identificada: <strong>{context.table?.label}</strong></>:<>QR general · <strong>Sin mesa asignada</strong></>}</div>
         </section>
+        {context.account?<section className={styles.accountCard} aria-label="Cuenta abierta de la mesa">
+          <div className={styles.accountHeader}>
+            <div><strong>Cuenta abierta · {context.table?.label}</strong>
+            <small>Todo lo registrado en esta mesa hasta ahora</small></div>
+            <b>{money(context.account.totalCOP)}</b>
+          </div>
+          {context.account.orders.map(o=><div className={styles.accountOrder} key={o.number}>
+            <strong>Comanda #{o.number} · {o.status}</strong>
+            {o.items.map((item,index)=><div key={index}>
+              <span>{item.quantity} × {item.name}</span><span>{money(item.totalCOP)}</span>
+            </div>)}
+          </div>)}
+          {context.account.truncated?<p>La cuenta tiene muchas comandas: consultá el total completo con el encargado.</p>:null}
+          <small>Para agregar algo más, seleccioná productos abajo. Se enviará solo una comanda nueva.</small>
+        </section>:null}
         {!hasTable&&props.tables.length>0?<section className={styles.tablePicker}>
           <h3>¿Vas a pedir desde una mesa?</h3>
           <p>Podés explorar toda la carta. Si estás sentado en el local, seleccioná tu mesa antes de confirmar.</p>
@@ -159,7 +180,7 @@ export default function CafeMenuView(props:Props){
           {!hasTable?<div className={styles.checkoutWarning}>Estás viendo el menú general. Para realizar un pedido en mesa, seleccioná una mesa válida desde la carta. No se enviará ningún pedido sin identificarla.</div>:<div className={styles.cartMesa}>Pedido para <strong>{context.table?.label}</strong></div>}
           <div className={styles.formGrid}>
             <label>Tu nombre<input autoComplete="name" value={props.name} maxLength={120} placeholder="Nombre para el pedido" disabled={busy||uncertain} onChange={e=>props.onName(e.target.value)}/></label>
-            <label>Celular con indicativo<input autoComplete="tel" inputMode="tel" placeholder="57..." value={props.phone} disabled={busy||uncertain} onChange={e=>props.onPhone(e.target.value.replace(/\D/g,"").slice(0,15))}/></label>
+            <label>Celular con indicativo (opcional)<input autoComplete="tel" inputMode="tel" placeholder="57..." value={props.phone} disabled={busy||uncertain} onChange={e=>props.onPhone(e.target.value.replace(/\D/g,"").slice(0,15))}/></label>
             <label>Forma de pago<select value={props.payment} disabled={busy||uncertain} onChange={e=>props.onPayment(e.target.value as "cash"|"transfer")}><option value="cash">Efectivo · pendiente de cobrar</option><option value="transfer">Transferencia · por verificar</option></select></label>
             <label>Observaciones generales<textarea value={props.customerNote} maxLength={2000} placeholder="Alguna indicación para la cocina" disabled={busy||uncertain} onChange={e=>props.onCustomerNote(e.target.value)}/></label>
           </div>

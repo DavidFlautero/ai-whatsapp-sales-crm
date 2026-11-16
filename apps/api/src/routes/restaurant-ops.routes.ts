@@ -92,7 +92,9 @@ function handleError(err: unknown, res: Response) {
     "PROOF_NOT_FOUND","PROOF_ALREADY_REVIEWED","ORDER_PAYMENT_STATE_CHANGED",
     "ORDER_NOT_REVIEWABLE","TRANSFER_REQUIRES_PROOF_REVIEW",
     "PAYMENT_REVIEW_FORBIDDEN","REJECTION_REASON_REQUIRED",
-    "PAYMENT_REVIEW_REQUIRED_BEFORE_KITCHEN"
+    "PAYMENT_REVIEW_REQUIRED_BEFORE_KITCHEN",
+    "TABLE_HAS_UNFINISHED_OR_UNPAID_ORDERS",
+    "TABLE_SESSION_NOT_FOUND", "INVALID_TABLE_CLOSE_REQUEST"
   ];
   const code = allowed.find(x => message.includes(x));
   if (code) return res.status(code === "ORDER_VERSION_CONFLICT" ? 409 : 422)
@@ -263,17 +265,30 @@ restaurantOpsRoutes.post("/qr/secure-tables/:id/rotate",requireRoles("owner","ad
 
 // DELIBOCADOS_GENERAL_QR_V6_20261115 — authenticated table status board, READ ONLY.
 restaurantOpsRoutes.get("/orders/tables",safe(async(_req,res)=>{
-  const [tables,orders]=await Promise.all([
+  const [tables,sessions,orders]=await Promise.all([
     rows("restaurant_ops_qr_tables",
       "?company_id=eq.delibocados&select=id,label,enabled&order=label.asc&limit=100"),
+    rows("restaurant_ops_table_sessions",
+      "?company_id=eq.delibocados&status=eq.open&select=id,qr_table_id,opened_at,status&limit=100"),
     rows("restaurant_ops_orders",
       "?company_id=eq.delibocados&fulfillment_mode=eq.dine_in"+
-      "&select=id,number,qr_table_id,fulfillment_mode,status,payment_status,customer_name,total_cop,created_at,"+
+      "&select=id,number,qr_table_id,table_session_id,fulfillment_mode,status,payment_status,customer_name,total_cop,created_at,"+
       "restaurant_ops_order_items(id,product_name,quantity,line_total_cop,instructions)"+
       "&order=created_at.desc&limit=250")
   ]);
-  readOnly(res);return res.json({ok:true,tables,orders});
+  readOnly(res);return res.json({ok:true,tables,sessions,orders});
 }));
+
+restaurantOpsRoutes.post("/orders/tables/:id/close",requireRoles("owner","admin","supervisor"),
+ safe(async(req,res)=>{
+  const sessionId=uuid.parse(req.params.id);
+  const a=actor(req);
+  const session=await supabaseRpc<Row>("restaurant_ops_close_table_session",{
+    p_company_id:"delibocados",p_session_id:sessionId,p_actor_id:a.id
+  });
+  return res.json({ok:true,session});
+ })
+);
 
 restaurantOpsRoutes.get("/orders", safe(async (_req,res) => {
   const [orders, qrTables] = await Promise.all([

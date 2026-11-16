@@ -2,7 +2,10 @@
 import { useEffect, useMemo, useState } from "react";
 import CafeMenuView from "./CafeMenuView";
 type Product={id:string;name:string;category:string;priceCOP:number;description?:string;imageUrl?:string|null};
-type Context={table:{id:string;label:string}|null;revision:number;products:Product[];ordersEnabled?:boolean};
+type Account={id:string;openedAt:string;totalCOP:number;truncated:boolean;
+ orders:Array<{number:number;status:string;createdAt:string;totalCOP:number;
+  items:Array<{name:string;quantity:number;totalCOP:number;instructions:string}>}>};
+type Context={table:{id:string;label:string}|null;revision:number;products:Product[];ordersEnabled?:boolean;account?:Account|null};
 type Token={kind:"table"|"general";tableId?:string;token:string};
 type TableChoice={id:string;label:string};
 type Receipt={id:string;number:number;status:string;paymentStatus:string;totalCOP:number;table:string};
@@ -50,7 +53,8 @@ export default function DelibocadosQrCheckoutPage(){
      });
      const payload=await res.json();
      if(!res.ok||!payload.ok)throw new Error(failure(payload.error??"QR_SERVICE_UNAVAILABLE") + (payload.error?" ("+payload.error+")":""));
-     setContext({table:payload.table,revision:payload.revision,products:payload.products,ordersEnabled:payload.ordersEnabled===true});
+     setContext({table:payload.table,revision:payload.revision,products:payload.products,
+       ordersEnabled:payload.ordersEnabled===true,account:payload.account??null});
      if(t.kind==="general"&&t.tableId)setTables([]);
      // Rechecking availability must not replace an idempotency key already used.
      if(!refresh)setSourceKey(crypto.randomUUID());
@@ -104,8 +108,9 @@ export default function DelibocadosQrCheckoutPage(){
  const checkout=async()=>{
    if(!token?.tableId||!context||!context.ordersEnabled||!sourceKey||busy||uncertain||receipt)return;
    if(!selected.length){setError("Elegí al menos un producto.");return;}
-   if(name.trim().length<2||!/^[0-9]{8,15}$/.test(phone)){
-     setError("Completá tu nombre y teléfono con indicativo de país.");return;
+   if(name.trim().length<2){setError("Completá tu nombre.");return;}
+   if(phone.trim() && !/^[0-9]{8,15}$/.test(phone)){
+     setError("El teléfono, si lo indicás, debe tener 8 a 15 dígitos con indicativo.");return;
    }
    setError("");setBusy(true);
    try{
@@ -151,6 +156,12 @@ export default function DelibocadosQrCheckoutPage(){
    onChangeNotes={(id,value)=>setNotes(n=>({...n,[id]:value}))}
    onName={setName} onPhone={setPhone} onPayment={setPayment}
    onCustomerNote={setCustomerNote} onCheckout={()=>void checkout()}
+   onAnotherOrder={()=>{
+     if(!receipt||!token?.tableId||busy)return;
+     setReceipt(null);setCart({});setNotes({});
+     setCustomerNote("");setSourceKey(crypto.randomUUID());
+     setError("");setLoading(true);void loadContext(token,true);
+   }}
    onRefreshContext={()=>{
      if(!token?.tableId||busy||uncertain||receipt||loading)return;
      setError("");setLoading(true);void loadContext(token,true);
