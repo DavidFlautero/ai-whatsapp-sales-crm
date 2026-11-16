@@ -13,6 +13,7 @@ on:
       - "supabase/migrations/20261108210000_restaurant_qr_checkout_foundation.sql"
       - "supabase/migrations/20261108213000_restaurant_pos360_export_queue.sql"
       - "supabase/migrations/20261116103000_delibocados_open_table_sessions.sql"
+      - "supabase/migrations/20261116113000_delibocados_permanent_qr_reprint.sql"
       - "apps/api/src/scripts/restaurant-table-sessions-smoke.sql"
       - "apps/api/src/scripts/restaurant-qr-dine-in-smoke.sql"
       - "apps/api/src/scripts/restaurant-pos-outbox-smoke.sql"
@@ -118,3 +119,21 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261116103000_delibocados_open_table_sessions.sql
       - name: Verify open check, multiple courses, kitchen tickets, close and reopen
         run: psql -v ON_ERROR_STOP=1 -f apps/api/src/scripts/restaurant-table-sessions-smoke.sql
+      - name: Add sealed QR recovery without modifying existing printed digests
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261116113000_delibocados_permanent_qr_reprint.sql
+      - name: Verify legacy table tokens remained unchanged
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          DO $qrverify$
+          BEGIN
+            IF NOT EXISTS(SELECT 1 FROM public.restaurant_ops_qr_tables)
+            THEN RAISE EXCEPTION 'NO_QR_TABLES_TO_CHECK'; END IF;
+            IF EXISTS(SELECT 1 FROM public.restaurant_ops_qr_tables
+              WHERE qr_token_ciphertext IS NOT NULL)
+            THEN RAISE EXCEPTION 'OLD_QR_CHANGED_UNEXPECTEDLY'; END IF;
+            IF NOT EXISTS(SELECT 1 FROM public.commerce_schema_migrations
+              WHERE version='20261116113000')
+            THEN RAISE EXCEPTION 'QR_REPRINT_MIGRATION_MISSING'; END IF;
+            RAISE NOTICE 'OLD_QR_DIGESTS_PRESERVED_NO_EXPIRATION';
+          END $qrverify$;
+          SQL

@@ -2,7 +2,10 @@ import { polygonSchema, containsPoint } from "../services/restaurant-ops/restaur
 import { listContacts } from "../services/crm/crm.repository.js";
 import { dispatchDelibocadosTestNotifications } from "../services/restaurant-ops/restaurant-notifications.service.js";
 import { buildKitchenBoard, type KitchenOrder, type KitchenTicket, type KitchenExport } from "../services/restaurant-ops/restaurant-kitchen-board.service.js";
-import { createHash, randomBytes } from "node:crypto";
+
+import {
+  issuePrintableTableQrToken,recoverPrintableTableQrToken,printableTableQrUrl
+} from "../services/restaurant-ops/restaurant-qr-printable.service.js";
 import { Router, type Request, type Response } from "express";
 import { z, ZodError } from "zod";
 import { requireRoles } from "../middlewares/auth.middleware.js";
@@ -212,21 +215,48 @@ restaurantOpsRoutes.post("/agent/learnings/:id/review",requireRoles("owner","adm
 /**
  * Secure QR administration. This is the authoritative table registry, NOT
  * the legacy editor on port 3500. Only the authenticated restaurant owner/admin
- * can rotate a QR. A new secret is returned ONCE and stored as SHA256 only.
+ * can view a sealed QR for reprinting, or intentionally replace it.
+ * The SHA-256 digest remains the sole checkout verification value.
  */
 restaurantOpsRoutes.get("/qr/secure-tables",requireRoles("owner","admin"),
   safe(async(_req,res)=>{
     const tables=await supabaseRequest<Array<{
-      id:string;label:string;editor_table_id:string;enabled:boolean
+      id:string;label:string;editor_table_id:string;enabled:boolean;
+      qr_token_ciphertext:string|null
     }>>({
       table:"restaurant_ops_qr_tables",
-      query:"?company_id=eq.delibocados&select=id,label,editor_table_id,enabled&order=label.asc&limit=100"
+      query:"?company_id=eq.delibocados&select=id,label,editor_table_id,enabled,qr_token_ciphertext&order=label.asc&limit=100"
     });
     readOnly(res);
     return res.json({ok:true,tables:tables.map(t=>({
       id:t.id,label:t.label,enabled:t.enabled,
-      editorId:t.editor_table_id
+      editorId:t.editor_table_id,reprintAvailable:Boolean(t.qr_token_ciphertext)
     }))});
+  })
+);
+restaurantOpsRoutes.get("/qr/secure-tables/:id/link",requireRoles("owner","admin"),
+  safe(async(req,res)=>{
+    const tableId=uuid.parse(req.params.id);
+    const tables=await supabaseRequest<Array<{
+      id:string;label:string;enabled:boolean;qr_token_sha256:string;
+      qr_token_ciphertext:string|null
+    }>>({
+      table:"restaurant_ops_qr_tables",
+      query:"?company_id=eq.delibocados&id=eq."+encodeURIComponent(tableId)+
+        "&enabled=eq.true&select=id,label,enabled,qr_token_sha256,qr_token_ciphertext&limit=1"
+    });
+    const table=tables[0];
+    if(!table)return res.status(404).json({ok:false,error:"QR_TABLE_NOT_FOUND_OR_DISABLED"});
+    if(!table.qr_token_ciphertext)
+      return res.status(409).json({ok:false,error:"QR_REPRINT_NOT_STORED",
+        notice:"El QR impreso anterior sigue funcionando. Si se perdió su imagen, se debe emitir una sola vez un nuevo código."});
+    // This is an admin-only secret-bearing response; never cache.
+    const token=recoverPrintableTableQrToken(
+      tableId,table.qr_token_sha256,table.qr_token_ciphertext
+    );
+    return res.setHeader("Cache-Control","no-store").setHeader("Pragma","no-cache")
+      .json({ok:true,url:printableTableQrUrl(tableId,token),
+        table:{id:tableId,label:table.label},unchanged:true});
   })
 );
 restaurantOpsRoutes.post("/qr/secure-tables/:id/rotate",requireRoles("owner","admin"),
@@ -241,25 +271,25 @@ restaurantOpsRoutes.post("/qr/secure-tables/:id/rotate",requireRoles("owner","ad
     });
     if(tables.length!==1)
       return res.status(404).json({ok:false,error:"QR_TABLE_NOT_FOUND_OR_DISABLED"});
-    const token=randomBytes(32).toString("base64url");
-    const digest=createHash("sha256").update(token).digest("hex");
+    // Seal the new secret BEFORE touching the registry, so key failures do
+    // not invalidate any printed QR. One atomic PATCH stores both values.
+    const {token,sha256,sealed}=issuePrintableTableQrToken(tableId);
     const updated=await supabaseRequest<Array<{id:string;label:string}>>({
       table:"restaurant_ops_qr_tables",method:"PATCH",
       query:"?company_id=eq.delibocados&id=eq."+encodeURIComponent(tableId)+
         "&enabled=eq.true&select=id,label",
-      body:{qr_token_sha256:digest,updated_at:new Date().toISOString()}
+      body:{qr_token_sha256:sha256,qr_token_ciphertext:sealed,
+        updated_at:new Date().toISOString()}
     });
     if(updated.length!==1)
       return res.status(409).json({ok:false,error:"QR_ROTATION_NOT_CONFIRMED"});
     // Keep bearer capability in the URL fragment, not the request path.
     // Do not log this URL. Do not send it to any third-party QR service.
-    const url="https://panel.delibocados.online/qr-pedido"+
-      "#kind=table&tableId="+encodeURIComponent(tableId)+
-      "&token="+encodeURIComponent(token);
+    const url=printableTableQrUrl(tableId,token);
     return res.setHeader("Cache-Control","no-store")
       .setHeader("Pragma","no-cache")
       .json({ok:true,table:{id:tableId,label:updated[0].label},url,
-        notice:"El QR anterior de esta mesa ha quedado invalidado. Guardá e imprimí este código nuevo."});
+        notice:"QR emitido. Este mismo código permanece válido sin vencimiento, hasta que decidas reemplazarlo."});
   })
 );
 
