@@ -49,3 +49,11 @@
 .receipt .billGrand{margin:18px auto 12px;padding:16px 4px;text-align:left}
 .accountCard .billGrand{margin-top:10px}
 @media(max-width:620px){.billBreakdown{padding:12px 6px}.billLine{font-size:13px}.billGrand{font-size:13px}.billGrand strong{font-size:18px}.mobileCart strong{font-size:13px}}
+
+
+.previousOrders{border:1px solid #e5d3be;border-radius:12px;padding:12px 14px;margin-bottom:17px;background:#fff8f0;max-height:230px;overflow:auto}
+.previousOrders summary{cursor:pointer;font-weight:800;color:#6c432e;font-size:14px}
+.previousOrder{padding:9px 0;border-bottom:1px solid #ebddcc}
+.previousOrder>strong{font-size:12px;color:#7a604f}
+.previousOrder .billLine{font-size:12px;margin:5px 0}
+.newItemsHeading{font-size:14px;margin:12px 0 5px;color:#69412a}
