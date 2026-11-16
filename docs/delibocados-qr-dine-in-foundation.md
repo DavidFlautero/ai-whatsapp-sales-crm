@@ -21,9 +21,13 @@
 
 **No public checkout is activated by installing this PR.**
 
-1. API and Next panel processes must BOTH opt-in with
-   `DELIBOCADOS_QR_CHECKOUT_ENABLED=1`. Do not enable this until after an
-   approved single-table pilot.
+1. The API process alone controls `DELIBOCADOS_QR_CHECKOUT_ENABLED=1`.
+   The Next dashboard forwards requests to the API and does not duplicate
+   that checkout gate. Once enabled, **every table enabled in the secure QR
+   registry with a verified table/general QR token can place a dine-in order**.
+   The legacy `DELIBOCADOS_QR_PILOT_TABLE_ID` no longer limits ordering.
+   Do not enable the flag until the restaurant is ready to receive orders;
+   it does not imply POS360 delivery or printing.
 2. Existing QR editor at Python port 3500 is **not yet synchronized** with the
    new secure QR registry. The current QR images and `/restaurant-qr/image`
    may point to an older menu route; do not claim they can place orders.
