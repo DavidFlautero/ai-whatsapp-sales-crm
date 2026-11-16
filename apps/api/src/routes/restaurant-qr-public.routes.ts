@@ -196,12 +196,21 @@ async function handler(req:Request,res:Response,checkout:boolean){
     if(order.source!=="qr"||order.fulfillment_mode!=="dine_in"||
       order.qr_table_id!==payload.tableId)
       return jsonError(res,503,"QR_ORDER_UNVERIFIED");
+    // The order has already committed. A failed read of the running bill
+    // must NEVER turn a successful checkout into an ambiguous 503/retry.
+    let account:Awaited<ReturnType<typeof loadOpenTableAccount>>=null;
+    try {
+      account=await loadOpenTableAccount(table.id);
+    } catch {
+      console.error("[DELI QR ACCOUNT]",{error:"POST_CHECKOUT_READ_FAILED"});
+    }
     res.setHeader("Cache-Control","no-store");
     return res.status(201).json({
       ok:true,order:{id:order.id,number:order.number,
         status:order.status,paymentStatus:order.payment_status,
         totalCOP:order.total_cop,table:table.label},
-      note:"Pedido agregado a la cuenta de mesa. Confirmar recepción en cocina; POS360 no conectado."
+      account,
+      note:"Pedido agregado a la cuenta de mesa. Confirmar recepción en cocina."
     });
   }catch(e){
     // Never print tokens, SQL arguments, raw errors or client identities.
