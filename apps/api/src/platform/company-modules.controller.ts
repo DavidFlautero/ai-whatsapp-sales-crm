@@ -4,7 +4,7 @@ import { supabaseRequest } from "../services/db/supabase-rest.client.js";
 
 export const MODULE_KEYS = [
   "whatsapp", "ai", "orders", "customers",
-  "catalog", "qr", "floorplan", "integrations",
+  "catalog", "qr", "floorplan", "integrations", "kitchen", "fiscal",
 ] as const;
 type ModuleKey = (typeof MODULE_KEYS)[number];
 type ModuleMap = Record<ModuleKey, boolean>;
@@ -16,6 +16,7 @@ const schema = z.object({
     orders: z.boolean(), customers: z.boolean(),
     catalog: z.boolean(), qr: z.boolean(),
     floorplan: z.boolean(), integrations: z.boolean(),
+    kitchen: z.boolean(), fiscal: z.boolean(),
   }).strict(),
 }).strict();
 
