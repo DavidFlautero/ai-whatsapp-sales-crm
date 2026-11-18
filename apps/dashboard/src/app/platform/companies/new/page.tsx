@@ -63,7 +63,7 @@ export default function NewCompanyPage() {
             : "No se pudo crear la empresa. Podés reintentar sin duplicarla."
         );
       }
-      router.push("/platform/companies");
+      router.push(sector === "restaurant" ? "/platform/companies/" + encodeURIComponent(slug) + "/restaurant-setup" : "/platform/companies");
       router.refresh();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Error inesperado");
