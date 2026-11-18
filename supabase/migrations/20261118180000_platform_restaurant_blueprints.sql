@@ -9,6 +9,15 @@ ALTER TABLE public.company_integrations
   ADD CONSTRAINT company_integrations_provider_check
   CHECK (provider IN ('ninox','toteat','pos360','whapi','native','dian'));
 
+-- Commercial modules can be offered per company; switches alone do not deploy connectors.
+ALTER TABLE public.platform_company_modules
+  DROP CONSTRAINT IF EXISTS platform_company_modules_module_key_check;
+ALTER TABLE public.platform_company_modules
+  ADD CONSTRAINT platform_company_modules_module_key_check CHECK (module_key IN (
+    'whatsapp','ai','orders','customers','catalog','qr',
+    'floorplan','integrations','kitchen','fiscal'
+  ));
+
 CREATE TABLE IF NOT EXISTS public.platform_restaurant_blueprints (
   company_id text PRIMARY KEY REFERENCES public.commerce_companies(id) ON DELETE CASCADE,
   template_key text NOT NULL DEFAULT 'restaurant',
