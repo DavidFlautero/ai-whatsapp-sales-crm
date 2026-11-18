@@ -55,7 +55,7 @@ export default function CompanyModulesPage() {
   return <>
     <PageHeader kicker="SUPERADMIN / EMPRESAS" title={`Servicios de ${companyId}`}
       description="Activá o desactivá servicios sin eliminar sus datos."
-      actions={<ButtonLink href="/platform/companies">Volver</ButtonLink>} />
+      actions={<div style={{display:"flex",gap:8,flexWrap:"wrap"}}><ButtonLink href="/platform/companies">Volver</ButtonLink><ButtonLink href={"/platform/companies/" + encodeURIComponent(companyId) + "/restaurant-setup"}>Preparar restaurante</ButtonLink></div>} />
     <section className="saas-section">
       <SectionHeading title="Módulos contratados" description="Solo habilitación comercial; el panel y la API aún deben respetar estas opciones." />
       {loading ? <p>Cargando configuración…</p> : null}
