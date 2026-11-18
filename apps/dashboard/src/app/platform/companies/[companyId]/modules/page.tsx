@@ -13,6 +13,8 @@ const catalog = [
   { key: "qr", label: "Códigos QR", details: "QR de menú y por mesa" },
   { key: "floorplan", label: "Plano de mesas", details: "Organización por pisos" },
   { key: "integrations", label: "Integraciones", details: "Toteat, POS360 y otros conectores" },
+  { key: "kitchen", label: "Cocina", details: "Pantallas KDS y comprobación de impresoras (requiere instalación)" },
+  { key: "fiscal", label: "Facturación DIAN", details: "Conector fiscal por empresa (requiere proveedor y validación)" },
 ] as const;
 type Key = (typeof catalog)[number]["key"];
 type Modules = Record<Key, boolean>;
@@ -55,7 +57,7 @@ export default function CompanyModulesPage() {
   return <>
     <PageHeader kicker="SUPERADMIN / EMPRESAS" title={`Servicios de ${companyId}`}
       description="Activá o desactivá servicios sin eliminar sus datos."
-      actions={<ButtonLink href="/platform/companies">Volver</ButtonLink>} />
+      actions={<div style={{display:"flex",gap:8,flexWrap:"wrap"}}><ButtonLink href="/platform/companies">Volver</ButtonLink><ButtonLink href={"/platform/companies/" + encodeURIComponent(companyId) + "/restaurant-setup"}>Preparar restaurante</ButtonLink></div>} />
     <section className="saas-section">
       <SectionHeading title="Módulos contratados" description="Solo habilitación comercial; el panel y la API aún deben respetar estas opciones." />
       {loading ? <p>Cargando configuración…</p> : null}
