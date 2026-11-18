@@ -7,7 +7,8 @@ export type CompanyIntegrationProvider =
   | "toteat"
   | "pos360"
   | "whapi"
-  | "native";
+  | "native"
+  | "dian";
 
 export type CompanyIntegrationRecord = {
   company_id: string;
@@ -22,6 +23,7 @@ const PROVIDERS = new Set<string>([
   "pos360",
   "whapi",
   "native",
+  "dian",
 ]);
 
 export async function getCompanyIntegration(
