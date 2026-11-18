@@ -130,8 +130,8 @@ export async function getRestaurantBlueprint(req: Request, res: Response) {
       whatsapp: isReady(integrations, "whapi") && moduleMap.whatsapp === true,
       pos360: isReady(integrations, "pos360") &&
         productIds.size > 0 && reviewed.size === productIds.size && livePos,
-      kitchen: kitchenVerified,
-      fiscal: isReady(integrations, "dian") && liveFiscal,
+      kitchen: kitchenVerified && moduleMap.kitchen === true,
+      fiscal: isReady(integrations, "dian") && liveFiscal && moduleMap.fiscal === true,
       acceptance: false, // Requires a separate verified end-to-end release workflow.
     };
 
