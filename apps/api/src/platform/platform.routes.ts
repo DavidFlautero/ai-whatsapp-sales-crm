@@ -2,6 +2,7 @@ import { resolveAccessContext } from "../core/http/access-context.middleware.js"
 import { requirePermission } from "../core/http/permission.middleware.js";
 import { observeAccessDecision } from "../core/http/access-observation.middleware.js";
 import { getCompanyModules, saveCompanyModules } from "./company-modules.controller.js";
+import { getRestaurantBlueprint, prepareRestaurantBlueprint } from "./restaurant-blueprint.controller.js";
 import { Router } from "express";
 import {
   companies,
@@ -100,3 +101,7 @@ platformAdminRoutes.put(
 
 platformAdminRoutes.get("/companies/:companyId/modules", getCompanyModules);
 platformAdminRoutes.put("/companies/:companyId/modules", saveCompanyModules);
+
+// Prepare a reusable, disabled-by-default restaurant tenant blueprint.
+platformAdminRoutes.get("/companies/:companyId/restaurant-setup", getRestaurantBlueprint);
+platformAdminRoutes.post("/companies/:companyId/restaurant-setup/prepare", prepareRestaurantBlueprint);
