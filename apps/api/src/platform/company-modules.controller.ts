@@ -16,7 +16,7 @@ const schema = z.object({
     orders: z.boolean(), customers: z.boolean(),
     catalog: z.boolean(), qr: z.boolean(),
     floorplan: z.boolean(), integrations: z.boolean(),
-    kitchen: z.boolean(), fiscal: z.boolean(),
+    kitchen: z.boolean().default(false), fiscal: z.boolean().default(false),
   }).strict(),
 }).strict();
 
