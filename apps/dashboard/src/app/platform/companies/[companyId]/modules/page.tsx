@@ -13,6 +13,8 @@ const catalog = [
   { key: "qr", label: "Códigos QR", details: "QR de menú y por mesa" },
   { key: "floorplan", label: "Plano de mesas", details: "Organización por pisos" },
   { key: "integrations", label: "Integraciones", details: "Toteat, POS360 y otros conectores" },
+  { key: "kitchen", label: "Cocina", details: "Pantallas KDS y comprobación de impresoras (requiere instalación)" },
+  { key: "fiscal", label: "Facturación DIAN", details: "Conector fiscal por empresa (requiere proveedor y validación)" },
 ] as const;
 type Key = (typeof catalog)[number]["key"];
 type Modules = Record<Key, boolean>;
