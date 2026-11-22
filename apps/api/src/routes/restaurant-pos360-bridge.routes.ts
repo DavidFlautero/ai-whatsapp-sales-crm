@@ -38,6 +38,9 @@ restaurantPos360BridgeRoutes.post("/health",(_req,res)=>{
 });
 
 restaurantPos360BridgeRoutes.post("/claim",async(req,res)=>{
+ // Full claim is disabled until the historical outbox has been reconciled.
+ if(process.env.DELIBOCADOS_POS360_FULL_CLAIM_ENABLED!=="1")
+   return deny(res,403,"FULL_CLAIM_DISABLED_USE_PILOT");
  if(!req.is("application/json"))return deny(res,415,"JSON_REQUIRED");
  const body=z.object({}).strict().safeParse(req.body);
  if(!body.success)return deny(res,400,"INVALID_INPUT");
@@ -48,6 +51,21 @@ restaurantPos360BridgeRoutes.post("/claim",async(req,res)=>{
  }catch{
   console.error("[POS360 BRIDGE CLAIM] operation failed");
   return deny(res,503,"POS360_CLAIM_UNAVAILABLE");
+ }
+});
+
+// Pilot-only claim: SQL requires a separately approved, expiring export allowlist.
+restaurantPos360BridgeRoutes.post("/claim-pilot",async(req,res)=>{
+ if(!req.is("application/json"))return deny(res,415,"JSON_REQUIRED");
+ const parsed=z.object({}).strict().safeParse(req.body);
+ if(!parsed.success)return deny(res,400,"INVALID_INPUT");
+ try{
+  const job=await supabaseRpc<Record<string,unknown>|null>(
+    "restaurant_ops_pos360_claim_pilot",{p_company_id:"delibocados"});
+  return res.json({ok:true,job:job??null});
+ }catch{
+  console.error("[POS360 PILOT CLAIM] operation failed");
+  return deny(res,503,"POS360_PILOT_CLAIM_UNAVAILABLE");
  }
 });
 
