@@ -13,7 +13,8 @@ fail() { echo "BLOQUEADO: $*" >&2; exit 1; }
 [[ -f "$QR" && -f "$GUARD" && -f .env ]] || fail "NO_ES_EL_VPS_CONTROL"
 grep -Fq "FULL_CLAIM_DISABLED_USE_PILOT" "$GUARD" || fail "CLAIM_GENERAL_NO_PROTEGIDO"
 grep -Fq "restaurant_ops_pos360_claim_pilot" "$GUARD" || fail "CLAIM_PILOTO_NO_DESPLEGADO"
-[[ -z "$(git status --porcelain -- "$QR")" ]] || fail "RUTA_QR_TIENE_CAMBIOS_LOCALES"
+# A locally modified QR route is expected: preserve it using a three-way
+# merge in /tmp. Never overwrite any VPS edit or resolve conflicts by guessing.
 [[ ! -e "$MIG" ]] || fail "MIGRACION_YA_EXISTE_REVISAR_ANTES"
 command -v pnpm >/dev/null || fail "FALTA_PNPM"
 command -v docker >/dev/null || fail "FALTA_DOCKER"
@@ -31,18 +32,35 @@ echo "COLA_HISTORICA=6_PENDING_SIN_CAMBIOS"
 git fetch -q origin "$BRANCH"
 git cat-file -e "FETCH_HEAD:$QR" || fail "RUTA_QR_NO_ENCONTRADA_EN_GITHUB"
 git cat-file -e "FETCH_HEAD:$MIG" || fail "MIGRACION_NO_ENCONTRADA_EN_GITHUB"
-BASE="$(git merge-base HEAD FETCH_HEAD)"
-git diff --quiet "$BASE" HEAD -- "$QR" || fail "RUTA_QR_CAMBIO_EN_HEAD_DESDE_BRANCH"
-
+BASE="$(git merge-base HEAD FETCH_HEAD)" || fail "NO_SE_PUDO_OBTENER_ANCESTRO_COMUN"
 BACKUP="$(mktemp -d /tmp/deli-qr-pilot-install.XXXXXX)"
 cp -p "$QR" "$BACKUP/restaurant-qr-public.routes.ts.original"
+git show "$BASE:$QR" > "$BACKUP/qr-base.ts" || fail "FALTA_BASE_QR"
 git show "FETCH_HEAD:$QR" > "$BACKUP/restaurant-qr-public.routes.ts.new"
 git show "FETCH_HEAD:$MIG" > "$BACKUP/pilot.sql"
 
-grep -Fq "restaurant_ops_create_qr_order_pilot" "$BACKUP/pilot.sql" || fail "FUNCION_PILOTO_AUSENTE"
-grep -Fq 'DELIBOCADOS_QR_MESA1_PILOT_ENABLED' "$BACKUP/restaurant-qr-public.routes.ts.new" || fail "FLAG_PILOTO_AUSENTE"
+echo "=== FUSION SEGURA DE CAMBIOS LOCALES QR ==="
+# git merge-file -p leaves ALL original files untouched; only a clean,
+# non-conflicting result may be copied into the API source.
+merge_result=0
+git merge-file -p \
+  -L 'QR_VPS_LOCAL' -L 'QR_ANCESTRO' -L 'QR_PILOTO_GITHUB' \
+  "$BACKUP/restaurant-qr-public.routes.ts.original" \
+  "$BACKUP/qr-base.ts" \
+  "$BACKUP/restaurant-qr-public.routes.ts.new" \
+  > "$BACKUP/qr-merged.ts" || merge_result=$?
+if [[ "$merge_result" -ne 0 ]]; then
+  echo "CONFLICTO_QR=SI - NO SE MODIFICO NINGUN ARCHIVO" >&2
+  echo "DIAGNOSTICO_EN=$BACKUP/qr-merged.ts" >&2
+  echo "Para revisar SIN mostrar secretos: git diff -- $QR" >&2
+  fail "FUSION_QR_REQUIERE_REVISION_MANUAL"
+fi
 
-cp "$BACKUP/restaurant-qr-public.routes.ts.new" "$QR"
+grep -Fq "restaurant_ops_create_qr_order_pilot" "$BACKUP/pilot.sql" || fail "FUNCION_PILOTO_AUSENTE"
+grep -Fq 'DELIBOCADOS_QR_MESA1_PILOT_ENABLED' "$BACKUP/qr-merged.ts" || fail "FLAG_PILOTO_AUSENTE"
+
+echo "FUSION_QR=SIN_CONFLICTOS | CAMBIOS_LOCALES=CONSERVADOS"
+cp "$BACKUP/qr-merged.ts" "$QR"
 cp "$BACKUP/pilot.sql" "$MIG"
 
 if ! pnpm --filter @ventas/api typecheck; then
@@ -58,6 +76,10 @@ if ! docker exec -i "$DB" psql -v ON_ERROR_STOP=1 -U postgres -d postgres < "$MI
   fail "SQL_FALLO_SE_RESTAURARON_ARCHIVOS_MIGRACION_TRANSACCIONAL"
 fi
 echo "MIGRACION=APLICADA"
+# PostgREST may need an explicit schema cache reload after a new RPC.
+docker exec "$DB" psql -v ON_ERROR_STOP=1 -U postgres -d postgres \
+  -c "NOTIFY pgrst, 'reload schema';" >/dev/null
+echo "POSTGREST_SCHEMA_RELOAD=SOLICITADA"
 
 DELIBOCADOS_QR_CHECKOUT_ENABLED=0 \
 DELIBOCADOS_QR_MESA1_PILOT_ENABLED=0 \
