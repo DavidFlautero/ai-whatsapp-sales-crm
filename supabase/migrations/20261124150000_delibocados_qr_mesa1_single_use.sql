@@ -36,6 +36,22 @@ REVOKE ALL ON public.restaurant_ops_qr_single_use_pilot
 GRANT SELECT,INSERT,UPDATE ON public.restaurant_ops_qr_single_use_pilot
   TO service_role;
 
+-- Register the already verified Mesa 1 automatically, ALWAYS disabled.
+-- If Mesa 1 is absent or ambiguous, do not create a usable gate.
+INSERT INTO public.restaurant_ops_qr_single_use_pilot(
+  singleton,company_id,table_id,enabled,approved_by
+)
+SELECT 1,'delibocados',t.id,false,'migration-disabled'
+FROM public.restaurant_ops_qr_tables t
+WHERE t.company_id='delibocados' AND t.label='Mesa 1'
+  AND t.enabled=true
+  AND (
+    SELECT count(*) FROM public.restaurant_ops_qr_tables t2
+    WHERE t2.company_id='delibocados' AND t2.label='Mesa 1'
+      AND t2.enabled=true
+  )=1
+ON CONFLICT(singleton) DO NOTHING;
+
 -- Same contract as restaurant_ops_create_qr_order, but scope is immutable:
 -- verified Mesa 1 token, one deli-006 x1, exactly 14,000 COP, cash, no modifiers.
 -- A prior sourceKey may be replayed idempotently; another sourceKey cannot.
