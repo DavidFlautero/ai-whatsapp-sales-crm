@@ -76,6 +76,9 @@ BEGIN
     OR p_qr_kind IS DISTINCT FROM 'table'
     OR p_payment_method IS DISTINCT FROM 'cash'
     OR p_payment_status IS DISTINCT FROM 'cash_on_delivery'
+    -- Preserve the stricter canary identity rule already enforced on the VPS.
+    OR upper(btrim(coalesce(p_customer_name,''))) <> 'PILOTO NEUROMIND'
+    OR btrim(coalesce(p_customer_phone,'')) <> ''
     OR p_customer_confirmed IS DISTINCT FROM true
     OR p_items IS NULL OR jsonb_typeof(p_items) IS DISTINCT FROM 'array'
     OR jsonb_array_length(p_items) <> 1
