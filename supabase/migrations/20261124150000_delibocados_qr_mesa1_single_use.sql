@@ -110,6 +110,15 @@ BEGIN
   IF v_sku_count <> 1 THEN
     RAISE EXCEPTION 'QR_PILOT_MENU_CHANGED'; END IF;
 
+  -- The single product must be explicitly reviewed for the original POS.
+  IF NOT EXISTS (
+    SELECT 1 FROM public.restaurant_ops_pos_product_map m
+    WHERE m.company_id='delibocados' AND m.provider='pos360'
+      AND m.product_id='deli-006'
+      AND m.external_product_code='DLB-P-0006'
+      AND m.active=true AND m.reviewed_at IS NOT NULL
+  ) THEN RAISE EXCEPTION 'QR_PILOT_POS_PRODUCT_NOT_APPROVED'; END IF;
+
   -- Never create a client-facing pilot order if the POS connector is OFF.
   IF NOT EXISTS (
     SELECT 1 FROM public.company_integrations cfg
