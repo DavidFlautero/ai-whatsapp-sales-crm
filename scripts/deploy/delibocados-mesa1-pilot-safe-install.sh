@@ -50,10 +50,70 @@ git merge-file -p \
   "$BACKUP/restaurant-qr-public.routes.ts.new" \
   > "$BACKUP/qr-merged.ts" || merge_result=$?
 if [[ "$merge_result" -ne 0 ]]; then
-  echo "CONFLICTO_QR=SI - NO SE MODIFICO NINGUN ARCHIVO" >&2
-  echo "DIAGNOSTICO_EN=$BACKUP/qr-merged.ts" >&2
-  echo "Para revisar SIN mostrar secretos: git diff -- $QR" >&2
-  fail "FUSION_QR_REQUIERE_REVISION_MANUAL"
+  echo "=== RESOLVIENDO EXCLUSIVAMENTE EL CONFLICTO CANARY IDENTIFICADO ==="
+  # This deterministic resolver accepts exactly ONE known conflict, preserving
+  # the VPS's stricter customer/table restrictions and the new transactional RPC.
+  # Anything different remains blocked. It never edits the live file.
+  if ! python3 - "$BACKUP/qr-merged.ts" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+p = Path(sys.argv[1])
+s = p.read_text(encoding="utf-8")
+rx = re.compile(
+    r"^<<<<<<< QR_VPS_LOCAL\n(.*?)^=======\n(.*?)^>>>>>>> QR_PILOTO_GITHUB\n",
+    re.MULTILINE | re.DOTALL
+)
+blocks = list(rx.finditer(s))
+if len(blocks) != 1:
+    raise SystemExit("BLOQUEADO: NO_ES_UN_SOLO_CONFLICTO_CONOCIDO")
+a, b = blocks[0].group(1), blocks[0].group(2)
+
+vps_tail = '    const order=await supabaseRpc<Row>("restaurant_ops_create_qr_order",{'
+pilot_tail = '''    const order=await supabaseRpc<Row>(
+      normalEnabled?"restaurant_ops_create_qr_order":"restaurant_ops_create_qr_order_pilot",{'''
+required_vps = (
+    '// NEUROMIND_CANARY_SINGLE_ORDER',
+    'payload.tableId!=="f3de7249-b4a9-551d-bd65-dc7fa50a0f92"',
+    'payload.customerName.trim().toUpperCase()!=="PILOTO NEUROMIND"',
+    'Boolean(payload.customerPhone?.trim())',
+    '"QR_PILOT_ORDER_RESTRICTED"'
+)
+required_new = (
+    'if(!normalEnabled){',
+    'table.label!=="Mesa 1"',
+    '"QR_PILOT_SCOPE_DENIED"',
+    'restaurant_ops_create_qr_order_pilot'
+)
+if not a.rstrip().endswith(vps_tail):
+    raise SystemExit("BLOQUEADO: CANARY_VPS_DIFERENTE")
+if not b.rstrip().endswith(pilot_tail):
+    raise SystemExit("BLOQUEADO: RPC_PILOTO_DIFERENTE")
+if any(a.count(x)!=1 for x in required_vps):
+    raise SystemExit("BLOQUEADO: RESTRICCIONES_VPS_DIFERENTES")
+if any(b.count(x)!=1 for x in required_new):
+    raise SystemExit("BLOQUEADO: RESTRICCIONES_GITHUB_DIFERENTES")
+
+# Local canary safety stays intact; the new pilot-only RPC replaces the old
+# unrestricted QR RPC. It remains blocked by both layers of validation.
+vps_guard = a[:a.rfind(vps_tail)]
+resolved = vps_guard + b
+combined = s[:blocks[0].start()] + resolved + s[blocks[0].end():]
+if re.search(r"^(<<<<<<<|=======|>>>>>>>)", combined, re.MULTILINE):
+    raise SystemExit("BLOQUEADO: CONFLICTOS_RESTANTES")
+if combined.count("NEUROMIND_CANARY_SINGLE_ORDER")!=1 or combined.count(
+    'normalEnabled?"restaurant_ops_create_qr_order":"restaurant_ops_create_qr_order_pilot"'
+)!=1:
+    raise SystemExit("BLOQUEADO: FUSION_NO_VALIDA")
+p.write_text(combined, encoding="utf-8")
+print("CONFLICTO_CANARY=RESUELTO_SIN_PERDER_PROTECCIONES")
+PY
+  then
+    echo "CONFLICTO_QR=SI - NO SE MODIFICO NINGUN ARCHIVO" >&2
+    echo "DIAGNOSTICO_EN=$BACKUP/qr-merged.ts" >&2
+    fail "FUSION_QR_REQUIERE_REVISION_MANUAL"
+  fi
 fi
 
 grep -Fq "restaurant_ops_create_qr_order_pilot" "$BACKUP/pilot.sql" || fail "FUNCION_PILOTO_AUSENTE"
