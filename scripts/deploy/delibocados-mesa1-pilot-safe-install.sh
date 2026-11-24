@@ -15,7 +15,8 @@ grep -Fq "FULL_CLAIM_DISABLED_USE_PILOT" "$GUARD" || fail "CLAIM_GENERAL_NO_PROT
 grep -Fq "restaurant_ops_pos360_claim_pilot" "$GUARD" || fail "CLAIM_PILOTO_NO_DESPLEGADO"
 # A locally modified QR route is expected: preserve it using a three-way
 # merge in /tmp. Never overwrite any VPS edit or resolve conflicts by guessing.
-[[ ! -e "$MIG" ]] || fail "MIGRACION_YA_EXISTE_REVISAR_ANTES"
+# Existing migrations may come from a prior interrupted installation.
+# Compare their bytes to GitHub before deciding whether to resume.
 command -v pnpm >/dev/null || fail "FALTA_PNPM"
 command -v docker >/dev/null || fail "FALTA_DOCKER"
 
@@ -26,8 +27,9 @@ query() { docker exec "$DB" psql -U postgres -d postgres -Atqc "$1"; }
 OLD="$(query "SELECT count(*) FROM public.restaurant_ops_pos_exports WHERE company_id='delibocados' AND provider='pos360' AND status='pending';")"
 [[ "$OLD" = "6" ]] || fail "LA_COLA_HISTORICA_YA_NO_ES_6_PENDING: $OLD"
 INSTALLED="$(query "SELECT count(*) FROM public.commerce_schema_migrations WHERE version='20261124150000';")"
-[[ "$INSTALLED" = "0" ]] || fail "MIGRACION_YA_REGISTRADA"
+[[ "$INSTALLED" = "0" || "$INSTALLED" = "1" ]] || fail "ESTADO_MIGRACION_INESPERADO"
 echo "COLA_HISTORICA=6_PENDING_SIN_CAMBIOS"
+echo "MIGRACION_DB_REGISTRADA=$INSTALLED"
 
 git fetch -q origin "$BRANCH"
 git cat-file -e "FETCH_HEAD:$QR" || fail "RUTA_QR_NO_ENCONTRADA_EN_GITHUB"
@@ -39,7 +41,29 @@ git show "$BASE:$QR" > "$BACKUP/qr-base.ts" || fail "FALTA_BASE_QR"
 git show "FETCH_HEAD:$QR" > "$BACKUP/restaurant-qr-public.routes.ts.new"
 git show "FETCH_HEAD:$MIG" > "$BACKUP/pilot.sql"
 
-echo "=== FUSION SEGURA DE CAMBIOS LOCALES QR ==="
+if [[ -f "$MIG" ]]; then
+  if ! cmp -s "$MIG" "$BACKUP/pilot.sql"; then
+    echo "MIGRACION_LOCAL_SHA256=$(sha256sum "$MIG" | cut -d ' ' -f 1)"
+    echo "MIGRACION_GITHUB_SHA256=$(sha256sum "$BACKUP/pilot.sql" | cut -d ' ' -f 1)"
+    fail "MIGRACION_EXISTENTE_DIFERENTE_NO_SE_SOBRESCRIBE"
+  fi
+  echo "MIGRACION_EXISTENTE=IDENTICA_A_GITHUB"
+else
+  echo "MIGRACION_EXISTENTE=NO"
+fi
+
+# If a previous run already left a validated pilot QR route, don't merge it again.
+if grep -Fq 'DELIBOCADOS_QR_MESA1_PILOT_ENABLED' "$QR"; then
+  for guard in 'NEUROMIND_CANARY_SINGLE_ORDER' \
+    'restaurant_ops_create_qr_order_pilot' \
+    'QR_PILOT_ORDER_RESTRICTED' \
+    'QR_PILOT_SCOPE_DENIED'; do
+    grep -Fq "$guard" "$QR" || fail "RUTA_QR_PILOTO_EXISTENTE_INCOMPLETA"
+  done
+  cp -p "$QR" "$BACKUP/qr-merged.ts"
+  echo "RUTA_QR_PILOTO_YA_PRESENTE=CONSERVADA"
+else
+  echo "=== FUSION SEGURA DE CAMBIOS LOCALES QR ==="
 # git merge-file -p leaves ALL original files untouched; only a clean,
 # non-conflicting result may be copied into the API source.
 merge_result=0
@@ -116,26 +140,48 @@ PY
   fi
 fi
 
+fi # end optional QR three-way merge
+
 grep -Fq "restaurant_ops_create_qr_order_pilot" "$BACKUP/pilot.sql" || fail "FUNCION_PILOTO_AUSENTE"
 grep -Fq 'DELIBOCADOS_QR_MESA1_PILOT_ENABLED' "$BACKUP/qr-merged.ts" || fail "FLAG_PILOTO_AUSENTE"
 
-echo "FUSION_QR=SIN_CONFLICTOS | CAMBIOS_LOCALES=CONSERVADOS"
+echo "FUSION_QR=VALIDADA | CAMBIOS_LOCALES=CONSERVADOS"
+MIG_CREATED=0
+if [[ ! -f "$MIG" ]]; then
+  cp "$BACKUP/pilot.sql" "$MIG"
+  MIG_CREATED=1
+fi
 cp "$BACKUP/qr-merged.ts" "$QR"
-cp "$BACKUP/pilot.sql" "$MIG"
 
-if ! pnpm --filter @ventas/api typecheck; then
+restore_files() {
   cp -p "$BACKUP/restaurant-qr-public.routes.ts.original" "$QR"
-  rm -f "$MIG"
+  if [[ "$MIG_CREATED" = "1" ]]; then rm -f "$MIG"; fi
+}
+if ! pnpm --filter @ventas/api typecheck; then
+  restore_files
   fail "TYPECHECK_FALLO_SE_RESTAURARON_ARCHIVOS"
 fi
 echo "TYPECHECK=OK"
 
-if ! docker exec -i "$DB" psql -v ON_ERROR_STOP=1 -U postgres -d postgres < "$MIG"; then
-  cp -p "$BACKUP/restaurant-qr-public.routes.ts.original" "$QR"
-  rm -f "$MIG"
-  fail "SQL_FALLO_SE_RESTAURARON_ARCHIVOS_MIGRACION_TRANSACCIONAL"
+if [[ "$INSTALLED" = "0" ]]; then
+  if ! docker exec -i "$DB" psql -v ON_ERROR_STOP=1 -U postgres -d postgres < "$MIG"; then
+    restore_files
+    fail "SQL_FALLO_SE_RESTAURARON_ARCHIVOS_MIGRACION_TRANSACCIONAL"
+  fi
+  echo "MIGRACION=APLICADA"
+else
+  echo "MIGRACION=YA_APLICADA_SE_OMITE_SQL"
 fi
-echo "MIGRACION=APLICADA"
+
+REG="$(query "SELECT count(*) FROM public.commerce_schema_migrations WHERE version='20261124150000';")"
+[[ "$REG" = "1" ]] || fail "MIGRACION_NO_REGISTRADA"
+GATE_CLASS="$(query "SELECT to_regclass('public.restaurant_ops_qr_single_use_pilot') IS NOT NULL;")"
+[[ "$GATE_CLASS" = "t" ]] || fail "TABLA_PILOTO_AUSENTE"
+RPC_COUNT="$(query "SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname='restaurant_ops_create_qr_order_pilot';")"
+[[ "$RPC_COUNT" = "1" ]] || fail "FUNCION_PILOTO_AUSENTE_DB"
+UNSAFE="$(query "SELECT count(*) FROM public.restaurant_ops_qr_single_use_pilot WHERE enabled OR consumed_at IS NOT NULL OR order_id IS NOT NULL;")"
+[[ "$UNSAFE" = "0" ]] || fail "PILOTO_YA_ACTIVADO_O_CONSUMIDO"
+echo "VALIDACION_DB_PILOTO=OK"
 # PostgREST may need an explicit schema cache reload after a new RPC.
 docker exec "$DB" psql -v ON_ERROR_STOP=1 -U postgres -d postgres \
   -c "NOTIFY pgrst, 'reload schema';" >/dev/null
