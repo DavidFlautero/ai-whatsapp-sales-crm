@@ -178,9 +178,8 @@ async function handler(req:Request,res:Response,checkout:boolean){
     const table=await verifiedTable(input);
     if(!table)return jsonError(res,404,"QR_NOT_AVAILABLE");
 
-    // No extra single-table pilot gate. verifiedTable already checks that
-    // the selected table is enabled and the opaque QR token matches its
-    // per-table digest (or the enabled general QR digest).
+    // Token verification is independent of the additional one-use pilot gate.
+    // The pilot is constrained a second time by the transactional SQL RPC.
     if(!checkout){
       const ordersEnabled=normalEnabled||Boolean(
         pilotConfigured&&input.kind==="table"&&table.label==="Mesa 1"&&
@@ -200,9 +199,14 @@ async function handler(req:Request,res:Response,checkout:boolean){
         id:p.id,name:p.name,category:p.category??"",priceCOP:p.priceCOP
       }));
       const richProducts=enrichMenuProducts(menu,products);
+      // An armed pilot presents only the sole SKU that SQL permits.
+      const visibleProducts=pilotConfigured&&ordersEnabled
+        ? richProducts.filter(p=>p.id==="deli-006"&&p.priceCOP===14000)
+        : richProducts;
       const account=await loadOpenTableAccount(table.id);
       res.setHeader("Cache-Control","no-store");
-      return res.json({ok:true,table,revision:menu.revision,products:richProducts,ordersEnabled,account});
+      return res.json({ok:true,table,revision:menu.revision,
+        products:visibleProducts,ordersEnabled,account});
     }
     const payload=input as z.infer<typeof orderInput>;
     if(!normalEnabled){
