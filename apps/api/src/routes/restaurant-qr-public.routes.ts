@@ -1,6 +1,7 @@
 /**
- * Delibocados public QR checkout. DISABLED unless the API process explicitly
- * has DELIBOCADOS_QR_CHECKOUT_ENABLED=1. No POS transport / printing here.
+ * Delibocados public QR checkout. Normal checkout is disabled by default.
+ * An independently gated one-use Mesa 1 pilot is opt-in and enforced in SQL.
+ * No POS transport / printing here.
  * QR token is sent only inside POST JSON, never as a query parameter or log.
  */
 import { createHash } from "node:crypto";
@@ -47,6 +48,24 @@ type AccountOrderRow={
     product_name:string;quantity:number;line_total_cop:number;instructions:string
   }>;
 };
+/** The single-use pilot gate is consulted only for its public availability bit.
+ * SQL rechecks and locks the same row before creating ANY order.
+ */
+async function pilotGateOpen(tableId:string):Promise<boolean>{
+  const gates=await supabaseRequest<Array<{
+    table_id:string;enabled:boolean;valid_from:string|null;
+    expires_at:string|null;consumed_at:string|null;
+  }>>({
+    table:"restaurant_ops_qr_single_use_pilot",
+    query:"?singleton=eq.1&select=table_id,enabled,valid_from,expires_at,consumed_at&limit=1"
+  });
+  const g=gates[0];
+  const now=Date.now();
+  return Boolean(g&&g.table_id===tableId&&g.enabled&&!g.consumed_at&&
+    g.valid_from&&g.expires_at&&
+    Date.parse(g.valid_from)<=now&&Date.parse(g.expires_at)>now);
+}
+
 /** A verified table QR is a capability: return its check without customer PII. */
 async function loadOpenTableAccount(tableId:string){
   const sessions=await supabaseRequest<SessionRow[]>({
@@ -59,21 +78,25 @@ async function loadOpenTableAccount(tableId:string){
   const orders=await supabaseRequest<AccountOrderRow[]>({
     table:"restaurant_ops_orders",
     query:"?company_id=eq.delibocados&table_session_id=eq."+encodeURIComponent(session.id)+
+      "&status=neq.cancelled"+
       "&select=id,number,status,total_cop,created_at,"+
       "restaurant_ops_order_items(product_name,quantity,line_total_cop,instructions)"+
       "&order=created_at.asc&limit=200"
   });
+  // The session can remain open when all its old orders are cancelled.
+  // Only show a current account if it contains any NON-cancelled orders.
+  if(orders.length===0)return null;
   return {
     id:session.id,openedAt:session.opened_at,
     orders:orders.map(o=>({
       number:o.number,status:o.status,
-      createdAt:o.created_at,totalCOP:o.status==="cancelled"?0:o.total_cop,
-      items:o.status==="cancelled"?[]:(o.restaurant_ops_order_items??[]).map(i=>({
+      createdAt:o.created_at,totalCOP:o.total_cop,
+      items:(o.restaurant_ops_order_items??[]).map(i=>({
         name:i.product_name,quantity:i.quantity,totalCOP:i.line_total_cop,
         instructions:i.instructions
       }))
     })),
-    totalCOP:orders.reduce((n,o)=>n+(o.status==="cancelled"?0:o.total_cop),0),
+    totalCOP:orders.reduce((n,o)=>n+o.total_cop,0),
     truncated:orders.length===200
   };
 }
@@ -133,10 +156,14 @@ function enrichMenuProducts<T extends {id?:string}>(menu:MenuDoc,products:T[]){
 }
 
 async function handler(req:Request,res:Response,checkout:boolean){
-  const ordersEnabled=process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED==="1";
+  const normalEnabled=process.env.DELIBOCADOS_QR_CHECKOUT_ENABLED==="1";
+  const pilotConfigured=process.env.DELIBOCADOS_QR_MESA1_PILOT_ENABLED==="1";
   const previewEnabled=process.env.DELIBOCADOS_QR_MENU_PREVIEW_ENABLED==="1";
-  // Read-only preview can load verified products but cannot place an order.
-  if(!ordersEnabled && (checkout || !previewEnabled))
+  // Never combine the full public checkout and the tightly scoped pilot.
+  if(normalEnabled&&pilotConfigured)
+    return jsonError(res,503,"QR_MODE_CONFLICT");
+  // The pilot flag never enables unrestricted checkout.
+  if(!normalEnabled&&!pilotConfigured&&(checkout||!previewEnabled))
     return jsonError(res,503,"QR_CHECKOUT_NOT_ENABLED");
   // Enabled tables with a valid per-table or general QR capability can order.
   // Identity is verified against the enabled Supabase registry, never a
@@ -155,10 +182,13 @@ async function handler(req:Request,res:Response,checkout:boolean){
     const table=await verifiedTable(input);
     if(!table)return jsonError(res,404,"QR_NOT_AVAILABLE");
 
-    // No extra single-table pilot gate. verifiedTable already checks that
-    // the selected table is enabled and the opaque QR token matches its
-    // per-table digest (or the enabled general QR digest).
+    // Token verification is independent of the additional one-use pilot gate.
+    // The pilot is constrained a second time by the transactional SQL RPC.
     if(!checkout){
+      const ordersEnabled=normalEnabled||Boolean(
+        pilotConfigured&&input.kind==="table"&&table.label==="Mesa 1"&&
+        await pilotGateOpen(table.id)
+      );
       const menus=await supabaseRequest<MenuDoc[]>({
         table:"restaurant_menu_documents",
         query:"?company_id=eq.delibocados&select=revision,payload&limit=1"
@@ -173,12 +203,33 @@ async function handler(req:Request,res:Response,checkout:boolean){
         id:p.id,name:p.name,category:p.category??"",priceCOP:p.priceCOP
       }));
       const richProducts=enrichMenuProducts(menu,products);
+      // An armed pilot presents only the sole SKU that SQL permits.
+      const visibleProducts=pilotConfigured&&ordersEnabled
+        ? richProducts.filter(p=>p.id==="deli-006"&&p.priceCOP===14000)
+        : richProducts;
       const account=await loadOpenTableAccount(table.id);
       res.setHeader("Cache-Control","no-store");
-      return res.json({ok:true,table,revision:menu.revision,products:richProducts,ordersEnabled,account});
+      return res.json({ok:true,table,revision:menu.revision,
+        products:visibleProducts,ordersEnabled,
+        pilotOnly:pilotConfigured&&ordersEnabled,account});
     }
     const payload=input as z.infer<typeof orderInput>;
-    const order=await supabaseRpc<Row>("restaurant_ops_create_qr_order",{
+    if(!normalEnabled){
+      // Shallow rejection in HTTP; the SQL pilot function enforces all conditions
+      // again within an atomic transaction. Nothing here can authorize another table.
+      if(!pilotConfigured||payload.kind!=="table"||
+         table.label!=="Mesa 1"||payload.paymentMethod!=="cash"||
+         payload.customerName.trim().toUpperCase()!=="PILOTO NEUROMIND"||
+         (payload.customerPhone??"").trim()!==""||
+         payload.items.length!==1||
+         payload.items[0].productId!=="deli-006"||
+         payload.items[0].quantity!==1||
+         (payload.items[0].instructions??"").trim()!==""||
+         (payload.customerNote??"").length>220)
+        return jsonError(res,422,"QR_PILOT_SCOPE_DENIED");
+    }
+    const order=await supabaseRpc<Row>(
+      normalEnabled?"restaurant_ops_create_qr_order":"restaurant_ops_create_qr_order_pilot",{
       p_company_id:"delibocados",
       p_source_key:payload.sourceKey,
       p_qr_kind:payload.kind,
@@ -246,7 +297,13 @@ const webOrder=webContext.extend({
 }).strict();
 
 async function handleWeb(req:Request,res:Response,checkout:boolean){
-  if(process.env.DELIBOCADOS_WEB_CHECKOUT_ENABLED!=="1")
+  // READ_ONLY_PICKUP_CONTEXT_BOOTSTRAP_V1:
+  // The original static carta.html fetches pickup menu metadata BEFORE its
+  // independently verified table QR context. A 503 here aborts init().
+  // Allow ONLY read-only pickup context while web checkout remains off.
+  // Never allow an order or a delivery quote through this exception.
+  if(process.env.DELIBOCADOS_WEB_CHECKOUT_ENABLED!=="1" &&
+     (checkout || req.body?.kind!=="pickup"))
     return jsonError(res,503,"WEB_CHECKOUT_NOT_ENABLED");
   if(limited(req,checkout?3:20))return jsonError(res,429,"WEB_RATE_LIMIT");
   if(!req.is("application/json"))return jsonError(res,415,"JSON_REQUIRED");

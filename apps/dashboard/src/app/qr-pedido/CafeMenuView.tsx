@@ -9,7 +9,7 @@ type TableChoice={id:string;label:string};
 type Account={id:string;openedAt:string;totalCOP:number;truncated:boolean;
  orders:Array<{number:number;status:string;createdAt:string;totalCOP:number;
   items:Array<{name:string;quantity:number;totalCOP:number;instructions:string}>}>};
-type MenuContext={table:{id:string;label:string}|null;revision:number;products:Product[];ordersEnabled?:boolean;account?:Account|null};
+type MenuContext={table:{id:string;label:string}|null;revision:number;products:Product[];ordersEnabled?:boolean;pilotOnly?:boolean;account?:Account|null};
 type Receipt={id:string;number:number;status:string;paymentStatus:string;totalCOP:number;table:string;
  accountTotalCOP:number|null;estimatedTotalCOP:number};
 type Banner={eyebrow:string;title:string;detail:string};
@@ -214,6 +214,7 @@ export default function CafeMenuView(props:Props){
           {selected.length===0?<p>Tu carrito está vacío.</p>:selected.map(p=><div className={styles.modalLine} key={p.id}><div><strong>{p.name}</strong><small>{p.quantity} × {money(p.priceCOP)}</small></div><b>{money(p.priceCOP*p.quantity)}</b></div>)}
           <TableBillBreakdown previousCOP={bill.previousCOP} additionalCOP={bill.additionalCOP} hasAccount={!!context.account}/>
           {!hasTable?<div className={styles.checkoutWarning}>Estás viendo el menú general. Para realizar un pedido en mesa, seleccioná una mesa válida desde la carta. No se enviará ningún pedido sin identificarla.</div>:<div className={styles.cartMesa}>Pedido para <strong>{context.table?.label}</strong></div>}
+          {context.pilotOnly?<div className={styles.checkoutWarning} role="status">Prueba controlada de Mesa 1. Solo Hamburguesa Res × 1. Usá nombre PILOTO NEUROMIND, teléfono y observaciones vacíos, y efectivo. No es el checkout general.</div>:null}
           <div className={styles.formGrid}>
             <label>Tu nombre<input autoComplete="name" value={props.name} maxLength={120} placeholder="Nombre para el pedido" disabled={busy||uncertain} onChange={e=>props.onName(e.target.value)}/></label>
             <label>Celular con indicativo (opcional)<input autoComplete="tel" inputMode="tel" placeholder="57..." value={props.phone} disabled={busy||uncertain} onChange={e=>props.onPhone(e.target.value.replace(/\D/g,"").slice(0,15))}/></label>

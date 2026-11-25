@@ -154,7 +154,10 @@ router.use("/delibocados-qr", (req,res,next)=>{
   // Marker proves the HTTPS request reached the QR handler, not the catch-all.
   res.setHeader("X-Deli-QR-Handler","api-qr-alias-v1");
   // No credentials or cross-origin browser access to another tenant.
-  if(req.headers.origin!=="https://panel.delibocados.online")
+  if(![
+    "https://panel.delibocados.online",
+    "https://delibocados.online"
+  ].includes(String(req.headers.origin ?? "")))
     return res.status(403).setHeader("Cache-Control","no-store")
       .json({ok:false,error:"ORIGIN_DENIED"});
   next();
