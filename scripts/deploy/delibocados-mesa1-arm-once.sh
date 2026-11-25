@@ -39,9 +39,13 @@ BEGIN
   PERFORM 1 FROM public.restaurant_ops_qr_single_use_pilot
     WHERE singleton=1 AND company_id='delibocados' FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'NO_PILOT_GATE'; END IF;
-  SELECT count(*),min(id) INTO v_count,v_table
+  SELECT count(*) INTO v_count
   FROM public.restaurant_ops_qr_tables
   WHERE company_id='delibocados' AND label='Mesa 1' AND enabled=true;
+  SELECT id INTO v_table
+  FROM public.restaurant_ops_qr_tables
+  WHERE company_id='delibocados' AND label='Mesa 1' AND enabled=true
+  LIMIT 1;
   IF v_count<>1 OR v_table IS DISTINCT FROM
      'f3de7249-b4a9-551d-bd65-dc7fa50a0f92'::uuid
   THEN RAISE EXCEPTION 'WRONG_MESA1_QR'; END IF;
