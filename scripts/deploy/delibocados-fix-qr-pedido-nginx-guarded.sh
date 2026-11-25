@@ -69,19 +69,7 @@ try:
           capture_output=True,text=True,check=False)
         m=re.search(r'RESULT_HTTP=(\d+)',r.stdout)
         code=m.group(1) if m else 'CURL_ERROR'
-        loc=re.findall(r'(?im)^location:[ \t]*(.*)
-    print('REPARACION_NGINX=OK')
-except Exception as e:
-    shutil.copy2(backup,src)
-    subprocess.run(['nginx','-t'],capture_output=True)
-    subprocess.run(['nginx','-s','reload'],capture_output=True)
-    print('ROLLBACK=REALIZADO')
-    print('ERROR='+str(e))
-    raise SystemExit(1)
-PY
-echo 'NO_SE_HAN_MODIFICADO_PEDIDOS_NI_EL_HTML_ANTIGUO.'
-echo 'REVISAR_QR_DE_MESA1_EN_EL_PANEL_SIN_ROTAR_TOKEN.'
-,r.stdout)
+        loc=re.findall(r'(?im)^location:[ \t]*(.*)$',r.stdout)
         location=loc[-1].strip() if loc else ''
         if code=='200':break
     if code!='200':
