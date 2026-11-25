@@ -2,7 +2,7 @@
 # Re-arm the SAME unused and EXPIRED Mesa 1 pilot for ONE controlled QR order.
 # Does not restart PM2, enable checkout general, claim any exports or touch Windows.
 set -Eeuo pipefail
-[[ "\${1:-}" == "--rearmar-expirado-mesa1" ]] || { echo "BLOQUEADO: falta --rearmar-expirado-mesa1"; exit 1; }
+[[ "${1:-}" == "--rearmar-expirado-mesa1" ]] || { echo "BLOQUEADO: falta --rearmar-expirado-mesa1"; exit 1; }
 cd /var/www/control
 fail(){ echo "BLOQUEADO: $*" >&2; exit 1; }
 [[ "$(id -u)" = 0 ]] || fail "REQUIERE_ROOT"
