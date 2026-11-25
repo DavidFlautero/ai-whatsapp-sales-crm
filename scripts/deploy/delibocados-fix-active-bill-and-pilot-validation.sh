@@ -54,10 +54,18 @@ fixes=[
  ('return jsonError(res,403,"QR_PILOT_SCOPE_DENIED");',
   'return jsonError(res,422,"QR_PILOT_SCOPE_DENIED");')
 ]
+pending=0
+already=0
 for old,new in fixes:
- if s.count(old)!=1:
-  raise SystemExit('BLOQUEADO: source mismatch: '+old[:70])
+ if s.count(new)==1:
+  already+=1
+ elif s.count(old)==1:
+  pending+=1
+ else:
+  raise SystemExit('BLOQUEADO: source desconocido/ambiguo: '+old[:70])
 print("PATCH_SOURCE=VALIDADO")
+print("CAMBIOS_PENDIENTES="+str(pending))
+print("CAMBIOS_YA_PRESENTES="+str(already))
 PY
 
 dir="$(mktemp -d /tmp/delibocados-qr-active-bill.XXXXXX)"
@@ -100,10 +108,16 @@ fixes=[
  ('return jsonError(res,403,"QR_PILOT_SCOPE_DENIED");',
   'return jsonError(res,422,"QR_PILOT_SCOPE_DENIED");')
 ]
+pending=0
 for old,new in fixes:
- assert s.count(old)==1,'Source changed during preflight'
+ if s.count(new)==1:
+  continue
+ assert s.count(old)==1,'Source changed during preflight: '+old[:70]
  s=s.replace(old,new,1)
-p.write_text(s)
+ pending+=1
+if pending:
+ p.write_text(s)
+print("CAMBIOS_APLICADOS="+str(pending))
 PY
 
 pnpm --filter @ventas/api typecheck >/dev/null
