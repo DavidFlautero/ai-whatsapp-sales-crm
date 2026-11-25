@@ -43,6 +43,7 @@ DO $$
 DECLARE
   gate public.restaurant_ops_qr_single_use_pilot%ROWTYPE;
   v_count integer;
+  v_historicos_protegidos integer;
 BEGIN
   SELECT * INTO gate
     FROM public.restaurant_ops_qr_single_use_pilot
@@ -61,10 +62,19 @@ BEGIN
     WHERE company_id='delibocados' AND label='Mesa 1' AND enabled=true
       AND id=gate.table_id;
   IF v_count<>1 THEN RAISE EXCEPTION 'MESA1_NOT_ENABLED_OR_AMBIGUOUS'; END IF;
-  SELECT count(*) INTO v_count
-    FROM public.restaurant_ops_pos_exports
-    WHERE company_id='delibocados' AND provider='pos360' AND status='pending';
-  IF v_count<>6 THEN RAISE EXCEPTION 'HISTORIC_PENDING_COUNT_CHANGED'; END IF;
+  -- All six original exports were suppressed when their owners cancelled
+  -- the old test orders. They MUST remain suppressed, never reclaimed.
+  SELECT count(*), count(*) FILTER (
+    WHERE e.status='suppressed' AND e.attempts=0
+      AND o.status='cancelled'
+  )
+    INTO v_count, v_historicos_protegidos
+  FROM public.restaurant_ops_pos_exports e
+  LEFT JOIN public.restaurant_ops_orders o
+    ON o.id=e.order_id
+  WHERE e.company_id='delibocados' AND e.provider='pos360';
+  IF v_count<>6 OR v_historicos_protegidos<>6
+  THEN RAISE EXCEPTION 'HISTORICAL_EXPORTS_NOT_SUPPRESSED_UNTOUCHED'; END IF;
   SELECT count(*) INTO v_count
     FROM public.restaurant_ops_pos360_pilot_allowlist
     WHERE enabled=true AND expires_at>now();
@@ -105,7 +115,12 @@ SELECT 'PILOTO_GATE='||
   THEN 'ON' ELSE 'OFF' END||
   ' EXPIRA_UTC='||expires_at
 FROM public.restaurant_ops_qr_single_use_pilot WHERE singleton=1;
-SELECT 'PENDING_HISTORICOS='||count(*)
+SELECT 'HISTORICOS_SUPPRESSED_INTACTOS='||count(*)
+FROM public.restaurant_ops_pos_exports e
+JOIN public.restaurant_ops_orders o ON o.id=e.order_id
+WHERE e.company_id='delibocados' AND e.provider='pos360'
+  AND e.status='suppressed' AND e.attempts=0 AND o.status='cancelled';
+SELECT 'EXPORTACIONES_PENDING='||count(*)
 FROM public.restaurant_ops_pos_exports
 WHERE company_id='delibocados' AND provider='pos360' AND status='pending';
 SQL
