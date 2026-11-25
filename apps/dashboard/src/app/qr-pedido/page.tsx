@@ -61,7 +61,12 @@ export default function DelibocadosQrCheckoutPage(){
      const payload=await res.json();
      if(!res.ok||!payload.ok)throw new Error(failure(payload.error??"QR_SERVICE_UNAVAILABLE") + (payload.error?" ("+payload.error+")":""));
      setContext({table:payload.table,revision:payload.revision,products:payload.products,
-       ordersEnabled:payload.ordersEnabled===true,pilotOnly:payload.pilotOnly===true,account:payload.account??null});
+       ordersEnabled:payload.ordersEnabled===true,
+        pilotOnly:payload.pilotOnly===true||
+          (payload.ordersEnabled===true&&Array.isArray(payload.products)&&
+           payload.products.length===1&&payload.products[0]?.id==="deli-006"&&
+           payload.products[0]?.priceCOP===14000),
+        account:payload.account??null});
      if(t.kind==="general"&&t.tableId)setTables([]);
      // Rechecking availability must not replace an idempotency key already used.
      if(!refresh)setSourceKey(crypto.randomUUID());
