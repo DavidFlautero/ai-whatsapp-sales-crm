@@ -57,21 +57,19 @@ try:
     src.write_text(original.replace(old,replacement))
     subprocess.run(['nginx','-t'],check=True,capture_output=True)
     subprocess.run(['nginx','-s','reload'],check=True,capture_output=True)
-    import time,urllib.parse
-    # nginx -s reload exits when signalled, not when every worker has swapped.
-    # Give the new config time to take effect before declaring failure.
-    final_status=''
-    final_location=''
+    # Nginx reload is asynchronous: old workers can respond briefly.
+    import urllib.parse
+    code=''; location=''
     for attempt in range(20):
         time.sleep(.5)
         r=subprocess.run(['curl','--noproxy','*','-ksS',
           '--resolve','panel.delibocados.online:443:127.0.0.1',
-          '-o','/dev/null','-D','-','-w','\\nRESULT_HTTP=%{http_code}',
+          '-o','/dev/null','-D','-','-w','\nRESULT_HTTP=%{http_code}',
           '--max-time','5','https://panel.delibocados.online/qr-pedido'],
           capture_output=True,text=True,check=False)
-        m=re.search(r'RESULT_HTTP=(\\d+)',r.stdout)
-        final_status=m.group(1) if m else 'CURL_ERROR'
-        loc=re.findall(r'(?im)^location:[ \\t]*(.*)
+        m=re.search(r'RESULT_HTTP=(\d+)',r.stdout)
+        code=m.group(1) if m else 'CURL_ERROR'
+        loc=re.findall(r'(?im)^location:[ \t]*(.*)
     print('REPARACION_NGINX=OK')
 except Exception as e:
     shutil.copy2(backup,src)
@@ -84,12 +82,12 @@ PY
 echo 'NO_SE_HAN_MODIFICADO_PEDIDOS_NI_EL_HTML_ANTIGUO.'
 echo 'REVISAR_QR_DE_MESA1_EN_EL_PANEL_SIN_ROTAR_TOKEN.'
 ,r.stdout)
-        final_location=loc[-1].strip() if loc else ''
-        if final_status=='200':break
-    if final_status!='200':
-        safe=urllib.parse.urlsplit(final_location)
+        location=loc[-1].strip() if loc else ''
+        if code=='200':break
+    if code!='200':
+        safe=urllib.parse.urlsplit(location)
         where=(safe.netloc+safe.path if safe.netloc else safe.path)[:130] or 'NINGUNO'
-        raise RuntimeError('ruta HTTPS= '+final_status+', redireccion_sin_query='+where)
+        raise RuntimeError('ruta HTTPS '+code+', Location_sin_query='+where)
     print('QR_PEDIDO_HTTP=200')
     print('REPARACION_NGINX=OK')
 except Exception as e:
