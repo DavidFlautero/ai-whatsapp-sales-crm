@@ -5,7 +5,7 @@ type Product={id:string;name:string;category:string;priceCOP:number;description?
 type Account={id:string;openedAt:string;totalCOP:number;truncated:boolean;
  orders:Array<{number:number;status:string;createdAt:string;totalCOP:number;
   items:Array<{name:string;quantity:number;totalCOP:number;instructions:string}>}>};
-type Context={table:{id:string;label:string}|null;revision:number;products:Product[];ordersEnabled?:boolean;account?:Account|null};
+type Context={table:{id:string;label:string}|null;revision:number;products:Product[];ordersEnabled?:boolean;pilotOnly?:boolean;account?:Account|null};
 type Token={kind:"table"|"general";tableId?:string;token:string};
 type TableChoice={id:string;label:string};
 type Receipt={id:string;number:number;status:string;paymentStatus:string;totalCOP:number;table:string;
@@ -22,6 +22,7 @@ function failure(code:string):string{
   QR_OPERATION_UNAVAILABLE:"No pudimos verificar el registro. Consultá al encargado.",
   ORIGIN_DENIED:"La conexión del checkout fue rechazada por una configuración del dominio.",
   INVALID_INPUT:"Los datos del código QR no tienen el formato esperado.",
+  QR_PILOT_SCOPE_DENIED:"Esta prueba admite solo Hamburguesa Res × 1, nombre PILOTO NEUROMIND, sin teléfono y en efectivo.",
   JSON_REQUIRED:"El servidor requiere una solicitud JSON.",
   QR_ORDER_UNVERIFIED:"El servidor no pudo confirmar este pedido.",
   BAD_QR_UPSTREAM:"La conexión del panel con el servicio QR devolvió una respuesta incompatible.",
@@ -60,7 +61,7 @@ export default function DelibocadosQrCheckoutPage(){
      const payload=await res.json();
      if(!res.ok||!payload.ok)throw new Error(failure(payload.error??"QR_SERVICE_UNAVAILABLE") + (payload.error?" ("+payload.error+")":""));
      setContext({table:payload.table,revision:payload.revision,products:payload.products,
-       ordersEnabled:payload.ordersEnabled===true,account:payload.account??null});
+       ordersEnabled:payload.ordersEnabled===true,pilotOnly:payload.pilotOnly===true,account:payload.account??null});
      if(t.kind==="general"&&t.tableId)setTables([]);
      // Rechecking availability must not replace an idempotency key already used.
      if(!refresh)setSourceKey(crypto.randomUUID());
@@ -136,6 +137,17 @@ export default function DelibocadosQrCheckoutPage(){
    if(name.trim().length<2){setError("Completá tu nombre.");return;}
    if(phone.trim() && !/^[0-9]{8,15}$/.test(phone)){
      setError("El teléfono, si lo indicás, debe tener 8 a 15 dígitos con indicativo.");return;
+   }
+   if(context.pilotOnly){
+     // Give a deterministic client error instead of POSTing an impossible pilot order.
+     // HTTP and SQL validate independently; no security relies on this UI check.
+     if(name.trim().toUpperCase()!=="PILOTO NEUROMIND" || phone.trim()!=="" ||
+        payment!=="cash" || selected.length!==1 ||
+        selected[0].id!=="deli-006" || selected[0].quantity!==1 ||
+        (notes["deli-006"]??"").trim()!=="" || customerNote.trim()!==""){
+       setError("Prueba Mesa 1: 1 Hamburguesa Res, nombre PILOTO NEUROMIND, teléfono vacío, efectivo y sin observaciones.");
+       return;
+     }
    }
    setError("");setBusy(true);
    try{
