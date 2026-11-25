@@ -290,7 +290,13 @@ const webOrder=webContext.extend({
 }).strict();
 
 async function handleWeb(req:Request,res:Response,checkout:boolean){
-  if(process.env.DELIBOCADOS_WEB_CHECKOUT_ENABLED!=="1")
+  // READ_ONLY_PICKUP_CONTEXT_BOOTSTRAP_V1:
+  // The original static carta.html fetches pickup menu metadata BEFORE its
+  // independently verified table QR context. A 503 here aborts init().
+  // Allow ONLY read-only pickup context while web checkout remains off.
+  // Never allow an order or a delivery quote through this exception.
+  if(process.env.DELIBOCADOS_WEB_CHECKOUT_ENABLED!=="1" &&
+     (checkout || req.body?.kind!=="pickup"))
     return jsonError(res,503,"WEB_CHECKOUT_NOT_ENABLED");
   if(limited(req,checkout?3:20))return jsonError(res,429,"WEB_RATE_LIMIT");
   if(!req.is("application/json"))return jsonError(res,415,"JSON_REQUIRED");
