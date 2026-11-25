@@ -210,7 +210,8 @@ async function handler(req:Request,res:Response,checkout:boolean){
       const account=await loadOpenTableAccount(table.id);
       res.setHeader("Cache-Control","no-store");
       return res.json({ok:true,table,revision:menu.revision,
-        products:visibleProducts,ordersEnabled,account});
+        products:visibleProducts,ordersEnabled,
+        pilotOnly:pilotConfigured&&ordersEnabled,account});
     }
     const payload=input as z.infer<typeof orderInput>;
     if(!normalEnabled){
