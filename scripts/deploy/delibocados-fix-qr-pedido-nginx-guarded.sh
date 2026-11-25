@@ -3,8 +3,8 @@
 set -Eeuo pipefail
 [[ $(id -u) -eq 0 ]] || { echo 'BLOQUEADO: usar root'; exit 1; }
 command -v nginx >/dev/null && command -v curl >/dev/null && command -v python3 >/dev/null || { echo 'BLOQUEADO: falta dependencia'; exit 1; }
-internal=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 http://127.0.0.1:3700/qr-pedido || true)
-external=$(curl -ksS --resolve panel.delibocados.online:443:127.0.0.1 -o /dev/null -w '%{http_code}' --max-time 8 https://panel.delibocados.online/qr-pedido || true)
+internal=$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' --max-time 8 http://127.0.0.1:3700/qr-pedido || true)
+external=$(curl --noproxy '*' -ksS --resolve panel.delibocados.online:443:127.0.0.1 -o /dev/null -w '%{http_code}' --max-time 8 https://panel.delibocados.online/qr-pedido || true)
 echo "NEXT_3700=$internal NGINX_PUBLICO=$external"
 if [[ "$internal" != 200 ]]; then
   echo 'BLOQUEADO: el proceso Next.js 3700 no devuelve /qr-pedido con HTTP 200. No se cambio nada.'
@@ -57,10 +57,39 @@ try:
     src.write_text(original.replace(old,replacement))
     subprocess.run(['nginx','-t'],check=True,capture_output=True)
     subprocess.run(['nginx','-s','reload'],check=True,capture_output=True)
-    r=subprocess.run(['curl','-ksS','--resolve','panel.delibocados.online:443:127.0.0.1',
-      '-o','/dev/null','-w','%{http_code}','--max-time','8',
-      'https://panel.delibocados.online/qr-pedido'],capture_output=True,text=True,check=True)
-    if r.stdout!='200':raise RuntimeError('ruta HTTP '+r.stdout)
+    import time,urllib.parse
+    # nginx -s reload exits when signalled, not when every worker has swapped.
+    # Give the new config time to take effect before declaring failure.
+    final_status=''
+    final_location=''
+    for attempt in range(20):
+        time.sleep(.5)
+        r=subprocess.run(['curl','--noproxy','*','-ksS',
+          '--resolve','panel.delibocados.online:443:127.0.0.1',
+          '-o','/dev/null','-D','-','-w','\\nRESULT_HTTP=%{http_code}',
+          '--max-time','5','https://panel.delibocados.online/qr-pedido'],
+          capture_output=True,text=True,check=False)
+        m=re.search(r'RESULT_HTTP=(\\d+)',r.stdout)
+        final_status=m.group(1) if m else 'CURL_ERROR'
+        loc=re.findall(r'(?im)^location:[ \\t]*(.*)
+    print('REPARACION_NGINX=OK')
+except Exception as e:
+    shutil.copy2(backup,src)
+    subprocess.run(['nginx','-t'],capture_output=True)
+    subprocess.run(['nginx','-s','reload'],capture_output=True)
+    print('ROLLBACK=REALIZADO')
+    print('ERROR='+str(e))
+    raise SystemExit(1)
+PY
+echo 'NO_SE_HAN_MODIFICADO_PEDIDOS_NI_EL_HTML_ANTIGUO.'
+echo 'REVISAR_QR_DE_MESA1_EN_EL_PANEL_SIN_ROTAR_TOKEN.'
+,r.stdout)
+        final_location=loc[-1].strip() if loc else ''
+        if final_status=='200':break
+    if final_status!='200':
+        safe=urllib.parse.urlsplit(final_location)
+        where=(safe.netloc+safe.path if safe.netloc else safe.path)[:130] or 'NINGUNO'
+        raise RuntimeError('ruta HTTPS= '+final_status+', redireccion_sin_query='+where)
     print('QR_PEDIDO_HTTP=200')
     print('REPARACION_NGINX=OK')
 except Exception as e:
