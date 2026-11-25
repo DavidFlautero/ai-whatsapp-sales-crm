@@ -100,6 +100,25 @@ DELIBOCADOS_QR_CHECKOUT_ENABLED=0 \
 DELIBOCADOS_POS360_FULL_CLAIM_ENABLED=0 \
 pm2 restart neuromind-api --update-env >/dev/null
 
+# PM2 reporting "online" does not mean the server socket is listening yet.
+# Poll a harmless invalid-input request until the QR route itself responds.
+echo "ESPERANDO_API_4000_DESPUES_REINICIO"
+READY=0
+for attempt in $(seq 1 40); do
+  CHECK="$(curl --noproxy '*' -sS --max-time 3 \
+    -H 'Content-Type: application/json' -X POST \
+    --data '{}' -o /dev/null -w '%{http_code}' \
+    http://127.0.0.1:4000/public/delibocados-qr/context 2>/dev/null || true)"
+  if [[ "$CHECK" == "400" ]]; then READY=1; break; fi
+  sleep 2
+done
+if [[ "$READY" != 1 ]]; then
+  echo "API_4000_NO_LISTA: ultimo_HTTP=$CHECK"
+  pm2 jlist | node -e 'let b="";process.stdin.on("data",x=>b+=x);process.stdin.on("end",()=>{const p=JSON.parse(b).find(x=>x.name==="neuromind-api"); console.log("PM2_API_STATUS="+(p?.pm2_env?.status||"NO_ENCONTRADO")); console.log("PM2_REINICIOS="+(p?.pm2_env?.restart_time??"DESCONOCIDO"));});' || true
+  fail "API_NO_REAPARECIO_DESPUES_REINICIO"
+fi
+echo "API_4000_LISTA=SI"
+
 TMP="$(mktemp)"
 STATUS="$(curl --noproxy '*' -sS --max-time 12 \
  -H 'Origin: https://delibocados.online' \
