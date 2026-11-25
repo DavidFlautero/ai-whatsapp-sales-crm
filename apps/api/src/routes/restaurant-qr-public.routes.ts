@@ -78,21 +78,25 @@ async function loadOpenTableAccount(tableId:string){
   const orders=await supabaseRequest<AccountOrderRow[]>({
     table:"restaurant_ops_orders",
     query:"?company_id=eq.delibocados&table_session_id=eq."+encodeURIComponent(session.id)+
+      "&status=neq.cancelled"+
       "&select=id,number,status,total_cop,created_at,"+
       "restaurant_ops_order_items(product_name,quantity,line_total_cop,instructions)"+
       "&order=created_at.asc&limit=200"
   });
+  // The session can remain open when all its old orders are cancelled.
+  // Only show a current account if it contains any NON-cancelled orders.
+  if(orders.length===0)return null;
   return {
     id:session.id,openedAt:session.opened_at,
     orders:orders.map(o=>({
       number:o.number,status:o.status,
-      createdAt:o.created_at,totalCOP:o.status==="cancelled"?0:o.total_cop,
-      items:o.status==="cancelled"?[]:(o.restaurant_ops_order_items??[]).map(i=>({
+      createdAt:o.created_at,totalCOP:o.total_cop,
+      items:(o.restaurant_ops_order_items??[]).map(i=>({
         name:i.product_name,quantity:i.quantity,totalCOP:i.line_total_cop,
         instructions:i.instructions
       }))
     })),
-    totalCOP:orders.reduce((n,o)=>n+(o.status==="cancelled"?0:o.total_cop),0),
+    totalCOP:orders.reduce((n,o)=>n+o.total_cop,0),
     truncated:orders.length===200
   };
 }
@@ -214,12 +218,14 @@ async function handler(req:Request,res:Response,checkout:boolean){
       // again within an atomic transaction. Nothing here can authorize another table.
       if(!pilotConfigured||payload.kind!=="table"||
          table.label!=="Mesa 1"||payload.paymentMethod!=="cash"||
+         payload.customerName.trim().toUpperCase()!=="PILOTO NEUROMIND"||
+         (payload.customerPhone??"").trim()!==""||
          payload.items.length!==1||
          payload.items[0].productId!=="deli-006"||
          payload.items[0].quantity!==1||
          (payload.items[0].instructions??"").trim()!==""||
          (payload.customerNote??"").length>220)
-        return jsonError(res,403,"QR_PILOT_SCOPE_DENIED");
+        return jsonError(res,422,"QR_PILOT_SCOPE_DENIED");
     }
     const order=await supabaseRpc<Row>(
       normalEnabled?"restaurant_ops_create_qr_order":"restaurant_ops_create_qr_order_pilot",{
