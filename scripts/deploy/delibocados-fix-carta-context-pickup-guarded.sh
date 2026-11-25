@@ -57,7 +57,9 @@ DIR="$(mktemp -d /tmp/deli-web-catalog-fix.XXXXXX)"
 cp -p "$ROUTE" "$DIR/restaurant-qr-public.routes.ts.original"
 echo "BACKUP_RUTA=$DIR"
 started=0
+rollback_required=1
 restore(){
+  if [[ "$rollback_required" != 1 ]]; then return; fi
   echo "RESTAURANDO_RUTA_ORIGINAL"
   cp -p "$DIR/restaurant-qr-public.routes.ts.original" "$ROUTE" || true
   if [[ "$started" == 1 ]]; then
@@ -67,7 +69,7 @@ restore(){
     pm2 restart neuromind-api --update-env >/dev/null || true
   fi
 }
-trap 'restore' ERR
+trap 'restore' EXIT
 
 python3 - "$ROUTE" <<'PY'
 import pathlib,sys
@@ -92,11 +94,11 @@ echo "TYPECHECK=OK"
 
 # Preserve Mesa 1 pilot flag (though its single-use DB gate may have expired),
 # and explicitly keep both global checkout and global claim disabled.
+started=1
 DELIBOCADOS_WEB_CHECKOUT_ENABLED=0 \
 DELIBOCADOS_QR_CHECKOUT_ENABLED=0 \
 DELIBOCADOS_POS360_FULL_CLAIM_ENABLED=0 \
 pm2 restart neuromind-api --update-env >/dev/null
-started=1
 
 TMP="$(mktemp)"
 STATUS="$(curl --noproxy '*' -sS --max-time 12 \
@@ -139,7 +141,8 @@ except Exception:
  sys.exit(1)
 PY
 rm -f "$TMP"
-trap - ERR
+rollback_required=0
+trap - EXIT
 echo "PARCHE_CATALOGO_READ_ONLY=INSTALADO"
 echo "CARTA_HTML_SIN_CAMBIOS=SI"
 echo "QR_SEGURIDAD_SIN_CAMBIOS=SI"
